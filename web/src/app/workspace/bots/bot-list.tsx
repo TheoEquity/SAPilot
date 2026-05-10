@@ -135,10 +135,10 @@ export const BotList = ({
                     </Card>
                   </Link>
 
-                  <CardFooter className="flex items-center justify-between gap-1 px-4 pb-3 pt-2">
+                  <CardFooter className="flex items-center justify-between gap-2 px-4 pb-3 pt-2">
                     <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
                       {bot.created && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <Calendar className="size-3" />
                           <FormatDate
                             datetime={new Date(bot.created)}
@@ -146,7 +146,7 @@ export const BotList = ({
                         </div>
                       )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-2 ml-auto">
                       <Button
                         variant="ghost"
                         size="sm"
