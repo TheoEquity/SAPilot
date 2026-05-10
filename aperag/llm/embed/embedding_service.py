@@ -19,6 +19,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Sequence, Tuple
 
+import httpx
 import litellm
 
 from aperag.llm.llm_error_types import (
@@ -177,6 +178,9 @@ class EmbeddingService:
         """
 
         try:
+            if self._should_use_dashscope_multimodal_embedding():
+                return self._embed_dashscope_multimodal(batch)
+
             response = litellm.embedding(
                 custom_llm_provider=self.embedding_provider,
                 model=self.model,
@@ -204,3 +208,58 @@ class EmbeddingService:
             logger.error(f"Batch embedding API call failed: {str(e)}")
             # Convert litellm errors to our custom types
             raise wrap_litellm_error(e, "embedding", self.embedding_provider, self.model) from e
+
+    def _should_use_dashscope_multimodal_embedding(self) -> bool:
+        return "dashscope.aliyuncs.com" in (self.api_base or "") and self.model in {
+            "multimodal-embedding-v1",
+            "tongyi-embedding-vision-plus",
+            "tongyi-embedding-vision-flash",
+            "tongyi-embedding-vision-plus-2026-03-06",
+            "tongyi-embedding-vision-flash-2026-03-06",
+            "qwen3-vl-embedding",
+            "qwen2.5-vl-embedding",
+        }
+
+    def _embed_dashscope_multimodal(self, batch: Sequence[str]) -> List[List[float]]:
+        contents = []
+        for item in batch:
+            if item.startswith("data:image/"):
+                contents.append({"image": item})
+            else:
+                contents.append({"text": item})
+
+        url = "https://dashscope.aliyuncs.com/api/v1/services/embeddings/multimodal-embedding/multimodal-embedding"
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+        payload = {"model": self.model, "input": {"contents": contents}}
+
+        try:
+            with httpx.Client(timeout=60.0) as client:
+                response = client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                result = response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "DashScope multimodal embedding API returned %s: %s",
+                e.response.status_code,
+                e.response.text,
+            )
+            raise EmbeddingError(
+                f"DashScope multimodal embedding API returned {e.response.status_code}: {e.response.text}",
+                {"provider": self.embedding_provider, "model": self.model},
+            ) from e
+        except httpx.RequestError as e:
+            logger.error("DashScope multimodal embedding API request failed: %s", str(e))
+            raise EmbeddingError(
+                f"Failed to connect to DashScope multimodal embedding API: {str(e)}",
+                {"provider": self.embedding_provider, "model": self.model},
+            ) from e
+
+        embeddings = result.get("output", {}).get("embeddings")
+        if not embeddings:
+            raise EmbeddingError(
+                "Invalid response format from DashScope multimodal embedding API",
+                {"provider": self.embedding_provider, "model": self.model, "response_keys": list(result.keys())},
+            )
+
+        embeddings = sorted(embeddings, key=lambda item: item.get("index", 0))
+        return [item["embedding"] for item in embeddings]

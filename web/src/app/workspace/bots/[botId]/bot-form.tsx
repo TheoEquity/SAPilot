@@ -2,48 +2,6 @@
 
 import { ModelSpec } from '@/api';
 import { useBotConfigContext } from '@/components/providers/bot-config-provider';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,10 +12,53 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { apiClient } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import _ from 'lodash';
+import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -65,7 +66,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
-import { Check, ChevronsUpDown, X } from 'lucide-react';
 
 const botConfigAgentModelSchema = z
   .object({
@@ -107,14 +107,17 @@ const DEFAULT_QUERY_PROMPT = `Answer the following question based on the provide
 
 const DEFAULT_WELCOME_TITLE = 'Hi, 我是 SAPilot.';
 
-const DEFAULT_WELCOME_SUBTITLE = 'SAPilot 是面向 SAP 运维场景的智能助手，可结合企业知识库与运维经验，帮助顾问快速定位问题、分析原因并提供处理建议。';
+const DEFAULT_WELCOME_SUBTITLE =
+  'SAPilot 是面向 SAP 运维场景的智能助手，可结合企业知识库与运维经验，帮助顾问快速定位问题、分析原因并提供处理建议。';
 
 export const BotForm = () => {
   const router = useRouter();
   const { bot, collections, loadBot } = useBotConfigContext();
   const [completionModels, setCompletionModels] = useState<ProviderModel[]>();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [pendingValues, setPendingValues] = useState<FormValueType | null>(null);
+  const [pendingValues, setPendingValues] = useState<FormValueType | null>(
+    null,
+  );
   const [defaultBotName, setDefaultBotName] = useState('');
 
   const page_bot = useTranslations('page_bot');
@@ -137,7 +140,8 @@ export const BotForm = () => {
           model_service_provider: '',
         },
         welcome_title: agentConfig?.welcome_title || DEFAULT_WELCOME_TITLE,
-        welcome_subtitle: agentConfig?.welcome_subtitle || DEFAULT_WELCOME_SUBTITLE,
+        welcome_subtitle:
+          agentConfig?.welcome_subtitle || DEFAULT_WELCOME_SUBTITLE,
         system_prompt_template:
           agentConfig?.system_prompt_template || DEFAULT_SYSTEM_PROMPT,
         query_prompt_template:
@@ -173,9 +177,7 @@ export const BotForm = () => {
       if (!bot?.id) return;
 
       const selectedCollections = collections.filter((c) =>
-        values.config.agent.collections?.some(
-          (sc) => sc.id === c.id,
-        ),
+        values.config.agent.collections?.some((sc) => sc.id === c.id),
       );
 
       const botUpdate = {
@@ -194,29 +196,27 @@ export const BotForm = () => {
         },
       };
 
-      const res = await apiClient.defaultApi.botsBotIdPut({
-        botId: bot.id,
-        botUpdate,
-      });
-
-      if (res.data.id && clearOldDefault) {
+      if (clearOldDefault) {
         const botsRes = await apiClient.defaultApi.botsGet({
           page: 1,
           pageSize: 100,
         });
         const bots = botsRes.data.items || [];
-        const defaultBot = bots.find(
-          (b) => b.is_default && b.id !== res.data.id,
-        );
-        if (defaultBot) {
+        const defaultBot = bots.find((b) => b.is_default && b.id !== bot.id);
+        if (defaultBot?.id) {
           await apiClient.defaultApi.botsBotIdPut({
-            botId: defaultBot.id || '',
+            botId: defaultBot.id,
             botUpdate: {
               is_default: false,
             },
           });
         }
       }
+
+      await apiClient.defaultApi.botsBotIdPut({
+        botId: bot.id,
+        botUpdate,
+      });
 
       toast.success(common_tips('update_success'));
       loadBot();
@@ -417,9 +417,7 @@ export const BotForm = () => {
         <Card>
           <CardHeader>
             <CardTitle>{page_bot('model_config')}</CardTitle>
-            <CardDescription>
-              {page_bot('model_description')}
-            </CardDescription>
+            <CardDescription>{page_bot('model_description')}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6 pt-6">
             <FormField
@@ -435,7 +433,9 @@ export const BotForm = () => {
                       value={field.value || ''}
                     >
                       <SelectTrigger className="w-full cursor-pointer md:w-6/12">
-                        <SelectValue placeholder={page_bot('model_placeholder')} />
+                        <SelectValue
+                          placeholder={page_bot('model_placeholder')}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {completionModels
@@ -492,15 +492,17 @@ export const BotForm = () => {
                           <Button
                             variant="outline"
                             role="combobox"
-                            className="w-full md:w-6/12 justify-between"
+                            className="w-full justify-between md:w-6/12"
                           >
                             {selectedItems.length > 0
-                              ? page_bot('collection_selected', { count: selectedItems.length })
+                              ? page_bot('collection_selected', {
+                                  count: selectedItems.length,
+                                })
                               : page_bot('collection_placeholder')}
                             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-full md:w-6/12 p-0">
+                        <PopoverContent className="w-full p-0 md:w-6/12">
                           <Command>
                             <CommandInput
                               placeholder={page_bot('collection_search')}
@@ -530,10 +532,7 @@ export const BotForm = () => {
                                         } else {
                                           form.setValue(
                                             'config.agent.collections',
-                                            [
-                                              ...current,
-                                              { id: collection.id },
-                                            ],
+                                            [...current, { id: collection.id }],
                                           );
                                         }
                                       }}
@@ -567,14 +566,12 @@ export const BotForm = () => {
                             {c.title}
                             <button
                               type="button"
-                              className="ml-1 rounded-full hover:bg-accent"
+                              className="hover:bg-accent ml-1 rounded-full"
                               onClick={() => {
                                 const current = field.value || [];
                                 form.setValue(
                                   'config.agent.collections',
-                                  current.filter(
-                                    (item) => item.id !== c.id,
-                                  ),
+                                  current.filter((item) => item.id !== c.id),
                                 );
                               }}
                             >
@@ -678,10 +675,15 @@ export const BotForm = () => {
           </Button>
         </div>
 
-        <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialog
+          open={confirmDialogOpen}
+          onOpenChange={setConfirmDialogOpen}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{page_bot('default_conflict_title')}</AlertDialogTitle>
+              <AlertDialogTitle>
+                {page_bot('default_conflict_title')}
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 {page_bot('default_conflict_message', { name: defaultBotName })}
               </AlertDialogDescription>

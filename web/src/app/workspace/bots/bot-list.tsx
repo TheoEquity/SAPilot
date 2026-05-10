@@ -2,22 +2,6 @@
 
 import { Bot } from '@/api';
 import { FormatDate } from '@/components/format-date';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,21 +12,40 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
-import _ from 'lodash';
-import { Calendar, EllipsisVertical, MessageSquare, Plus, Settings, Pencil, Trash2 } from 'lucide-react';
+import {
+  Calendar,
+  EllipsisVertical,
+  MessageSquare,
+  Pencil,
+  Plus,
+  Settings,
+  Trash2,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-export const BotList = ({
-  bots,
-}: {
-  bots: Bot[];
-}) => {
+export const BotList = ({ bots }: { bots: Bot[] }) => {
   const router = useRouter();
   const [searchValue, setSearchValue] = useState<string>('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -112,11 +115,12 @@ export const BotList = ({
             })
             .map((bot) => {
               return (
-                <div key={bot.id} className="relative group">
-                  <Link
-                    href={`/workspace/bots/${bot.id}/chats`}
-                  >
-                    <Card className="hover:bg-accent/30 cursor-pointer gap-2 rounded-md">
+                <div key={bot.id} className="group relative">
+                  <Card className="hover:bg-accent/30 gap-2 rounded-md">
+                    <Link
+                      href={`/workspace/bots/${bot.id}/chats`}
+                      className="cursor-pointer"
+                    >
                       <CardHeader className="px-4">
                         <div className="flex items-center justify-between">
                           <CardTitle className="h-5 truncate">
@@ -130,65 +134,63 @@ export const BotList = ({
                         </div>
                       </CardHeader>
                       <CardDescription className="mb-4 truncate px-4">
-                        {bot.description || page_bot('no_description_available')}
+                        {bot.description ||
+                          page_bot('no_description_available')}
                       </CardDescription>
-                    </Card>
-                  </Link>
-
-                  <CardFooter className="flex items-center justify-between gap-2 px-4 pb-3 pt-2">
-                    <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
-                      {bot.created && (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="size-3" />
-                          <FormatDate
-                            datetime={new Date(bot.created)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2 ml-auto">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 cursor-pointer px-2"
-                        asChild
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Link href={`/workspace/bots/${bot.id}/chats`}>
-                          <MessageSquare className="mr-1 size-3" />
-                          {page_bot('chats')}
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 cursor-pointer px-2"
-                        asChild
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Link href={`/workspace/bots/${bot.id}/edit`}>
-                          <Pencil className="mr-1 size-3" />
-                          {page_bot('edit')}
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          'h-7 cursor-pointer px-2',
-                          bot.is_protected && 'cursor-not-allowed opacity-50',
+                    </Link>
+                    <CardFooter className="flex items-center gap-2 px-4 pt-2 pb-3">
+                      <div className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs">
+                        {bot.created && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="size-3" />
+                            <FormatDate datetime={new Date(bot.created)} />
+                          </div>
                         )}
-                        disabled={bot.is_protected}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(bot);
-                        }}
-                      >
-                        <Trash2 className="mr-1 size-3" />
-                        {page_bot('delete')}
-                      </Button>
-                    </div>
-                  </CardFooter>
+                      </div>
+                      <div className="ml-auto flex shrink-0 items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 cursor-pointer px-2"
+                          asChild
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Link href={`/workspace/bots/${bot.id}/chats`}>
+                            <MessageSquare className="mr-1 size-3" />
+                            {page_bot('chats')}
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 cursor-pointer px-2"
+                          asChild
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Link href={`/workspace/bots/${bot.id}/edit`}>
+                            <Pencil className="mr-1 size-3" />
+                            {page_bot('edit')}
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            'h-7 cursor-pointer px-2',
+                            bot.is_protected && 'cursor-not-allowed opacity-50',
+                          )}
+                          disabled={bot.is_protected}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(bot);
+                          }}
+                        >
+                          <Trash2 className="mr-1 size-3" />
+                          {page_bot('delete')}
+                        </Button>
+                      </div>
+                    </CardFooter>
+                  </Card>
 
                   <div className="absolute top-2 right-2 z-10">
                     <DropdownMenu>
@@ -196,7 +198,7 @@ export const BotList = ({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="size-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="size-8 opacity-0 transition-opacity group-hover:opacity-100"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <EllipsisVertical className="size-4" />
@@ -233,9 +235,13 @@ export const BotList = ({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{page_bot('delete_confirm_title')}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {page_bot('delete_confirm_title')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {page_bot('delete_confirm_message', { name: pendingDeleteBot?.title || '' })}
+              {page_bot('delete_confirm_message', {
+                name: pendingDeleteBot?.title || '',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -250,7 +256,9 @@ export const BotList = ({
       <AlertDialog open={warningDialogOpen} onOpenChange={setWarningDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{page_bot('delete_default_warning')}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {page_bot('delete_default_warning')}
+            </AlertDialogTitle>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setWarningDialogOpen(false)}>

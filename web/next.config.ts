@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
 
   basePath,
 
+  allowedDevOrigins: ['*.monkeycode-ai.online'],
+
   reactStrictMode: false,
 
   // Configure `pageExtensions` to include markdown and MDX files
@@ -33,6 +35,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
     serverActions: {
+      allowedOrigins: ['*.monkeycode-ai.online'],
       bodySizeLimit: '100mb',
     },
   },
