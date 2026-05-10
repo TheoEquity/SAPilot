@@ -1,5 +1,4 @@
 import { Toaster } from '@/components/ui/sonner';
-import { getServerApi } from '@/lib/api/server';
 import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { Geist, Geist_Mono } from 'next/font/google';
@@ -39,26 +38,17 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let user;
-  const apiServer = await getServerApi();
-  try {
-    const res = await apiServer.defaultApi.userGet();
-    user = res.data;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (err) {}
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <NextTopLoader
-          // color="color-mix(in oklab, var(--primary), transparent)"
           color="var(--primary)"
           showSpinner={false}
           crawl={false}
@@ -71,7 +61,7 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <Toaster position="top-center" richColors />
-            <AppProvider user={user}>{children}</AppProvider>
+            <AppProvider>{children}</AppProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

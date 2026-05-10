@@ -1,30 +1,45 @@
 {
   "metadata": {
-    "title": "Applications",
-    "description": "ApeRAG is a new chatbot based on local datasets and utilizes multiple large language models."
+    "title": "Agent",
+    "description": "SAPilot is a new chatbot based on local datasets and utilizes multiple large language models."
   },
-  "search": "Search application",
-  "new_bot": "Create application",
-  "bot_settings": "Application settings",
-  "delete_bot": "Delete",
-  "delete_bot_confirm": "Deleting the application will remove all sessions under this app. Please confirm the operation!",
-  "no_bots_found": "No application found",
+  "search": "Search Agent",
+  "new_bot": "New Agent",
+  "bot_settings": "Agent Settings",
+  "delete_bot": "Delete Agent",
+  "delete_bot_confirm": "Deleting the Agent will remove all sessions under it. Please confirm the operation!",
+  "no_bots_found": "No Agent found",
   "no_description_available": "No description available",
 
   "general": "General",
 
   "model_config": "Model Settings",
 
-  "title": "Title",
-  "title_placeholder": "Application title",
-  "description": "Description",
-  "description_placeholder": "Please briefly introduce the purpose of the application.",
+  "title": "Name",
+  "title_placeholder": "Agent Name",
+  "description": "Agent Description",
+  "description_placeholder": "Briefly describe the Agent's purpose",
+  "is_default": "Default Agent",
+  "is_default_description": "When set as default, users will be directed to this Agent first upon login",
+  "welcome_title": "Welcome Title",
+  "welcome_title_placeholder": "Example: Hi, I'm SAPilot.",
+  "welcome_subtitle": "Welcome Subtitle",
+  "welcome_subtitle_placeholder": "Describe this Agent's purpose and capabilities",
+  "welcome_description": "Displayed in the welcome area when users open this Agent chat page.",
+  "default_conflict_title": "Default Agent Conflict",
+  "default_conflict_message": "A default Agent already exists: {name}. Saving will remove its default status. Continue?",
+  "confirm": "Confirm",
+  "cancel": "Cancel",
 
   "collection": "Collection",
   "collection_placeholder": "Select a collection",
+  "collection_description": "Select the knowledge collections available for this Agent",
+  "collection_search": "Search collections...",
   "no_collection_found": "No Collection found.",
+  "collection_selected": "{count} selected",
 
   "model": "Model",
+  "model_placeholder": "Select a model",
   "model_description": "Setting the default model will serve as the default model for all new sessions.",
 
   "system_prompt_template": "System Prompt Template",
@@ -35,5 +50,20 @@
   "query_prompt_template_placeholder": "Query Prompt Template",
   "query_prompt_template_description": "Query Prompt represents the user's specific input or question, which the AI processes and responds to within the framework set by the System Prompt.",
 
-  "restore_to_default": "Restore to default"
+  "restore_to_default": "Restore to default",
+
+  "save_settings": "Save Settings",
+  "save_bot": "Save",
+
+  "default_badge": "Default",
+  "edit": "Edit",
+  "delete": "Delete",
+  "delete_confirm_title": "Confirm Delete",
+  "delete_confirm_message": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
+  "delete_default_warning": "This is the default Agent. Please set another Agent as default before deleting.",
+  "edit_bot": "Edit Agent",
+
+  "protected": "Protected",
+  "view_chats": "View Chats",
+  "chats": "Chats"
 }

@@ -47,5 +47,11 @@ export interface BotUpdate {
      * @memberof BotUpdate
      */
     'config'?: BotConfig;
+    /**
+     * Whether this is the default bot
+     * @type {boolean}
+     * @memberof BotUpdate
+     */
+    'is_default'?: boolean;
 }
 

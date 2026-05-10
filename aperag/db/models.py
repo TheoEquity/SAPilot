@@ -407,6 +407,8 @@ class Bot(Base):
     description = Column(Text, nullable=True)
     status = Column(EnumColumn(BotStatus), nullable=False, index=True)  # Add index for status queries
     config = Column(Text, nullable=False)
+    is_default = Column(Boolean, default=False, nullable=False)
+    is_protected = Column(Boolean, default=False, nullable=False)
     gmt_created = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     gmt_updated = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     gmt_deleted = Column(DateTime(timezone=True), nullable=True, index=True)  # Add index for soft delete queries

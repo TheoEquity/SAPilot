@@ -149,6 +149,7 @@ class ChatService:
         page_size: int = 50,
     ):
         """List chats with pagination, sorting and search capabilities."""
+        from aperag.utils.history import RedisChatMessageHistory, get_async_redis_client
 
         # Define sort field mapping
         sort_mapping = {
@@ -191,7 +192,16 @@ class ChatService:
             # Build chat responses
             chat_responses = []
             for chat in items:
-                chat_responses.append(self.build_chat_response(chat))
+                chat_response = self.build_chat_response(chat)
+                history = RedisChatMessageHistory(chat.id, redis_client=get_async_redis_client())
+                for stored_message in await history.messages:
+                    for part in stored_message.parts:
+                        if part.type == "message" and part.role == "human" and part.content:
+                            chat_response.first_human_message = part.content.strip()
+                            break
+                    if chat_response.first_human_message:
+                        break
+                chat_responses.append(chat_response)
 
             return PaginationHelper.build_response(items=chat_responses, total=total, page=page, page_size=page_size)
 

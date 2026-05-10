@@ -8,7 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { BookOpen, ExternalLink, LayoutGrid } from 'lucide-react';
+import { BookOpen, Bot, ExternalLink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -21,17 +21,6 @@ export const MenuMain = () => {
       <SidebarGroupLabel>{sidebar_workspace('repositories')}</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton className="data-[active=true]:font-normal" asChild>
-            <Link href="/marketplace" target="_blank">
-              <LayoutGrid />
-              {sidebar_workspace('marketplace')}
-            </Link>
-          </SidebarMenuButton>
-          <SidebarMenuAction>
-            <ExternalLink className="text-muted-foreground" />
-          </SidebarMenuAction>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
           <SidebarMenuButton
             className="data-[active=true]:font-normal"
             asChild
@@ -40,6 +29,18 @@ export const MenuMain = () => {
             <Link href="/workspace/collections">
               <BookOpen />
               {sidebar_workspace('collections')}
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            className="data-[active=true]:font-normal"
+            asChild
+            isActive={pathname.match('/workspace/bots') !== null}
+          >
+            <Link href="/workspace/bots">
+              <Bot />
+              {sidebar_workspace('bots')}
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

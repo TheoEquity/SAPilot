@@ -103,6 +103,8 @@ export const ChatInput = ({
   const [query, setQuery] = useState<string>('');
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const page_chat = useTranslations('page_chat');
+  const welcomeTitle = bot?.config?.agent?.welcome_title || page_chat('hello_world');
+  const welcomeSubtitle = bot?.config?.agent?.welcome_subtitle || page_chat('rag_description');
   const [webSearchEnabled, setWebSearchEnabled] = useLocalStorageState<boolean>(
     'web-search-enabled',
     {
@@ -361,7 +363,7 @@ export const ChatInput = ({
               }}
               className="mb-2 text-xl font-medium"
             >
-              {page_chat('hello_world')}
+              {welcomeTitle}
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -373,7 +375,7 @@ export const ChatInput = ({
               }}
               className="text-muted-foreground text-sm"
             >
-              {page_chat('rag_description')}
+              {welcomeSubtitle}
             </motion.div>
           </div>
         )}

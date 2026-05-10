@@ -28,7 +28,7 @@ export function SignUpForm() {
   const { signUp } = useAppContext();
   const page_auth = useTranslations('page_auth');
 
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const callbackUrl = searchParams.get('callbackUrl') || '/workspace';
   const form = useForm<z.infer<typeof signUpLocalSchema>>({
     resolver: zodResolver(signUpLocalSchema),
     defaultValues: {

@@ -1,4 +1,6 @@
+import { AppLocaleDropdownMenu } from '@/components/app-topbar';
 import { AppLogo } from '@/components/app-topbar';
+import Image from 'next/image';
 
 export default async function AuthLayout({
   children,
@@ -6,39 +8,48 @@ export default async function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <>
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
-        >
-          <div
-            style={{
-              clipPath:
-                'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)',
-            }}
-            className="relative left-[calc(50%-11rem)] aspect-1155/678 w-144.5 -translate-x-1/2 rotate-30 bg-linear-to-tr from-[#ff80b5] to-[#9089fc] opacity-30 sm:left-[calc(50%-30rem)] sm:w-288.75"
-          ></div>
+    <div className="grid min-h-svh lg:grid-cols-2">
+      {/* Left panel - Branding */}
+      <div className="relative hidden bg-gradient-to-br from-[#1e3a5f] to-[#0f2440] lg:flex lg:flex-col lg:items-center lg:justify-center">
+        {/* Background geometric shapes */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-white/5 blur-3xl"></div>
+          <div className="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl"></div>
         </div>
+
+        {/* Branding content */}
+        <div className="relative z-10 flex flex-col items-center gap-8 px-12 text-center">
+          <div className="relative h-64 w-64">
+            <Image
+              src="/sapilot-main.png"
+              alt="SAPilot"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold text-white">SAP 运维领航员</h1>
+            <p className="text-white/70 text-lg">SAP Operations AI Agent Platform</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel - Auth forms */}
+      <div className="relative flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
+        {/* Locale switcher - top right */}
+        <div className="absolute right-4 top-4">
+          <AppLocaleDropdownMenu />
+        </div>
+
         <div className="flex w-full max-w-sm flex-col gap-6">
-          <div className="self-center">
+          {/* Mobile logo */}
+          <div className="self-center lg:hidden">
             <AppLogo />
           </div>
           {children}
         </div>
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 -z-10 transform-gpu overflow-hidden blur-3xl"
-        >
-          <div
-            style={{
-              clipPath:
-                'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)',
-            }}
-            className="relative left-[calc(50%+3rem)] aspect-1155/678 w-144.5 -translate-x-1/2 bg-linear-to-tr from-[#ff80b5] to-[#9089fc] opacity-30 sm:left-[calc(50%+36rem)] sm:w-288.75"
-          ></div>
-        </div>
       </div>
-    </>
+    </div>
   );
 }

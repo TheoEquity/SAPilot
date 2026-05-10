@@ -37,6 +37,12 @@ export interface Chat {
      * @type {string}
      * @memberof Chat
      */
+    'first_human_message'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Chat
+     */
     'bot_id'?: string;
     /**
      * 
@@ -86,5 +92,4 @@ export const ChatStatusEnum = {
 } as const;
 
 export type ChatStatusEnum = typeof ChatStatusEnum[keyof typeof ChatStatusEnum];
-
 

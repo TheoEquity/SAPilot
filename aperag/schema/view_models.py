@@ -463,6 +463,8 @@ class WorkflowDefinition(BaseModel):
 
 class Agent(BaseModel):
     completion: Optional[ModelSpec] = None
+    welcome_title: Optional[str] = None
+    welcome_subtitle: Optional[str] = None
     system_prompt_template: Optional[str] = None
     query_prompt_template: Optional[str] = None
     collections: Optional[list[Collection]] = None
@@ -481,6 +483,8 @@ class Bot(BaseModel):
         None, description='The type of bot', examples=['knowledge']
     )
     config: Optional[BotConfig] = None
+    is_default: Optional[bool] = Field(False, description='Whether this is the default bot')
+    is_protected: Optional[bool] = Field(False, description='Whether this bot is protected from deletion')
     created: Optional[datetime] = None
     updated: Optional[datetime] = None
 
@@ -518,6 +522,8 @@ class BotCreate(BaseModel):
         None, description='The type of bot', examples=['knowledge']
     )
     config: Optional[BotConfig] = None
+    is_default: Optional[bool] = False
+    is_protected: Optional[bool] = False
 
 
 class BotUpdate(BaseModel):
@@ -525,6 +531,8 @@ class BotUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     config: Optional[BotConfig] = None
+    is_default: Optional[bool] = None
+    is_protected: Optional[bool] = None
 
 
 class DebugFlowRequest(BaseModel):
@@ -534,6 +542,7 @@ class DebugFlowRequest(BaseModel):
 class Chat(BaseModel):
     id: Optional[str] = None
     title: Optional[str] = None
+    first_human_message: Optional[str] = None
     bot_id: Optional[str] = None
     peer_id: Optional[str] = None
     peer_type: Optional[

@@ -21,6 +21,7 @@ from aperag.db import models as db_models
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops
 from aperag.exceptions import (
     ResourceNotFoundException,
+    PermissionDeniedError,
 )
 from aperag.schema import view_models
 from aperag.schema.view_models import Bot, BotList
@@ -51,6 +52,8 @@ class BotService:
             description=bot.description,
             type=bot.type,
             config=bot_config,
+            is_default=bot.is_default,
+            is_protected=bot.is_protected,
             created=bot.gmt_created.isoformat(),
             updated=bot.gmt_updated.isoformat(),
         )
@@ -88,6 +91,8 @@ class BotService:
                 status=BotStatus.ACTIVE,
                 description=bot_in.description,
                 config=config_str,
+                is_default=bot_in.is_default if bot_in.is_default is not None else False,
+                is_protected=bot_in.is_protected if bot_in.is_protected is not None else False,
             )
             session.add(bot)
             await session.flush()
@@ -145,6 +150,10 @@ class BotService:
                 bot_to_update.description = bot_in.description
             if new_config_str is not None:
                 bot_to_update.config = new_config_str
+            if bot_in.is_default is not None:
+                bot_to_update.is_default = bot_in.is_default
+            if bot_in.is_protected is not None:
+                bot_to_update.is_protected = bot_in.is_protected
             session.add(bot_to_update)
             await session.flush()
             await session.refresh(bot_to_update)
@@ -164,6 +173,10 @@ class BotService:
         bot = await self.db_ops.query_bot(user, bot_id)
         if bot is None:
             return None
+
+        # Check if bot is protected
+        if bot.is_protected:
+            raise PermissionDeniedError("Cannot delete a protected system bot")
 
         # Delete bot atomically in a single transaction
         async def _delete_bot_atomically(session):

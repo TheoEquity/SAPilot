@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { Bot, Chat, ChatDetails, Collection, ModelSpec } from '@/api';
 import { useLocale } from 'next-intl';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext } from 'react';
 
 export type ProviderModels = {
@@ -52,8 +52,11 @@ export const BotProvider = ({
   const [bot, setBot] = useState<Bot | undefined>(initBot);
   const [chats, setChats] = useState<Chat[]>(initChats || []);
   const params = useParams();
+  const pathname = usePathname();
   const router = useRouter();
   const locale = useLocale();
+  const botId = typeof params.botId === 'string' ? params.botId : undefined;
+  const isInChatInterface = pathname.includes('/bots/') && pathname.includes('/chats');
 
   const [collections, setCollections] = useState<Collection[]>([]);
   const [providerModels, setProviderModels] = useState<ProviderModels>([]);
@@ -92,13 +95,37 @@ export const BotProvider = ({
   }, []);
 
   const chatsReload = useCallback(async () => {
-    if (!bot?.id) return;
+    if (!bot?.id) {
+      setChats([]);
+      return;
+    }
     const chatsRes = await apiClient.defaultApi.botsBotIdChatsGet({
       botId: bot.id,
     });
     //@ts-expect-error api define has a bug
     setChats(chatsRes.data.items || []);
   }, [bot?.id]);
+
+  const loadCurrentBot = useCallback(async () => {
+    if (!botId) {
+      setBot(initBot);
+      setChats(initChats || []);
+      return;
+    }
+
+    const [botRes, chatsRes] = await Promise.all([
+      apiClient.defaultApi.botsBotIdGet({
+        botId,
+      }),
+      apiClient.defaultApi.botsBotIdChatsGet({
+        botId,
+      }),
+    ]);
+
+    setBot(botRes.data);
+    //@ts-expect-error api define has a bug
+    setChats(chatsRes.data.items || []);
+  }, [botId, initBot, initChats]);
 
   const chatDelete = useCallback(
     async (chat: Chat) => {
@@ -173,20 +200,24 @@ export const BotProvider = ({
   }, [bot?.id, chatsReload, router, workspace]);
 
   useEffect(() => {
-    if (chats.length === 0) {
+    if (isInChatInterface && bot?.id && chats.length === 0) {
       chatCreate();
     }
-  }, [chatCreate, chats]);
+  }, [bot?.id, chatCreate, chats, isInChatInterface]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   useEffect(() => {
-    if (!bot) {
+    if (!bot && !botId) {
       botCreate();
     }
-  }, [bot, botCreate]);
+  }, [bot, botCreate, botId]);
+
+  useEffect(() => {
+    loadCurrentBot();
+  }, [loadCurrentBot]);
 
   return (
     <BotContext.Provider

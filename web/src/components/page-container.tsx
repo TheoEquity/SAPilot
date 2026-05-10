@@ -12,7 +12,6 @@ import Link from 'next/link';
 import React, { useMemo } from 'react';
 import {
   AppDocs,
-  AppGithub,
   AppLocaleDropdownMenu,
   AppThemeDropdownMenu,
 } from './app-topbar';
@@ -27,10 +26,12 @@ export type AppTopbarBreadcrumbItem = {
 export const PageHeader = ({
   fixed = true,
   breadcrumbs = [],
+  content,
   extra,
 }: {
   fixed?: boolean;
   breadcrumbs?: AppTopbarBreadcrumbItem[];
+  content?: React.ReactNode;
   extra?: React.ReactNode;
 }) => {
   const { open, isMobile } = useSidebar();
@@ -58,34 +59,35 @@ export const PageHeader = ({
             orientation="vertical"
             className="mx-2 data-[orientation=vertical]:h-4"
           />
-          <Breadcrumb>
-            <BreadcrumbList>
-              {breadcrumbs.map((item, index) => {
-                const isLast = index === breadcrumbs.length - 1;
-                return (
-                  <React.Fragment key={index}>
-                    <BreadcrumbItem className="flex flex-row items-center gap-1">
-                      {item.href ? (
-                        <BreadcrumbLink asChild className="text-foreground">
-                          <Link href={item.href || '#'}>{item.title}</Link>
-                        </BreadcrumbLink>
-                      ) : (
-                        <div>{item.title}</div>
-                      )}
-                    </BreadcrumbItem>
-                    {!isLast && <BreadcrumbSeparator />}
-                  </React.Fragment>
-                );
-              })}
-            </BreadcrumbList>
-          </Breadcrumb>
+          {content || (
+            <Breadcrumb>
+              <BreadcrumbList>
+                {breadcrumbs.map((item, index) => {
+                  const isLast = index === breadcrumbs.length - 1;
+                  return (
+                    <React.Fragment key={index}>
+                      <BreadcrumbItem className="flex flex-row items-center gap-1">
+                        {item.href ? (
+                          <BreadcrumbLink asChild className="text-foreground">
+                            <Link href={item.href || '#'}>{item.title}</Link>
+                          </BreadcrumbLink>
+                        ) : (
+                          <div>{item.title}</div>
+                        )}
+                      </BreadcrumbItem>
+                      {!isLast && <BreadcrumbSeparator />}
+                    </React.Fragment>
+                  );
+                })}
+              </BreadcrumbList>
+            </Breadcrumb>
+          )}
         </div>
         <div className="flex flex-row items-center gap-2 pr-4">
           {extra !== undefined ? (
             extra
           ) : (
             <>
-              <AppGithub />
               <AppDocs />
               <AppLocaleDropdownMenu />
               <AppThemeDropdownMenu />

@@ -65,6 +65,18 @@ export interface Bot {
      * @memberof Bot
      */
     'updated'?: string;
+    /**
+     * Whether this is the default bot
+     * @type {boolean}
+     * @memberof Bot
+     */
+    'is_default'?: boolean;
+    /**
+     * Whether this bot is protected from deletion
+     * @type {boolean}
+     * @memberof Bot
+     */
+    'is_protected'?: boolean;
 }
 
 export const BotTypeEnum = {

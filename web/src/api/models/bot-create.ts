@@ -47,6 +47,12 @@ export interface BotCreate {
      * @memberof BotCreate
      */
     'config'?: BotConfig;
+    /**
+     * Whether this is the default bot
+     * @type {boolean}
+     * @memberof BotCreate
+     */
+    'is_default'?: boolean;
 }
 
 export const BotCreateTypeEnum = {

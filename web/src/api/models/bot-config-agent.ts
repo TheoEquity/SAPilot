@@ -37,6 +37,18 @@ export interface BotConfigAgent {
      * @type {string}
      * @memberof BotConfigAgent
      */
+    'welcome_title'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof BotConfigAgent
+     */
+    'welcome_subtitle'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof BotConfigAgent
+     */
     'system_prompt_template'?: string;
     /**
      * 
@@ -51,4 +63,3 @@ export interface BotConfigAgent {
      */
     'collections'?: Array<Collection>;
 }
-

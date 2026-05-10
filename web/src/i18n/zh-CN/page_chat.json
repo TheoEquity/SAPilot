@@ -3,8 +3,8 @@
     "title": "会话"
   },
 
-  "hello_world": "Hi, I'm ApeRAG.",
-  "rag_description": "ApeRAG是一个结合图检索、向量搜索和全文搜索技术，提供混合检索、知识管理和企业AI应用解决方案。",
+  "hello_world": "Hi, 我是 SAPilot.",
+  "rag_description": "SAPilot 是面向 SAP 运维场景的智能助手，可结合企业知识库与运维经验，帮助顾问快速定位问题、分析原因并提供处理建议。",
 
   "mention_a_collection": "输入@关联相关知识库...",
 

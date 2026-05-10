@@ -3,8 +3,8 @@
     "title": "Chats"
   },
 
-  "hello_world": "Hi, I'm ApeRAG.",
-  "rag_description": "ApeRAG is a production-ready RAG platform that combines graph, vector, and full-text search for hybrid retrieval, knowledge management, and enterprise AI applications.",
+  "hello_world": "Hi, I'm SAPilot.",
+  "rag_description": "SAPilot is an intelligent assistant for SAP operations, helping consultants diagnose issues, analyze causes, and provide resolution suggestions based on enterprise knowledge and operational experience.",
 
   "mention_a_collection": "Type @ to mention a collection...",
 

@@ -5,8 +5,7 @@ import {
   PageHeader,
 } from '@/components/page-container';
 import { getServerApi } from '@/lib/api/server';
-import _ from 'lodash';
-import { getTranslations } from 'next-intl/server';
+import { Bot, Fingerprint } from 'lucide-react';
 import { notFound } from 'next/navigation';
 
 export default async function Page({
@@ -19,16 +18,22 @@ export default async function Page({
 }) {
   const { botId, chatId } = await params;
   const serverApi = await getServerApi();
-  const page_chat = await getTranslations('page_chat');
 
   let chat;
+  let bot;
 
   try {
-    const res = await serverApi.defaultApi.botsBotIdChatsChatIdGet({
-      botId,
-      chatId,
-    });
-    chat = res.data;
+    const [chatRes, botRes] = await Promise.all([
+      serverApi.defaultApi.botsBotIdChatsChatIdGet({
+        botId,
+        chatId,
+      }),
+      serverApi.defaultApi.botsBotIdGet({
+        botId,
+      }),
+    ]);
+    chat = chatRes.data;
+    bot = botRes.data;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     notFound();
@@ -37,16 +42,18 @@ export default async function Page({
   return (
     <PageContainer>
       <PageHeader
-        breadcrumbs={[
-          {
-            title:
-              page_chat('metadata.title') +
-              ': ' +
-              (_.isEmpty(chat.history)
-                ? page_chat('display_empty_title')
-                : chat.title || ''),
-          },
-        ]}
+        content={
+          <div className="flex min-w-0 items-center gap-4 text-sm">
+            <div className="flex min-w-0 items-center gap-2 font-medium">
+              <Bot className="size-4 shrink-0" />
+              <span className="truncate">{bot.title}</span>
+            </div>
+            <div className="text-muted-foreground flex min-w-0 items-center gap-2">
+              <Fingerprint className="size-4 shrink-0" />
+              <span className="truncate">{bot.id}</span>
+            </div>
+          </div>
+        }
       />
       <PageContent>
         <ChatMessages chat={chat} />

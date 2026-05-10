@@ -1,6 +1,7 @@
 'use client';
 
 import { useBotContext } from '@/components/providers/bot-provider';
+import { Chat } from '@/api';
 import { Button } from '@/components/ui/button';
 import {
   SidebarGroup,
@@ -26,6 +27,29 @@ export const SideBarMenuChats = () => {
   const { bot, workspace, chats, chatCreate, chatDelete } = useBotContext();
   const pathname = usePathname();
   const sidebar_workspace = useTranslations('sidebar_workspace');
+
+  // 检查是否处于聊天界面
+  // 匹配路径如 /workspace/bots/xxx/chats/xxx 或 /bots/xxx/chats/xxx
+  const isInChatInterface = pathname.includes('/bots/') && pathname.includes('/chats');
+
+  // 如果不在聊天界面，则不显示该组件
+  if (!isInChatInterface) {
+    return null;
+  }
+
+  const getChatTitle = (chat: Chat) => {
+    const firstHumanMessage = chat.first_human_message?.trim();
+    if (firstHumanMessage) {
+      return _.truncate(firstHumanMessage, { length: 30 });
+    }
+
+    if (_.isEmpty(chat.title) || chat.title === 'New Chat') {
+      return sidebar_workspace('display_empty_title');
+    }
+
+    return chat.title;
+  };
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="mb-1 flex flex-row justify-between pr-0">
@@ -63,11 +87,7 @@ export const SideBarMenuChats = () => {
                   className="data-[active=true]:font-normal"
                 >
                   <Link href={url}>
-                    <div className="truncate">
-                      {_.isEmpty(chat.title) || chat.title === 'New Chat'
-                        ? sidebar_workspace('display_empty_title')
-                        : chat.title}
-                    </div>
+                    <div className="truncate">{getChatTitle(chat)}</div>
                   </Link>
                 </SidebarMenuButton>
                 <SidebarMenuAction

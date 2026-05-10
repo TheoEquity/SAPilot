@@ -1,7 +1,20 @@
-import { NextMiddleware, NextResponse } from 'next/server';
+import { NextMiddleware, NextResponse, NextRequest } from 'next/server';
 import { withApiProxy } from './middlewares/apiProxy';
 
 type MiddlewareFactory = (next: NextMiddleware) => NextMiddleware;
+
+export function withRootRedirect(next: NextMiddleware): NextMiddleware {
+  return async (req: NextRequest) => {
+    const { pathname } = req.nextUrl;
+    // 如果是根路径，直接重定向到登录页
+    if (pathname === '/') {
+      const url = req.nextUrl.clone();
+      url.pathname = '/auth/signin';
+      return NextResponse.redirect(url);
+    }
+    return next(req);
+  };
+}
 
 const stackMiddlewares = (
   functions: MiddlewareFactory[],
@@ -15,7 +28,8 @@ const stackMiddlewares = (
   return () => NextResponse.next();
 };
 
-export default stackMiddlewares([withApiProxy]);
+// 把重定向放在最前面
+export default stackMiddlewares([withRootRedirect, withApiProxy]);
 
 // Routes Middleware should not run on
 export const config = {

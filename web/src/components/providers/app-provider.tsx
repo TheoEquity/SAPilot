@@ -1,11 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { User } from '@/api';
 import { apiClient } from '@/lib/api/client';
 import { useRouter } from 'next/navigation';
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext } from 'react';
 
 import * as z from 'zod';
 
@@ -48,13 +49,26 @@ export const signUpLocalSchema = z.object({
 export const useAppContext = () => useContext(AppContext);
 
 export const AppProvider = ({
-  user,
   children,
 }: {
-  user?: User;
   children?: React.ReactNode;
 }) => {
-  const [_user, setUser] = useState<User | undefined>(user);
+  const [_user, setUser] = useState<User | undefined>(undefined);
+
+  // Auto-fetch user info on mount to restore session
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await apiClient.defaultApi.userGet();
+        if (res.data) {
+          setUser(res.data);
+        }
+      } catch {
+        // Not logged in or API error, ignore
+      }
+    };
+    fetchUser();
+  }, []);
 
   const router = useRouter();
   const handleSignIn = useCallback(

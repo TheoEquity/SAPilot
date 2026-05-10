@@ -85,6 +85,8 @@ class UserManager(BaseUserManager[User, str]):
                 type=BotType.AGENT,
                 description="Default agent bot created on registration.",
                 collection_ids=[],
+                is_default=True,
+                is_protected=True,
             )
             await bot_service.create_bot(user=str(user.id), bot_in=bot_create, skip_quota_check=True)
 

@@ -1,4 +1,3 @@
-import { Chat } from '@/api';
 import { AppLogo } from '@/components/app-topbar';
 import {
   Sidebar,
@@ -8,7 +7,6 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { getServerApi } from '@/lib/api/server';
-import { toJson } from '@/lib/utils';
 import { redirect } from 'next/navigation';
 
 import { SideBarMenuChats } from '@/components/chat/sidebar-menu-chats';
@@ -34,26 +32,8 @@ export default async function Layout({
     redirect(`/auth/signin?callbackUrl=${encodeURIComponent('/workspace')}`);
   }
 
-  const botsRes = await apiServer.defaultApi.botsGet();
-  const bot = botsRes.data.items?.find((item) => item.type === 'agent');
-  let chats: Chat[] = [];
-
-  if (bot?.id) {
-    const chatsRes = await apiServer.defaultApi.botsBotIdChatsGet({
-      botId: bot.id,
-      page: 1,
-      pageSize: 100,
-    });
-    //@ts-expect-error api define has a bug
-    chats = chatsRes.data.items || [];
-  }
-
   return (
-    <BotProvider
-      workspace={true}
-      bot={bot ? toJson(bot) : undefined}
-      chats={toJson(chats)}
-    >
+    <BotProvider workspace={true} chats={[]}>
       <SidebarProvider>
         <Sidebar>
           <SidebarHeader className="h-16 flex-row items-center gap-4 px-4 align-middle">
