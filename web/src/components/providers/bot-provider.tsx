@@ -82,18 +82,6 @@ export const BotProvider = ({
     setProviderModels(items || []);
   }, []);
 
-  const botCreate = useCallback(async () => {
-    const createRes = await apiClient.defaultApi.botsPost({
-      botCreate: {
-        title: 'Default Agent Bot',
-        type: 'agent',
-      },
-    });
-    if (createRes.data.id) {
-      setBot(createRes.data);
-    }
-  }, []);
-
   const chatsReload = useCallback(async () => {
     if (!bot?.id) {
       setChats([]);
@@ -208,12 +196,6 @@ export const BotProvider = ({
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  useEffect(() => {
-    if (!bot && !botId) {
-      botCreate();
-    }
-  }, [bot, botCreate, botId]);
 
   useEffect(() => {
     loadCurrentBot();
