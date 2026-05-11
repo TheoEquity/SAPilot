@@ -262,12 +262,23 @@ class FulltextIndexer(BaseIndexer):
             if not keywords:
                 return []
 
-            # Search in both content and title fields
+            # Search in both content and title fields. A single strong keyword should be enough to recall a chunk;
+            # phrase matches get a higher score so copied FAQ titles rank first.
+            should_clauses = []
+            for keyword in keywords:
+                should_clauses.extend(
+                    [
+                        {"match_phrase": {"content": {"query": keyword, "boost": 3}}},
+                        {"match_phrase": {"title": {"query": keyword, "boost": 4}}},
+                        {"match": {"content": keyword}},
+                        {"match": {"title": {"query": keyword, "boost": 2}}},
+                    ]
+                )
+
             query = {
                 "bool": {
-                    "should": [{"match": {"content": keyword}} for keyword in keywords]
-                    + [{"match": {"title": keyword}} for keyword in keywords],
-                    "minimum_should_match": "80%",
+                    "should": should_clauses,
+                    "minimum_should_match": 1,
                 },
             }
 

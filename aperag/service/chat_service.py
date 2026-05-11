@@ -282,6 +282,8 @@ class ChatService:
         chat_id: str,
         msg_id: str,
         upload_files: List[str] = None,
+        peer_type: db_models.ChatPeerType = db_models.ChatPeerType.FEISHU,
+        chat_title: str = "Feishu Chat",
     ) -> Any:
         """Frontend chat completions with special error handling for UI responses"""
 
@@ -301,15 +303,15 @@ class ChatService:
             return FrontendFormatter.format_error("Bot not found")
 
         # Get or create chat session
-        chat = await self.db_ops.query_chat_by_peer(bot.user, db_models.ChatPeerType.FEISHU, chat_id)
+        chat = await self.db_ops.query_chat_by_peer(bot.user, peer_type, chat_id)
 
         if chat is None:
             # Create chat with peer info atomically in single transaction
             chat = await self.db_ops.create_chat(
                 user=bot.user,
                 bot_id=bot.id,
-                title="Feishu Chat",
-                peer_type=db_models.ChatPeerType.FEISHU,
+                title=chat_title,
+                peer_type=peer_type,
                 peer_id=chat_id,
             )
 

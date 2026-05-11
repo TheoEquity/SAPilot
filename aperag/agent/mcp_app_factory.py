@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import logging
+import os
 
 from mcp_agent.app import MCPApp
 from mcp_agent.config import (
@@ -60,6 +61,11 @@ class MCPAppFactory:
                 raise agent_config_invalid(param_name, f"{param_name} is required")
 
         try:
+            # mcp-agent's OpenAI-compatible client reads these env vars in some versions.
+            os.environ["OPENAI_API_KEY"] = api_key
+            os.environ["OPENAI_BASE_URL"] = base_url
+            os.environ["OPENAI_API_BASE"] = base_url
+
             settings = Settings(
                 execution_engine="asyncio",
                 logger=LoggerSettings(

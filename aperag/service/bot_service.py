@@ -20,8 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from aperag.db import models as db_models
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops
 from aperag.exceptions import (
-    ResourceNotFoundException,
     PermissionDeniedError,
+    ResourceNotFoundException,
 )
 from aperag.schema import view_models
 from aperag.schema.view_models import Bot, BotList
@@ -82,7 +82,7 @@ class BotService:
             # Serialize bot config to JSON string
             config_str = "{}"
             if bot_in.config:
-                config_str = json.dumps(bot_in.config.model_dump(exclude_none=True))
+                config_str = bot_in.config.model_dump_json(exclude_none=True)
 
             bot = Bot(
                 user=user,
@@ -124,7 +124,7 @@ class BotService:
         # Serialize new config to JSON string
         new_config_str = None
         if bot_in.config:
-            new_config_str = json.dumps(bot_in.config.model_dump(exclude_none=True))
+            new_config_str = bot_in.config.model_dump_json(exclude_none=True)
 
         # Get collection IDs from bot config for validation
         await self.validate_collections(user, bot_in.config)

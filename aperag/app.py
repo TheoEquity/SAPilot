@@ -45,6 +45,7 @@ from aperag.views.bot import router as bot_router
 from aperag.views.chat import router as chat_router
 from aperag.views.collections import router as collections_router
 from aperag.views.config import router as config_router
+from aperag.views.dingtalk import router as dingtalk_router
 from aperag.views.evaluation import router as evaluation_router
 from aperag.views.export import router as export_router
 from aperag.views.flow import router as flow_router
@@ -113,6 +114,7 @@ app.include_router(web_router, prefix="/api/v1")  # Add web search router
 app.include_router(evaluation_router, prefix="/api/v1")
 app.include_router(bot_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
+app.include_router(dingtalk_router, prefix="/api/v1")
 app.include_router(openai_router, prefix="/v1")
 app.include_router(config_router, prefix="/api/v1/config")
 

@@ -162,6 +162,24 @@ class Config(BaseSettings):
     cache_enabled: bool = Field(True, alias="CACHE_ENABLED")
     cache_ttl: int = Field(86400, alias="CACHE_TTL")
 
+    # DingTalk bot integration
+    dingtalk_enabled: bool = Field(False, alias="DINGTALK_ENABLED")
+    dingtalk_webhook_secret: str = Field("", alias="DINGTALK_WEBHOOK_SECRET")
+    dingtalk_outgoing_webhook_url: str = Field("", alias="DINGTALK_OUTGOING_WEBHOOK_URL")
+    dingtalk_outgoing_webhook_secret: str = Field("", alias="DINGTALK_OUTGOING_WEBHOOK_SECRET")
+    dingtalk_bot_user_id: str = Field("", alias="DINGTALK_BOT_USER_ID")
+    dingtalk_bot_id: str = Field("", alias="DINGTALK_BOT_ID")
+    dingtalk_response_mode: str = Field("sync", alias="DINGTALK_RESPONSE_MODE")
+    dingtalk_stream_client_id: str = Field("", alias="DINGTALK_STREAM_CLIENT_ID")
+    dingtalk_stream_client_secret: str = Field("", alias="DINGTALK_STREAM_CLIENT_SECRET")
+    dingtalk_stream_topic: str = Field("", alias="DINGTALK_STREAM_TOPIC")
+    dingtalk_app_key: str = Field("", alias="DINGTALK_APP_KEY")
+    dingtalk_app_secret: str = Field("", alias="DINGTALK_APP_SECRET")
+    dingtalk_image_search_enabled: bool = Field(True, alias="DINGTALK_IMAGE_SEARCH_ENABLED")
+    dingtalk_image_search_topk: int = Field(5, alias="DINGTALK_IMAGE_SEARCH_TOPK")
+    dingtalk_image_search_similarity: float = Field(0.2, alias="DINGTALK_IMAGE_SEARCH_SIMILARITY")
+    dingtalk_sap_community_search_enabled: bool = Field(True, alias="DINGTALK_SAP_COMMUNITY_SEARCH_ENABLED")
+
     # Opik
     opik_api_key: str = Field("", alias="OPIK_API_KEY")
     opik_workspace: str = Field("", alias="OPIK_WORKSPACE")
