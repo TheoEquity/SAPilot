@@ -44,13 +44,16 @@ class SAPilotChatbotHandler(dingtalk_stream.ChatbotHandler):
         incoming = dingtalk_stream.ChatbotMessage.from_dict(callback_message.data)
         payload = incoming.to_dict()
         logger.info(
-            "Received DingTalk stream message robotCode=%s conversationType=%s sender=%s text=%r keys=%s",
+            "Received DingTalk stream message robotCode=%s conversationType=%s msgtype=%s sender=%s text=%r keys=%s",
             payload.get("robotCode"),
             payload.get("conversationType"),
+            payload.get("msgtype") or payload.get("msgType") or payload.get("messageType"),
             payload.get("senderStaffId") or payload.get("senderId"),
             payload.get("text", {}).get("content") if isinstance(payload.get("text"), dict) else payload.get("text"),
             sorted(payload.keys()),
         )
+        if any(key in payload for key in ("image", "picture", "photo", "content")):
+            logger.info("DingTalk message media payload=%s", json.dumps(payload, ensure_ascii=False)[:4000])
 
         asyncio.create_task(self._handle_message(payload))
         return dingtalk_stream.AckMessage.STATUS_OK, "ok"

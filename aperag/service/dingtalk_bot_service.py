@@ -281,6 +281,12 @@ class DingTalkBotService:
             return ""
 
         image_refs = self._extract_image_urls(payload)
+        logger.info(
+            "DingTalk image search input enabled=%s image_refs=%s collection_ids=%s",
+            settings.dingtalk_image_search_enabled,
+            image_refs,
+            [collection.id for collection in collections if collection.id],
+        )
         if not image_refs or not collections:
             return ""
 
@@ -289,6 +295,7 @@ class DingTalkBotService:
             try:
                 data_uri = await self._download_dingtalk_image_as_data_uri(image_ref, payload)
                 if not data_uri:
+                    logger.info("DingTalk image ref produced no data uri: %s", image_ref)
                     continue
                 results = await self._search_similar_images(
                     user_id=user_id,
@@ -297,6 +304,7 @@ class DingTalkBotService:
                     top_k=settings.dingtalk_image_search_topk,
                     similarity_threshold=settings.dingtalk_image_search_similarity,
                 )
+                logger.info("DingTalk image search returned %s results for ref=%s", len(results), image_ref)
                 contexts.extend(results)
             except Exception:
                 logger.exception("Failed to build DingTalk image search context")
@@ -305,14 +313,17 @@ class DingTalkBotService:
 
     async def _download_dingtalk_image_as_data_uri(self, image_ref: str, payload: Dict[str, Any]) -> str:
         if image_ref.startswith("data:image/"):
+            logger.info("DingTalk image ref is already data URI")
             return image_ref
         if image_ref.startswith("http://") or image_ref.startswith("https://"):
+            logger.info("DingTalk image ref is direct URL")
             return await self._download_url_as_data_uri(image_ref)
 
         download_url = await self._get_dingtalk_download_url(image_ref, payload)
         if not download_url:
             logger.warning("DingTalk image download skipped because download url is unavailable")
             return ""
+        logger.info("DingTalk image download URL resolved for downloadCode ref")
         return await self._download_url_as_data_uri(download_url)
 
     async def _get_dingtalk_download_url(self, download_code: str, payload: Dict[str, Any]) -> str:
@@ -378,6 +389,7 @@ class DingTalkBotService:
         content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
         if not content_type.startswith("image/"):
             content_type = self._guess_image_content_type(content)
+        logger.info("Downloaded DingTalk image bytes=%s content_type=%s", len(content), content_type)
         encoded = base64.b64encode(content).decode("utf-8")
         return f"data:{content_type};base64,{encoded}"
 
@@ -411,6 +423,7 @@ class DingTalkBotService:
             try:
                 embedding_model, _ = get_collection_embedding_service_sync(collection)
                 if not embedding_model.is_multimodal():
+                    logger.info("DingTalk image search skipped non-multimodal collection %s", collection_id)
                     continue
                 vector = embedding_model.embed_query(image_data_uri)
                 collection_name = generate_vector_db_collection_name(collection.id)
@@ -423,6 +436,12 @@ class DingTalkBotService:
                     topk=max(top_k * 2, top_k),
                     vector=vector,
                     index_types=["vision"],
+                )
+                logger.info(
+                    "DingTalk image search collection=%s raw_results=%s top_score=%s",
+                    collection_id,
+                    len(collection_results),
+                    collection_results[0].score if collection_results else None,
                 )
                 for item in collection_results:
                     if item.metadata is None:

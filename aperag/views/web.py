@@ -15,13 +15,20 @@
 import copy
 import logging
 import time
+import urllib.parse
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from aperag.db.models import User
 from aperag.db.ops import async_db_ops
-from aperag.schema.view_models import WebReadRequest, WebReadResponse, WebSearchRequest, WebSearchResponse
+from aperag.schema.view_models import (
+    WebReadRequest,
+    WebReadResponse,
+    WebSearchRequest,
+    WebSearchResponse,
+    WebSearchResultItem,
+)
 from aperag.views.auth import required_user
 from aperag.websearch.reader.reader_service import ReaderService
 from aperag.websearch.search.search_service import SearchService
@@ -119,9 +126,28 @@ async def web_search_endpoint(request: WebSearchRequest, user: User = Depends(re
                 logger.error(error_msg, exc_info=True)
                 failed_searches.append(error_msg)
 
-        # If all searches failed, return error
+        # If all searches failed, return search suggestions instead of error
         if not all_results and failed_searches:
-            raise HTTPException(status_code=500, detail=f"All searches failed: {'; '.join(failed_searches)}")
+            logger.warning(f"All searches failed: {'; '.join(failed_searches)}")
+            # Return fallback response with search links
+            search_query = request.query.strip() if request.query else ""
+            baidu_url = f"https://www.baidu.com/s?wd={urllib.parse.quote(search_query)}"
+            google_url = f"https://www.google.com/search?q={urllib.parse.quote(search_query)}"
+            fallback_text = "联网搜索服务当前受限（搜索引擎反爬保护）。建议您手动搜索：\n\n"
+            fallback_text += f"- 百度搜索：{search_query}\n  链接：{baidu_url}\n\n"
+            fallback_text += f"- Google 搜索：{search_query}\n  链接：{google_url}"
+            return WebSearchResponse(
+                query=search_query,
+                results=[WebSearchResultItem(
+                    rank=1,
+                    title="联网搜索受限 - 建议手动搜索",
+                    url=baidu_url,
+                    snippet=fallback_text,
+                    domain="baidu.com",
+                )],
+                total_results=1,
+                search_time=time.time() - search_start_time,
+            )
 
         # Merge and rank results
         merged_results = _merge_and_rank_results(all_results, request.max_results)

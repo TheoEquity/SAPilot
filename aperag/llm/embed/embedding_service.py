@@ -221,6 +221,12 @@ class EmbeddingService:
         }
 
     def _embed_dashscope_multimodal(self, batch: Sequence[str]) -> List[List[float]]:
+        if any(item.startswith("data:image/") for item in batch) and len(batch) > 1:
+            embeddings = []
+            for item in batch:
+                embeddings.extend(self._embed_dashscope_multimodal([item]))
+            return embeddings
+
         contents = []
         for item in batch:
             if item.startswith("data:image/"):

@@ -166,6 +166,7 @@ def build_agent_query_prompt(
     agent_message: view_models.AgentMessage,
     user: str,
     template: str,
+    is_search_confirmed: bool = False,
 ) -> str:
     """
     Build a comprehensive prompt for LLM using Jinja2 template rendering.
@@ -178,6 +179,7 @@ def build_agent_query_prompt(
         agent_message: The agent message containing query and configuration
         user: The user identifier
         template: Jinja2 template string (resolved from prompt_template_service)
+        is_search_confirmed: Whether user confirmed web search in previous turn
 
     Returns:
         The formatted prompt string using Jinja2 template rendering
@@ -188,6 +190,7 @@ def build_agent_query_prompt(
         - web_search_enabled: Boolean indicating if web search is enabled
         - chat_id: Chat ID string (may be None)
         - language: Language code
+        - is_search_confirmed: Boolean indicating user confirmed web search
     """
     # Create Jinja2 template
     jinja_template = Template(template)
@@ -199,6 +202,7 @@ def build_agent_query_prompt(
         "web_search_enabled": agent_message.web_search_enabled or False,
         "chat_id": chat_id,
         "language": agent_message.language,
+        "is_search_confirmed": is_search_confirmed,
     }
 
     # Render template

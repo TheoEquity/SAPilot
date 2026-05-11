@@ -499,6 +499,9 @@ class AgentChatService:
             history = await self.history_manager.get_chat_history(chat_id)
             memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
 
+            # Detect if user is confirming web search from a previous turn
+            is_search_confirmed = self._detect_search_confirmation(agent_message.query, memory)
+
             # Get chat session using merged agent message and resolved system prompt
             session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
             llm = await session.get_llm(final_completion.model)
@@ -507,7 +510,7 @@ class AgentChatService:
 
             # Build query prompt using resolved query prompt template
             comprehensive_prompt = build_agent_query_prompt(
-                chat_id, agent_message=merged_agent_message, user=user, template=resolved_query_prompt
+                chat_id, agent_message=merged_agent_message, user=user, template=resolved_query_prompt, is_search_confirmed=is_search_confirmed
             )
 
             request_params = RequestParams(
@@ -708,3 +711,62 @@ class AgentChatService:
         except Exception as e:
             # Don't let history saving errors break the flow
             logger.error(f"Error saving conversation history for chat {chat_id}: {e}")
+
+    def _detect_search_confirmation(self, current_query: str, memory) -> bool:
+        """
+        Detect if user is confirming web search from a previous turn.
+        
+        Returns True if:
+        1. Last AI message contains search prompt ("是否需要启动联网搜索")
+        2. Current user message is a confirmation word
+        """
+        if not current_query or not memory:
+            logger.info(f"_detect_search_confirmation: No query or memory, returning False")
+            return False
+            
+        # Check if last AI message asked about search
+        # memory.history is a list of messages in OpenAI format
+        last_ai_msg = None
+        if hasattr(memory, 'history') and memory.history:
+            for msg in reversed(memory.history):
+                # Messages can be dicts with 'role' key
+                if isinstance(msg, dict) and msg.get('role') == 'assistant':
+                    last_ai_msg = msg
+                    break
+                # Or objects with 'role' attribute
+                elif hasattr(msg, 'role') and msg.role == 'assistant':
+                    last_ai_msg = msg
+                    break
+        
+        if not last_ai_msg:
+            logger.info(f"_detect_search_confirmation: No last AI message found in memory.history, returning False")
+            return False
+            
+        # Check if AI asked about web search
+        if isinstance(last_ai_msg, dict):
+            last_ai_content = last_ai_msg.get('content', '') or ''
+        else:
+            last_ai_content = getattr(last_ai_msg, 'content', '') or ''
+            
+        logger.info(f"_detect_search_confirmation: Last AI content (first 300): {last_ai_content[:300]}")
+        
+        if '是否需要启动联网搜索' not in last_ai_content and '是否需要搜索' not in last_ai_content:
+            logger.info(f"_detect_search_confirmation: Last AI message did not ask about search, returning False")
+            return False
+            
+        # Check if user's current message is a confirmation
+        confirmation_words = {'可以', '好', '是', '对', 'ok', '行', '嗯', '要的', '需要', '联网搜索', '搜索', '搜一下', '帮我搜', '请搜索', 'yes', 'sure'}
+        query_lower = current_query.lower().strip()
+        logger.info(f"_detect_search_confirmation: Current query: '{query_lower}'")
+        
+        # Direct match or contains any confirmation word
+        if query_lower in confirmation_words:
+            logger.info(f"_detect_search_confirmation: Query matches confirmation word directly, returning True")
+            return True
+        for word in confirmation_words:
+            if word in query_lower:
+                logger.info(f"_detect_search_confirmation: Query contains confirmation word '{word}', returning True")
+                return True
+                
+        logger.info(f"_detect_search_confirmation: No confirmation found, returning False")
+        return False
