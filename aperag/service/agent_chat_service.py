@@ -58,6 +58,7 @@ from aperag.schema import view_models
 from aperag.service.image_search_service import image_search_service
 from aperag.service.prompt_template_service import build_agent_query_prompt, prompt_template_service
 from aperag.trace import trace_async_function
+from aperag.query.query import DocumentWithScore
 
 logger = logging.getLogger(__name__)
 
@@ -521,17 +522,14 @@ class AgentChatService:
 
             llm.history = memory
 
-            # Build query prompt using resolved query prompt template
-            image_search_context = await image_search_service.build_chat_image_search_context(
-                user_id=user,
-                chat_id=chat_id,
-                files=merged_agent_message.files,
-                collections=final_collections or [],
-            )
-            if image_search_context:
-                merged_agent_message.query = self._append_image_search_context(
-                    merged_agent_message.query,
-                    image_search_context,
+            # Pre-execute image search to find matching FAQ chunks
+            image_search_results: List[DocumentWithScore] = []
+            if merged_agent_message.files:
+                image_search_results = await self._execute_image_search(
+                    user=user,
+                    chat_id=chat_id,
+                    files=merged_agent_message.files,
+                    collections=final_collections or [],
                 )
 
             comprehensive_prompt = build_agent_query_prompt(
@@ -558,13 +556,9 @@ class AgentChatService:
 
             tool_references = extract_tool_call_references(llm.history)
             
-            # If no tool references but we have image search context, create references from image search
-            if not tool_references and image_search_context:
-                image_references = await self._build_image_search_references(
-                    user, merged_agent_message.files, final_collections or []
-                )
-                if image_references:
-                    tool_references = image_references
+            # If no tool references but we have image search results, create standard references from image search
+            if not tool_references and image_search_results:
+                tool_references = self._build_image_search_standard_references(image_search_results)
 
             urls = []
 
@@ -679,6 +673,81 @@ class AgentChatService:
             "如果候选与用户文字明显矛盾，请说明需要补充更清晰截图或错误文本。\n"
             f"{image_context}"
         )
+
+    async def _execute_image_search(
+        self,
+        user: str,
+        chat_id: str,
+        files: List[view_models.File],
+        collections: List[view_models.Collection],
+    ) -> List[DocumentWithScore]:
+        """Execute image search and return enriched results with FAQ chunks."""
+        from aperag.core.config import settings
+
+        if not files or not collections:
+            return []
+
+        top_k = settings.dingtalk_image_search_topk
+        similarity_threshold = settings.dingtalk_image_search_similarity
+        contexts: List[DocumentWithScore] = []
+
+        for file in files:
+            try:
+                data_uri = await image_search_service._load_chat_image_as_data_uri(user, chat_id, file.id)
+                if not data_uri:
+                    continue
+                results = await image_search_service.search_similar_images(
+                    user_id=user,
+                    collections=collections,
+                    image_data_uri=data_uri,
+                    top_k=top_k,
+                    similarity_threshold=similarity_threshold,
+                )
+                contexts.extend(results)
+            except Exception:
+                logger.exception("Failed to execute image search for file=%s", file.id)
+
+        if not contexts:
+            return []
+
+        # Enrich with FAQ chunks to get proper text content
+        return await image_search_service._enrich_results_with_faq_chunks(user, contexts)
+
+    def _build_image_search_standard_references(
+        self,
+        image_search_results: List[DocumentWithScore],
+    ) -> List[Dict[str, Any]]:
+        """Build standard-format references from image search results, matching text search reference format."""
+        if not image_search_results:
+            return []
+
+        # Take the first (best) result as the main reference
+        main_result = image_search_results[0]
+        metadata = main_result.metadata or {}
+
+        # Build reference metadata matching _format_search_reference output
+        reference_metadata = {
+            **metadata,
+            "type": "search_collection",
+            "collection_id": metadata.get("collection_id"),
+            "document_id": metadata.get("document_id"),
+            "asset_id": metadata.get("asset_id"),
+            "recall_type": "vision_search",
+            "chunk_type": metadata.get("chunk_type", "faq_entry"),
+            "faq_id": metadata.get("faq_id"),
+            "document_source": metadata.get("source"),
+            "rank": 1,
+            "result_count": len(image_search_results),
+        }
+
+        # Use enriched text content from FAQ chunk
+        text_content = main_result.text or ""
+
+        return [{
+            "text": text_content,
+            "metadata": reference_metadata,
+            "score": main_result.score or 1.0,
+        }]
 
     async def _build_image_search_references(
         self,
