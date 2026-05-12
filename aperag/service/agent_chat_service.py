@@ -682,7 +682,7 @@ class AgentChatService:
         collections: List[view_models.Collection],
     ) -> List[DocumentWithScore]:
         """Execute image search and return enriched results with FAQ chunks."""
-        from aperag.core.config import settings
+        from aperag.config import settings
 
         if not files or not collections:
             return []
