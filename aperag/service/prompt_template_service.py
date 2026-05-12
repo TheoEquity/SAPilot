@@ -140,6 +140,15 @@ DEFAULT_AGENT_QUERY_PROMPT = """{% set collection_list = [] %}
 {% set web_instruction = "Use web search strategically for current information, verification, or gap-filling" if web_search_enabled else "Rely entirely on knowledge collections; inform user if web search would be helpful" %}
 {% set chat_context = "Chat ID: " + chat_id if chat_id else "No chat files" %}
 {% set chat_instruction = "ONLY use search_chat_files tool when searching files that user explicitly uploaded in THIS chat. Do NOT use it for general knowledge base queries." if chat_id else "" %}
+{% set has_image_files = false %}
+{% if files %}
+{% for file in files %}
+{% if file.name and (file.name.endswith('.png') or file.name.endswith('.jpg') or file.name.endswith('.jpeg') or file.name.endswith('.webp') or file.name.endswith('.gif')) %}
+{% set has_image_files = true %}
+{% break %}
+{% endif %}
+{% endfor %}
+{% endif %}
 
 **User Query**: {{ query }}
 
@@ -147,9 +156,12 @@ DEFAULT_AGENT_QUERY_PROMPT = """{% set collection_list = [] %}
 - **User-Specified Collections**: {{ collection_context }} ({{ collection_instruction }})
 - **Web Search**: {{ web_status }} ({{ web_instruction }})
 - **Chat Files**: {{ chat_context }} {% if chat_instruction %}({{ chat_instruction }}){% endif %}
+{% if has_image_files %}
+- **Image Files**: User has uploaded image file(s) - likely screenshots of SAP error messages
+{% endif %}
 
 **Research Instructions**:
-1. LANGUAGE PRIORITY: Respond in the language the user is asking in, not the language of the content
+1. LANGUAGE PRIORITY: If the current user query is primarily English, answer in English. If it is primarily Chinese, answer in Chinese. If it mixes Chinese and English, use the dominant natural language of the user's question while preserving SAP terms, error messages, transaction codes, table names, field names, and product names in their original language. If the query is in another language, answer in the agent's configured default language: {{ language }}.
 2. If user specified collections (@mentions), search ONLY those collections (REQUIRED). Do NOT search additional collections.
 3. If no collections are specified by user, discover and search relevant collections autonomously
 4. If chat files are available, search files uploaded in this chat when relevant
@@ -157,6 +169,9 @@ DEFAULT_AGENT_QUERY_PROMPT = """{% set collection_list = [] %}
 6. Use web search strategically if enabled and relevant
 7. Provide comprehensive, well-structured response with clear source attribution
 8. **IMPORTANT**: When citing collections, use collection names not IDs
+{% if has_image_files %}
+9. **IMAGE CONTEXT PROVIDED**: Image similarity search results have been provided in the query context above. Use them to answer the user's question about the error screenshot.
+{% endif %}
 
 Please provide a thorough, well-researched answer that leverages all appropriate search tools based on the context above."""
 

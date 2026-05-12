@@ -199,6 +199,11 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
     <div className="flex flex-col gap-6 pb-70">
       {messages.map((parts, index) => {
         const isAI = parts.some((part) => part.role === 'ai');
+        // Ensure role is properly set for safety
+        const safeParts = parts.map(part => ({
+          ...part,
+          role: part.role || (isAI ? 'ai' : 'human')
+        }));
         const isLoading = loading && index + 1 === messages.length;
         const isAIPending =
           isLoading &&
@@ -219,11 +224,11 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
               <MessagePartsAi
                 pending={isAIPending}
                 loading={isLoading}
-                parts={parts}
+                parts={safeParts}
                 hanldeMessageFeedback={hanldeMessageFeedback}
               />
             ) : (
-              <MessagePartsUser parts={parts} />
+              <MessagePartsUser parts={safeParts} />
             )}
           </motion.div>
         );

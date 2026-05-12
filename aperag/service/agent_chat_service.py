@@ -16,6 +16,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
@@ -54,6 +55,7 @@ from aperag.agent.response_types import AgentErrorResponse, AgentToolCallResultR
 from aperag.chat.history.message import StoredChatMessage, create_assistant_message
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops
 from aperag.schema import view_models
+from aperag.service.image_search_service import image_search_service
 from aperag.service.prompt_template_service import build_agent_query_prompt, prompt_template_service
 from aperag.trace import trace_async_function
 
@@ -495,6 +497,16 @@ class AgentChatService:
             # Send start message
             await message_queue.put(format_stream_start(message_id))
 
+            greeting_response = self._build_greeting_response(agent_message.query, agent_message.language)
+            if greeting_response:
+                await message_queue.put(format_stream_content(message_id, greeting_response))
+                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                return {
+                    "query": merged_agent_message.query,
+                    "content": greeting_response,
+                    "references": [],
+                }
+
             # Create memory from chat history
             history = await self.history_manager.get_chat_history(chat_id)
             memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
@@ -510,6 +522,18 @@ class AgentChatService:
             llm.history = memory
 
             # Build query prompt using resolved query prompt template
+            image_search_context = await image_search_service.build_chat_image_search_context(
+                user_id=user,
+                chat_id=chat_id,
+                files=merged_agent_message.files,
+                collections=final_collections or [],
+            )
+            if image_search_context:
+                merged_agent_message.query = self._append_image_search_context(
+                    merged_agent_message.query,
+                    image_search_context,
+                )
+
             comprehensive_prompt = build_agent_query_prompt(
                 chat_id, agent_message=merged_agent_message, user=user, template=resolved_query_prompt, is_search_confirmed=is_search_confirmed
             )
@@ -533,6 +557,15 @@ class AgentChatService:
             await message_queue.put(format_stream_content(message_id, full_content))
 
             tool_references = extract_tool_call_references(llm.history)
+            
+            # If no tool references but we have image search context, create references from image search
+            if not tool_references and image_search_context:
+                image_references = await self._build_image_search_references(
+                    user, merged_agent_message.files, final_collections or []
+                )
+                if image_references:
+                    tool_references = image_references
+
             urls = []
 
             await message_queue.put(format_stream_end(message_id, references=tool_references, urls=urls))
@@ -575,6 +608,150 @@ class AgentChatService:
         else:
             # Handle unexpected errors with generic processing error
             return format_processing_error(str(exception), language)
+
+    def _build_greeting_response(self, query: str, language: Optional[str]) -> Optional[str]:
+        """Return a direct response for short greetings and thanks."""
+        if not query:
+            return None
+
+        normalized = re.sub(r"[\s!！?？。,.，；;:：~～]+", "", query).lower()
+        if not normalized or len(normalized) > 24:
+            return None
+
+        business_markers = {
+            "sap",
+            "faq",
+            "报错",
+            "错误",
+            "流程",
+            "账号",
+            "帐号",
+            "锁定",
+            "截图",
+            "凭证",
+            "订单",
+            "发票",
+            "付款",
+        }
+        if any(marker in normalized for marker in business_markers):
+            return None
+
+        chinese_greetings = {
+            "你好",
+            "您好",
+            "早上好",
+            "上午好",
+            "中午好",
+            "下午好",
+            "晚上好",
+            "早安",
+            "晚安",
+        }
+        chinese_thanks = {"谢谢", "多谢", "感谢", "谢谢你", "谢谢啦", "多谢了", "辛苦了"}
+        english_greetings = {"hi", "hello", "hey", "goodmorning", "goodafternoon", "goodevening"}
+        english_thanks = {"thanks", "thankyou", "thx", "ty"}
+
+        if normalized in chinese_greetings:
+            return (
+                "你好！我是 SAPilot 运维FAQ问答助手，可以帮你查询 SAP 人财物运维常见问题、解释报错原因，"
+                "并给出现场处理建议。你可以直接描述问题，或上传报错截图。"
+            )
+        if normalized in chinese_thanks:
+            return "不客气！你可以继续描述 SAP 运维问题，或上传报错截图，我会继续帮你分析。"
+        if normalized in english_greetings:
+            return (
+                "Hello! I am the SAPilot Operations FAQ Assistant. I can help you look up SAP support FAQs, "
+                "explain errors, and suggest on-site troubleshooting steps. You can describe the issue or upload an error screenshot."
+            )
+        if normalized in english_thanks:
+            return "You're welcome. You can continue describing the SAP support issue or upload an error screenshot for analysis."
+
+        if language == "zh-CN" and normalized in {"好", "嗯", "行"}:
+            return "好的，你可以继续描述 SAP 运维问题，或上传报错截图，我会帮你分析。"
+
+        return None
+
+    def _append_image_search_context(self, query: str, image_context: str) -> str:
+        return (
+            f"{query}\n\n"
+            "用户本轮上传了报错截图。以下是图片相似检索得到的 FAQ 候选。"
+            "请把第 1 条候选作为主依据，按 FAQ 标准回答格式输出；"
+            "如果候选与用户文字明显矛盾，请说明需要补充更清晰截图或错误文本。\n"
+            f"{image_context}"
+        )
+
+    async def _build_image_search_references(
+        self,
+        user_id: str,
+        files: Optional[List[view_models.File]],
+        collections: List[view_models.Collection],
+    ) -> List[Dict[str, Any]]:
+        """Build references from image search results for chat messages"""
+        if not files or not collections:
+            return []
+        
+        try:
+            # Get the actual search results (not just formatted context)
+            top_k = settings.dingtalk_image_search_topk
+            similarity_threshold = settings.dingtalk_image_search_similarity
+            contexts: List[DocumentWithScore] = []
+            
+            for file in files:
+                data_uri = await image_search_service._load_chat_image_as_data_uri(user_id, "", file.id)
+                if not data_uri:
+                    continue
+                results = await image_search_service.search_similar_images(
+                    user_id=user_id,
+                    collections=collections,
+                    image_data_uri=data_uri,
+                    top_k=top_k,
+                    similarity_threshold=similarity_threshold,
+                )
+                contexts.extend(results)
+            
+            if not contexts:
+                return []
+            
+            # Enrich with FAQ chunks to get proper text content
+            enriched_results = await image_search_service._enrich_results_with_faq_chunks(user_id, contexts)
+            if not enriched_results:
+                return []
+            
+            # Take the first result as the main reference
+            main_result = enriched_results[0]
+            metadata = main_result.metadata or {}
+            
+            # Build reference metadata
+            reference_metadata = {
+                **metadata,
+                "type": "image_search",
+                "recall_type": "vision_search",
+                "collection_id": metadata.get("collection_id"),
+                "document_id": metadata.get("document_id"),
+                "asset_id": metadata.get("asset_id"),
+                "faq_id": metadata.get("faq_id"),
+                "score": main_result.score or 1.0,
+                # Ensure FAQ entry detection works
+                "chunk_type": "faq_entry",
+            }
+            
+            # Use the enriched text content
+            text_content = main_result.text or ""
+            if not text_content:
+                # Fallback to basic info if no text content
+                faq_id = metadata.get("faq_id", "未知FAQ")
+                collection_title = metadata.get("collection_title", "未知知识库")
+                text_content = f"图片搜索匹配到 FAQ: {faq_id} (知识库: {collection_title})"
+            
+            return [{
+                "text": text_content,
+                "metadata": reference_metadata,
+                "score": main_result.score or 1.0,
+            }]
+            
+        except Exception as e:
+            logger.exception("Failed to build image search references: %s", e)
+            return []
 
     async def chat_for_evaluation(
         self,

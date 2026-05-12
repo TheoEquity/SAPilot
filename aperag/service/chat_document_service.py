@@ -14,10 +14,12 @@
 
 import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException, UploadFile
 
+from aperag.db.models import random_id
 from aperag.db.ops import async_db_ops
 from aperag.schema import view_models
 from aperag.service.chat_collection_service import chat_collection_service
@@ -43,10 +45,15 @@ class ChatDocumentService:
             # Create if missing (fallback)
             collection = await chat_collection_service.create_user_chat_collection(user_id)
 
+        original_filename = file.filename or "attachment"
+        unique_filename = self._build_unique_filename(original_filename)
+        file.filename = unique_filename
+
         # Prepare document metadata (without message_id initially)
         doc_metadata = {
             "chat_id": chat_id,
             "file_type": "chat_upload",
+            "original_name": original_filename,
         }
 
         # Use document service to create document
@@ -58,6 +65,12 @@ class ChatDocumentService:
             raise HTTPException(status_code=500, detail="Failed to upload document")
 
         return documents.items[0]
+
+    @staticmethod
+    def _build_unique_filename(filename: str) -> str:
+        suffix = Path(filename).suffix
+        stem = Path(filename).stem or "attachment"
+        return f"{stem}-{random_id()}{suffix}"
 
     async def get_chat_document_by_id(
         self, chat_id: str, document_id: str, user_id: str
@@ -101,7 +114,7 @@ class ChatDocumentService:
                             "id": document.id,
                             "name": document.name,
                             "size": document.size,
-                            "status": document.status.value,
+                            "status": getattr(document.status, "value", document.status),
                             "created": document.gmt_created.isoformat(),
                             "updated": document.gmt_updated.isoformat(),
                         }
@@ -167,11 +180,13 @@ class ChatDocumentService:
                     if metadata.get("file_type") == "chat_upload" and metadata.get("chat_id") == chat_id:
                         # Update metadata with message_id
                         metadata["message_id"] = message_id
-                        document.doc_metadata = json.dumps(metadata)
-                        document.gmt_updated = utc_now()
-
-                        # Save the updated document
-                        await self.db_ops.update_document(document)
+                        metadata["updated_at"] = utc_now().isoformat()
+                        await self.db_ops.update_document_by_id(
+                            user=user_id,
+                            collection_id=collection.id,
+                            document_id=document.id,
+                            metadata=json.dumps(metadata),
+                        )
                         logger.info(f"Associated document {document_id} with message {message_id}")
                 except json.JSONDecodeError:
                     continue

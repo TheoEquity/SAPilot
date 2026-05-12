@@ -26,16 +26,12 @@ import httpx
 from sqlalchemy import and_, select
 
 from aperag.config import settings
-from aperag.context.context import ContextManager
 from aperag.db import models as db_models
 from aperag.db.ops import async_db_ops
-from aperag.llm.embed.base_embedding import get_collection_embedding_service_sync
-from aperag.llm.llm_error_types import EmbeddingError, ProviderNotFoundError
-from aperag.query.query import DocumentWithScore
 from aperag.schema import view_models
 from aperag.service.agent_chat_service import AgentChatService
+from aperag.service.image_search_service import image_search_service
 from aperag.service.prompt_template_service import prompt_template_service
-from aperag.utils.utils import generate_vector_db_collection_name
 
 logger = logging.getLogger(__name__)
 
@@ -297,7 +293,7 @@ class DingTalkBotService:
                 if not data_uri:
                     logger.info("DingTalk image ref produced no data uri: %s", image_ref)
                     continue
-                results = await self._search_similar_images(
+                results = await image_search_service.search_similar_images(
                     user_id=user_id,
                     collections=collections,
                     image_data_uri=data_uri,
@@ -309,7 +305,11 @@ class DingTalkBotService:
             except Exception:
                 logger.exception("Failed to build DingTalk image search context")
 
-        return self._format_image_search_context(contexts)
+        return await image_search_service.format_image_search_context(
+            user_id,
+            contexts,
+            top_k=settings.dingtalk_image_search_topk,
+        )
 
     async def _download_dingtalk_image_as_data_uri(self, image_ref: str, payload: Dict[str, Any]) -> str:
         if image_ref.startswith("data:image/"):
@@ -403,93 +403,6 @@ class DingTalkBotService:
         if content.startswith(b"RIFF") and b"WEBP" in content[:16]:
             return "image/webp"
         return "image/png"
-
-    async def _search_similar_images(
-        self,
-        user_id: str,
-        collections: List[view_models.Collection],
-        image_data_uri: str,
-        top_k: int,
-        similarity_threshold: float,
-    ) -> List[DocumentWithScore]:
-        results: List[DocumentWithScore] = []
-        for collection_view in collections:
-            collection_id = collection_view.id
-            if not collection_id:
-                continue
-            collection = await self.db_ops.query_collection(user_id, collection_id)
-            if not collection:
-                continue
-            try:
-                embedding_model, _ = get_collection_embedding_service_sync(collection)
-                if not embedding_model.is_multimodal():
-                    logger.info("DingTalk image search skipped non-multimodal collection %s", collection_id)
-                    continue
-                vector = embedding_model.embed_query(image_data_uri)
-                collection_name = generate_vector_db_collection_name(collection.id)
-                vectordb_ctx = json.loads(settings.vector_db_context)
-                vectordb_ctx["collection"] = collection_name
-                context_manager = ContextManager(collection_name, embedding_model, settings.vector_db_type, vectordb_ctx)
-                collection_results = context_manager.query(
-                    "uploaded_dingtalk_image",
-                    score_threshold=similarity_threshold,
-                    topk=max(top_k * 2, top_k),
-                    vector=vector,
-                    index_types=["vision"],
-                )
-                logger.info(
-                    "DingTalk image search collection=%s raw_results=%s top_score=%s",
-                    collection_id,
-                    len(collection_results),
-                    collection_results[0].score if collection_results else None,
-                )
-                for item in collection_results:
-                    if item.metadata is None:
-                        item.metadata = {}
-                    item.metadata["recall_type"] = "vision_search"
-                    item.metadata["collection_title"] = collection_view.title or collection.title
-                results.extend(collection_results)
-            except (ProviderNotFoundError, EmbeddingError) as e:
-                logger.warning("DingTalk image search skipped for collection %s: %s", collection_id, e)
-            except Exception:
-                logger.exception("DingTalk image search failed for collection %s", collection_id)
-
-        results.sort(key=lambda item: item.score if item.score is not None else 0, reverse=True)
-        return self._deduplicate_image_results(results)[:top_k]
-
-    def _deduplicate_image_results(self, results: List[DocumentWithScore]) -> List[DocumentWithScore]:
-        seen = set()
-        deduplicated = []
-        for item in results:
-            metadata = item.metadata or {}
-            key = (metadata.get("collection_id"), metadata.get("document_id"), metadata.get("asset_id"))
-            if key in seen:
-                continue
-            seen.add(key)
-            deduplicated.append(item)
-        return deduplicated
-
-    def _format_image_search_context(self, results: List[DocumentWithScore]) -> str:
-        if not results:
-            return ""
-
-        lines = ["相似报错截图检索结果："]
-        for idx, item in enumerate(results[: settings.dingtalk_image_search_topk], start=1):
-            metadata = item.metadata or {}
-            score = f"{item.score:.3f}" if isinstance(item.score, (int, float)) else "未知"
-            source = metadata.get("source") or metadata.get("name") or "未知来源"
-            collection_title = metadata.get("collection_title") or metadata.get("collection_id") or "未知知识库"
-            asset_id = metadata.get("asset_id") or ""
-            document_id = metadata.get("document_id") or ""
-            content = (item.text or "").strip()
-            if len(content) > 500:
-                content = content[:500] + "..."
-            lines.append(
-                f"{idx}. 相似度 {score}，知识库：{collection_title}，来源：{source}，document_id：{document_id}，asset_id：{asset_id}"
-            )
-            if content:
-                lines.append(f"关联说明：{content}")
-        return "\n".join(lines)
 
     def _extract_text(self, payload: Dict[str, Any]) -> str:
         text = payload.get("text")

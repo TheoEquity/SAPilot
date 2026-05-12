@@ -37,7 +37,13 @@ import { cn } from '@/lib/utils';
 import { useInterval } from 'ahooks';
 import { motion } from 'framer-motion';
 import _ from 'lodash';
-import { Bot, Globe, LoaderCircle, Paperclip, Trash2 } from 'lucide-react';
+import {
+  Bot,
+  Globe,
+  LoaderCircle,
+  Paperclip,
+  Trash2,
+} from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { defaultStyles, FileIcon } from 'react-file-icon';
@@ -77,7 +83,12 @@ export type Attachment = {
   filename?: string;
   size?: number;
   status?: UploadDocumentResponseStatusEnum;
+  previewUrl?: string;
 };
+
+const isImageFile = (file: File) =>
+  file.type.startsWith('image/') ||
+  /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name);
 
 export const ChatInput = ({
   chat,
@@ -119,7 +130,39 @@ export const ChatInput = ({
   );
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
+  const addFilesToAttachments = useCallback(
+    (files: File[]) => {
+      if (attachments.length > 0) {
+        toast.error('一次只能上传 1 个附件，请先删除当前附件。');
+        return;
+      }
+      if (files.length > 1) {
+        toast.error('一次只能上传 1 个附件。');
+      }
+      const [nextFile] = files;
+      if (!nextFile) return;
+
+      setAttachments((attachments) => {
+        if (attachments.length > 0) return attachments;
+        const newAttachment: Attachment = {
+          id: crypto.randomUUID(),
+          file: nextFile,
+          progress_status: 'pending',
+        };
+        // Generate preview URL for pasted images immediately
+        if (isImageFile(nextFile)) {
+          newAttachment.previewUrl = URL.createObjectURL(nextFile);
+        }
+        return [newAttachment];
+      });
+    },
+    [attachments.length],
+  );
+
   const handleDeleteAttachment = useCallback(async (attachment: Attachment) => {
+    if (attachment.previewUrl) {
+      URL.revokeObjectURL(attachment.previewUrl);
+    }
     setAttachments((items) =>
       items.filter((item) => item.id !== attachment.id),
     );
@@ -201,7 +244,11 @@ export const ChatInput = ({
             const item = items.find((item) => item.id === attachment.id);
             if (item) {
               item.document_id = res.data.id;
-              item.progress_status = 'uploaded';
+              item.progress_status = isImageFile(item.file) ? 'success' : 'uploaded';
+              // Generate preview URL for images
+              if (isImageFile(item.file)) {
+                item.previewUrl = URL.createObjectURL(item.file);
+              }
             }
             return [...items];
           });
@@ -218,6 +265,9 @@ export const ChatInput = ({
 
   const onFileValidate = useCallback(
     (file: File): string | null => {
+      if (attachments.length > 0) {
+        return '一次只能上传 1 个附件，请先删除当前附件。';
+      }
       const doc = attachments.some(
         (attachment) =>
           attachment.file.name === file.name &&
@@ -244,6 +294,16 @@ export const ChatInput = ({
   const handleSendMessage = useCallback(() => {
     const _query = _.trim(query);
     if (_.isEmpty(_query) || isComposing || loading || mentionOpen) return;
+
+    const processingAttachment = attachments.find((attachment) =>
+      ['pending', 'uploading', 'uploaded', 'indexing'].includes(
+        attachment.progress_status,
+      ),
+    );
+    if (processingAttachment) {
+      toast.info('附件仍在处理中，请等待上传完成后再发送。');
+      return;
+    }
 
     let model: ModelSpec | undefined;
     const provider = providerModels?.find((p) =>
@@ -280,11 +340,13 @@ export const ChatInput = ({
         .map((attachment) => ({
           id: attachment.document_id || '',
           name: attachment.file.name,
+          previewUrl: attachment.previewUrl,
         })),
     };
 
     setQuery('');
     setSelectedCollections([]);
+    setAttachments([]);
     onSubmit(data);
   }, [
     attachments,
@@ -300,6 +362,38 @@ export const ChatInput = ({
     selectedCollections,
     webSearchEnabled,
   ]);
+
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      if (attachments.length > 0) {
+        toast.error('一次只能上传 1 个附件，请先删除当前附件。');
+        return;
+      }
+      const files: File[] = [];
+      Array.from(event.clipboardData.items).forEach((item, index) => {
+        if (!item.type.startsWith('image/')) return;
+        const file = item.getAsFile();
+        if (!file) return;
+        const extension = item.type.split('/')[1] || 'png';
+        files.push(
+          new File(
+            [file],
+            `pasted-screenshot-${Date.now()}-${index}.${extension}`,
+            {
+              type: item.type,
+              lastModified: Date.now(),
+            },
+          ),
+        );
+      });
+      if (files.length > 0) {
+        event.preventDefault();
+        addFilesToAttachments(files);
+        toast.success('截图已添加为附件，请等待上传完成后发送。');
+      }
+    },
+    [addFilesToAttachments, attachments.length],
+  );
 
   useEffect(() => {
     if (_.isEmpty(providerModels)) {
@@ -455,6 +549,7 @@ export const ChatInput = ({
                   value={query}
                   placeholder={mention ? page_chat('mention_a_collection') : ''}
                   disabled={disabled}
+                  onPaste={handlePaste}
                 />
               </MentionInput>
               <MentionContent className="w-60">
@@ -484,21 +579,24 @@ export const ChatInput = ({
               <div></div>
               <div className="flex gap-2">
                 <FileUpload
-                  maxFiles={10}
+                  maxFiles={1}
                   maxSize={100 * 1024 * 1024}
-                  accept=".pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx"
+                  accept=".pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.webp"
                   value={attachments.map((f) => f.file)}
                   onFileReject={onFileReject}
                   onFileValidate={onFileValidate}
                   onValueChange={(files) => {
                     setAttachments((attachments) => {
+                      if (files.length > 1) {
+                        toast.error('一次只能上传 1 个附件。');
+                      }
                       const data: Attachment[] = [];
-                      files.forEach((file) => {
+                      files.slice(0, 1).forEach((file) => {
                         const attachment = attachments.find((attachment) =>
                           _.isEqual(attachment.file, file),
                         );
                         data.push({
-                          id: String(Math.random()),
+                          id: crypto.randomUUID(),
                           file,
                           progress_status: 'pending',
                           ...attachment,
@@ -508,15 +606,20 @@ export const ChatInput = ({
                     });
                   }}
                 >
-                  <FileUploadTrigger asChild>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="cursor-pointer"
-                    >
-                      <Paperclip />
-                    </Button>
-                  </FileUploadTrigger>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <FileUploadTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="cursor-pointer"
+                        >
+                          <Paperclip />
+                        </Button>
+                      </FileUploadTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>上传文件或图片，支持粘贴截图</TooltipContent>
+                  </Tooltip>
                 </FileUpload>
 
                 <Tooltip>
