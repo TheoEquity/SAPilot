@@ -531,6 +531,16 @@ class AgentChatService:
                     files=merged_agent_message.files,
                     collections=final_collections or [],
                 )
+                # Inject the top FAQ chunk text into the query so LLM can use it
+                if image_search_results:
+                    top_chunk = image_search_results[0]
+                    chunk_text = (top_chunk.text or "").strip()
+                    if chunk_text:
+                        merged_agent_message.query = (
+                            f"{merged_agent_message.query}\n\n"
+                            f"【参考内容】\n{chunk_text}\n\n"
+                            "请基于上述参考内容回答用户问题。"
+                        )
 
             comprehensive_prompt = build_agent_query_prompt(
                 chat_id, agent_message=merged_agent_message, user=user, template=resolved_query_prompt, is_search_confirmed=is_search_confirmed
