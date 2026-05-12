@@ -16,6 +16,7 @@
 
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 from .exceptions import (
@@ -46,6 +47,8 @@ def extract_tool_call_references(memory) -> List[Dict[str, Any]]:
     if not history_messages:
         logger.debug("No history messages found in memory")
         return references
+
+    target_faq_ids = _extract_answer_faq_ids(history_messages)
 
     for message in history_messages:
         # Check if message has tool calls (message is a dict)
@@ -107,9 +110,9 @@ def extract_tool_call_references(memory) -> List[Dict[str, Any]]:
                         ref = None
                         try:
                             if tool_name == "aperag_search_collection":
-                                ref = _format_search_reference(tool_result, args_dict)
+                                ref = _format_search_reference(tool_result, args_dict, target_faq_ids)
                             elif tool_name == "aperag_search_chat_files":
-                                ref = _format_search_chat_files_reference(tool_result, args_dict)
+                                ref = _format_search_chat_files_reference(tool_result, args_dict, target_faq_ids)
                             elif tool_name == "aperag_list_collections":
                                 ref = _format_list_reference(tool_result, args_dict)
                             elif tool_name == "aperag_web_search":
@@ -120,7 +123,9 @@ def extract_tool_call_references(memory) -> List[Dict[str, Any]]:
                                 # Generic tool result reference
                                 ref = _format_generic_reference(tool_name, tool_result, args_dict)
 
-                            if ref:
+                            if isinstance(ref, list):
+                                references.extend(ref)
+                            elif ref:
                                 references.append(ref)
 
                         except (JSONParsingError, ToolReferenceExtractionError) as e:
@@ -132,6 +137,18 @@ def extract_tool_call_references(memory) -> List[Dict[str, Any]]:
                     continue
 
     return references
+
+
+def _extract_answer_faq_ids(messages) -> List[str]:
+    """Extract FAQ IDs mentioned in the final assistant answer."""
+    for message in reversed(messages):
+        if not isinstance(message, dict) or message.get("role") != "assistant" or message.get("tool_calls"):
+            continue
+        content = message.get("content") or ""
+        faq_ids = re.findall(r"FAQ[A-Z]+\d+", content)
+        if faq_ids:
+            return list(dict.fromkeys(faq_ids))
+    return []
 
 
 def _find_tool_result(messages, tool_call_id: str) -> Optional[str]:
@@ -148,7 +165,9 @@ def _find_tool_result(messages, tool_call_id: str) -> Optional[str]:
     return None
 
 
-def _format_search_reference(tool_result: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _format_search_reference(
+    tool_result: str, args: Dict[str, Any], target_faq_ids: Optional[List[str]] = None
+) -> Optional[List[Dict[str, Any]]]:
     """Format search_collection tool result as reference"""
     try:
         # Parse tool result - handle both string and already parsed data
@@ -182,32 +201,28 @@ def _format_search_reference(tool_result: str, args: Dict[str, Any]) -> Optional
         if "items" in result_data:
             items = result_data["items"]
             if items:
-                # Combine all search results into a single reference
-                combined_text = ""
-                combined_metadata = {
+                item, index = _select_primary_reference_item(items, target_faq_ids)
+                content = item.get("content", "")
+                metadata = item.get("metadata", {}) or {}
+                reference_metadata = {
+                    **metadata,
                     "type": "search_collection",
-                    "collection_id": collection_id,
+                    "collection_id": metadata.get("collection_id") or collection_id,
+                    "document_id": metadata.get("document_id") or metadata.get("doc_id"),
                     "query": query,
                     "result_count": len(items),
+                    "rank": item.get("rank") or index + 1,
+                    "recall_type": item.get("recall_type"),
+                    "document_source": item.get("source") or metadata.get("source"),
                 }
 
-                for item in items:
-                    content = item.get("content", "")
-                    metadata = item.get("metadata", {})
-                    combined_text += f"Document: {metadata.get('source', 'Untitled')}\n\n"
-                    combined_text += f"Content: {content}\n\n"
-
-                    if metadata.get("asset_id") and metadata.get("document_id") and metadata.get("collection_id"):
-                        asset_url = f"asset://{metadata.get('asset_id')}?document_id={metadata.get('document_id')}&collection_id={metadata.get('collection_id')}"
-                        if metadata.get("mimetype"):
-                            asset_url = asset_url + "&mime_type=" + metadata.get("mimetype")
-                        combined_text += f"![]({asset_url})\n\n"
-
-                return {
-                    "text": combined_text.strip(),
-                    "metadata": combined_metadata,
-                    "score": 1.0,  # Default score for search results
-                }
+                return [
+                    {
+                        "text": _format_reference_content(content, reference_metadata),
+                        "metadata": reference_metadata,
+                        "score": item.get("score") or 1.0,
+                    }
+                ]
 
         return None
 
@@ -216,7 +231,9 @@ def _format_search_reference(tool_result: str, args: Dict[str, Any]) -> Optional
         return None
 
 
-def _format_search_chat_files_reference(tool_result: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _format_search_chat_files_reference(
+    tool_result: str, args: Dict[str, Any], target_faq_ids: Optional[List[str]] = None
+) -> Optional[List[Dict[str, Any]]]:
     """Format search_chat_files tool result as reference"""
     try:
         # Parse tool result - handle both string and already parsed data
@@ -250,38 +267,83 @@ def _format_search_chat_files_reference(tool_result: str, args: Dict[str, Any]) 
         if "items" in result_data:
             items = result_data["items"]
             if items:
-                # Combine all search results into a single reference
-                combined_text = ""
-                combined_metadata = {
+                item, index = _select_primary_reference_item(items, target_faq_ids)
+                content = item.get("content", "")
+                metadata = item.get("metadata", {}) or {}
+                reference_metadata = {
+                    **metadata,
                     "type": "search_chat_files",
                     "chat_id": chat_id,
+                    "document_id": metadata.get("document_id") or metadata.get("doc_id"),
                     "query": query,
                     "result_count": len(items),
+                    "rank": item.get("rank") or index + 1,
+                    "recall_type": item.get("recall_type"),
+                    "document_source": item.get("source") or metadata.get("source"),
                 }
 
-                for item in items:
-                    content = item.get("content", "")
-                    metadata = item.get("metadata", {})
-                    combined_text += f"Document: {metadata.get('source', 'Untitled')}\n\n"
-                    combined_text += f"Content: {content}\n\n"
-
-                    if metadata.get("asset_id") and metadata.get("document_id") and metadata.get("collection_id"):
-                        asset_url = f"asset://{metadata.get('asset_id')}?document_id={metadata.get('document_id')}&collection_id={metadata.get('collection_id')}"
-                        if metadata.get("mimetype"):
-                            asset_url = asset_url + "&mime_type=" + metadata.get("mimetype")
-                        combined_text += f"![]({asset_url})\n\n"
-
-                return {
-                    "text": combined_text.strip(),
-                    "metadata": combined_metadata,
-                    "score": 1.0,  # Default score for search results
-                }
+                return [
+                    {
+                        "text": _format_reference_content(content, reference_metadata),
+                        "metadata": reference_metadata,
+                        "score": item.get("score") or 1.0,
+                    }
+                ]
 
         return None
 
     except Exception as e:
         logger.error(f"Error formatting search chat files reference: {e}")
         return None
+
+
+def _format_reference_content(content: str, metadata: Dict[str, Any]) -> str:
+    """Return original chunk markdown with resolvable asset URLs."""
+    if not content:
+        return ""
+
+    collection_id = metadata.get("collection_id")
+    document_id = metadata.get("document_id")
+    if not (collection_id and document_id):
+        return content
+
+    def add_required_asset_params(match):
+        asset_id = match.group(1)
+        query = match.group(2) or ""
+        query_params = query.lstrip("?")
+        additions = []
+        if "collection_id=" not in query_params:
+            additions.append(f"collection_id={collection_id}")
+        if "document_id=" not in query_params:
+            additions.append(f"document_id={document_id}")
+        if not additions:
+            return match.group(0)
+
+        separator = "&" if query_params else ""
+        return f"asset://{asset_id}?{query_params}{separator}{'&'.join(additions)}"
+
+    import re
+
+    return re.sub(r"asset://([^\s)\?]+)(\?[^\s)]*)?", add_required_asset_params, content)
+
+
+def _select_primary_reference_item(
+    items: List[Dict[str, Any]], target_faq_ids: Optional[List[str]] = None
+) -> tuple[Dict[str, Any], int]:
+    """Pick the single chunk users should see when opening references."""
+    if target_faq_ids:
+        target_ids = set(target_faq_ids)
+        for index, item in enumerate(items):
+            metadata = item.get("metadata", {}) or {}
+            if metadata.get("faq_id") in target_ids:
+                return item, index
+
+    for index, item in enumerate(items):
+        metadata = item.get("metadata", {}) or {}
+        if metadata.get("chunk_type") == "faq_entry":
+            return item, index
+
+    return items[0], 0
 
 
 def _format_list_reference(tool_result: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:

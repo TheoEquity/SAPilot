@@ -117,6 +117,23 @@ class Rechunker:
                 title_level = part.level
                 title = part.content or ""
 
+            # FAQ entries must be their own independent groups
+            if part.metadata.get("chunk_type") == "faq_entry":
+                # Close current group if exists
+                if curr_group is not None:
+                    result.append(curr_group)
+                    curr_group = None
+                # Create new group for this FAQ entry
+                # Use title_level=0 to prevent merging in _merge_consecutive_title_groups
+                new_group = Group(
+                    title_level=0,
+                    title=part.metadata.get("faq_id", ""),
+                    items=[part]
+                )
+                result.append(new_group)
+                # Do not set curr_group; next part should start fresh
+                continue
+
             if curr_group is None:
                 curr_group = Group(title_level=title_level, title=title, items=[part])
                 result.append(curr_group)
@@ -154,6 +171,14 @@ class Rechunker:
                 # Do not merge if the current group has a higher title level
                 # (e.g., merging content under a main heading into a sub-heading)
                 can_merge = False
+            
+            # Don't merge FAQ entries with other parts
+            if last_part is not None and (
+                last_part.metadata.get("chunk_type") == "faq_entry" or
+                any(p.metadata.get("chunk_type") == "faq_entry" for p in group.items)
+            ):
+                can_merge = False
+            
             last_part_tokens = 0 if last_part is None else self._count_tokens(last_part)
             if last_part_tokens + group_tokens > self.chunk_size:
                 can_merge = False
@@ -175,7 +200,10 @@ class Rechunker:
             parts: list[Part] = []
             for part in group.items:
                 tokens = self._count_tokens(part)
-                if tokens > self.chunk_size:
+                # Skip splitting for FAQ entries - keep them as complete chunks
+                if part.metadata.get("chunk_type") == "faq_entry":
+                    parts.append(part)
+                elif tokens > self.chunk_size:
                     # If the single part is too large, split it into smaller chunks
                     splitter = SimpleSemanticSplitter(self.tokenizer)
                     chunks = splitter.split(part.content, self.chunk_size, self.chunk_overlap)

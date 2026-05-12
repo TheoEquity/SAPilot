@@ -162,10 +162,12 @@ class DocumentParser:
         content = ""
 
         # Extract full markdown content if available
-        md_part = next((part for part in doc_parts if isinstance(part, MarkdownPart)), None)
-        if md_part is not None:
-            content = md_part.markdown
-            doc_parts.remove(md_part)
+        md_parts = [part for part in doc_parts if isinstance(part, MarkdownPart)]
+        if md_parts:
+            content = "\n\n".join(part.markdown for part in md_parts)
+            if not all(part.metadata.get("chunk_type") == "faq_entry" for part in md_parts):
+                for part in md_parts:
+                    doc_parts.remove(part)
 
         pdf_part = next((part for part in doc_parts if isinstance(part, PdfPart)), None)
         if pdf_part is not None:

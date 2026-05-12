@@ -1,10 +1,12 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon, XIcon } from 'lucide-react';
 import Link from 'next/link';
 import {
   JSX,
+  WheelEvent,
+  MouseEvent,
   MouseEventHandler,
   useCallback,
   useEffect,
@@ -90,22 +92,117 @@ export const CustomImage = ({
   src,
   ...props
 }: JSX.IntrinsicElements['img']) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [imageUrl, setImageUrl] = useState<string>();
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [transformOrigin, setTransformOrigin] = useState('center center');
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getImageSrc = useCallback(async () => {
     if (typeof src !== 'string') return;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [path, queryString] = src.replace('asset://', '').split('?');
+    const params = new URLSearchParams(queryString || '');
+    const collectionId = params.get('collection_id');
+    const documentId = params.get('document_id');
+
+    if (!path || !collectionId || !documentId) return;
+
+    const objectUrl = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/v1/collections/${collectionId}/documents/${documentId}/object?path=${encodeURIComponent(`assets/${path}`)}`;
+    const response = await fetch(objectUrl);
+    if (!response.ok) return;
+
+    const blob = await response.blob();
+    setImageUrl(URL.createObjectURL(blob));
   }, [src]);
 
-  useEffect(() => {}, []);
+  useEffect(() => {
+    getImageSrc();
+  }, [getImageSrc]);
 
-  return;
+  useEffect(() => {
+    return () => {
+      if (imageUrl) {
+        URL.revokeObjectURL(imageUrl);
+      }
+    };
+  }, [imageUrl]);
+
+  const resetPreview = () => {
+    setScale(1);
+    setTransformOrigin('center center');
+  };
+
+  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    const step = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+    setTransformOrigin(`${x}% ${y}%`);
+    setScale((current) => Math.max(0.05, current * step));
+  };
+
+  const closePreview = (event?: MouseEvent<HTMLButtonElement>) => {
+    event?.stopPropagation();
+    setPreviewOpen(false);
+    resetPreview();
+  };
+
+  useEffect(() => {
+    if (!previewOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPreviewOpen(false);
+        resetPreview();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewOpen]);
 
   return imageUrl ? (
-    <img {...props} alt={props.alt} src={imageUrl} />
+    <>
+      <button
+        className="block cursor-zoom-in"
+        onClick={() => setPreviewOpen(true)}
+        type="button"
+      >
+        <img
+          {...props}
+          alt={props.alt}
+          src={imageUrl}
+          className="h-auto w-full min-w-64 max-w-none rounded border object-contain"
+        />
+      </button>
+      {previewOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-6 backdrop-blur-sm"
+          onDoubleClick={resetPreview}
+          onWheel={handleWheel}
+        >
+          <button
+            className="bg-background/90 text-foreground hover:bg-background absolute top-4 right-4 z-10 rounded-full p-2 shadow-lg transition-colors"
+            onClick={closePreview}
+            type="button"
+          >
+            <XIcon className="size-5" />
+            <span className="sr-only">关闭图片预览</span>
+          </button>
+          <img
+            alt={props.alt || '图片预览'}
+            className="max-h-[90vh] max-w-[90vw] select-none object-contain"
+            draggable={false}
+            src={imageUrl}
+            style={{
+              cursor: 'zoom-in',
+              transform: `scale(${scale})`,
+              transformOrigin,
+            }}
+          />
+        </div>
+      )}
+    </>
   ) : (
     <Skeleton className="my-4 h-[125px] w-full rounded-xl py-4 pt-8 text-center">
       <ImageIcon className="mx-auto size-12 opacity-20" />

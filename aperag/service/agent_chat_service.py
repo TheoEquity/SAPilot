@@ -499,7 +499,8 @@ class AgentChatService:
             history = await self.history_manager.get_chat_history(chat_id)
             memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
 
-            # Detect if user is confirming web search from a previous turn
+            # Detect if user is confirming an optional follow-up from a previous turn
+            is_expert_expansion_confirmed = self._detect_expert_expansion_confirmation(agent_message.query, memory)
             is_search_confirmed = self._detect_search_confirmation(agent_message.query, memory)
 
             # Get chat session using merged agent message and resolved system prompt
@@ -512,6 +513,8 @@ class AgentChatService:
             comprehensive_prompt = build_agent_query_prompt(
                 chat_id, agent_message=merged_agent_message, user=user, template=resolved_query_prompt, is_search_confirmed=is_search_confirmed
             )
+            if is_expert_expansion_confirmed:
+                comprehensive_prompt = self._build_expert_expansion_prompt(agent_message.query)
 
             request_params = RequestParams(
                 maxTokens=8192,
@@ -770,3 +773,60 @@ class AgentChatService:
                 
         logger.info(f"_detect_search_confirmation: No confirmation found, returning False")
         return False
+
+    def _detect_expert_expansion_confirmation(self, current_query: str, memory) -> bool:
+        """Detect if user wants the LLM to expand a prior FAQ answer professionally."""
+        if not current_query or not memory:
+            return False
+
+        last_ai_content = self._get_last_ai_content(memory)
+        if "是否需要我从专业角度扩展解答" not in last_ai_content:
+            return False
+
+        confirmation_words = {
+            "可以",
+            "好",
+            "是",
+            "行",
+            "嗯",
+            "需要",
+            "要的",
+            "扩展",
+            "扩展一下",
+            "专业角度",
+            "详细说说",
+            "补充一下",
+            "继续",
+            "ok",
+            "yes",
+            "sure",
+        }
+        query_lower = current_query.lower().strip()
+        if query_lower in confirmation_words:
+            return True
+        return any(word in query_lower for word in confirmation_words)
+
+    def _get_last_ai_content(self, memory) -> str:
+        """Return the most recent assistant message content from memory history."""
+        if not hasattr(memory, "history") or not memory.history:
+            return ""
+
+        for msg in reversed(memory.history):
+            if isinstance(msg, dict) and msg.get("role") == "assistant":
+                return msg.get("content", "") or ""
+            if hasattr(msg, "role") and msg.role == "assistant":
+                return getattr(msg, "content", "") or ""
+        return ""
+
+    def _build_expert_expansion_prompt(self, current_query: str) -> str:
+        return f"""用户确认需要专业扩展解答。
+
+请基于上一轮 FAQ 标准回答和对话上下文，从 SAP 顾问现场支持角度补充说明。不要再次检索知识库，不要启动联网搜索，不要重复 FAQ 标准回答。
+
+回答格式：
+【专业扩展解答】
+1. 现场处理建议
+2. 常见风险或注意事项
+3. 下一步排查方向
+
+用户当前回复：{current_query}"""
