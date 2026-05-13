@@ -500,33 +500,49 @@ class AgentChatService:
             # Send start message
             await message_queue.put(format_stream_start(message_id))
 
-            greeting_response = self._build_greeting_response(agent_message.query, agent_message.language)
-            if greeting_response:
-                await message_queue.put(format_stream_content(message_id, greeting_response))
-                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
-                return {
-                    "query": merged_agent_message.query,
-                    "content": greeting_response,
-                    "references": [],
-                }
-
             # Create memory from chat history
             history = await self.history_manager.get_chat_history(chat_id)
             memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
 
-            if self._should_continue_unmatched_image_prompt(agent_message.query, history):
-                unmatched_response = self._build_unmatched_image_response(agent_message.language)
-                await message_queue.put(format_stream_content(message_id, unmatched_response))
-                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+            # Decide whether to search knowledge base based on trigger rules
+            search_kb = self._should_search_knowledge_base(
+                query=merged_agent_message.query,
+                files=merged_agent_message.files,
+                memory=memory,
+            )
+
+            if not search_kb:
+                # Free conversation mode: LLM responds without search tools
+                session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
+                llm = await session.get_llm(final_completion.model)
+                llm.history = memory
+
+                request_params = RequestParams(
+                    maxTokens=8192,
+                    model=final_completion.model,
+                    use_history=True,
+                    max_iterations=1,
+                    temperature=0.7,
+                    user=user,
+                    tool_filter={"aperag": set()},
+                )
+                response = await llm.generate_str(merged_agent_message.query, request_params)
+                full_content = response if response else "No response generated"
+
+                await asyncio.sleep(0.1)
+                await message_queue.put(format_stream_content(message_id, full_content))
+                tool_references = extract_tool_call_references(llm.history)
+                await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[]))
                 return {
                     "query": merged_agent_message.query,
-                    "content": unmatched_response,
-                    "references": [],
+                    "content": full_content,
+                    "references": tool_references,
                 }
 
-            # Detect if user is confirming an optional follow-up from a previous turn
+            # Knowledge base search mode: full MCP agent with search tools
+
+            # Detect expansion follow-up from previous FAQ turn
             is_expert_expansion_confirmed = self._detect_expert_expansion_confirmation(agent_message.query, memory)
-            is_search_confirmed = self._detect_search_confirmation(agent_message.query, memory)
 
             # Get chat session using merged agent message and resolved system prompt
             session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
@@ -564,8 +580,8 @@ class AgentChatService:
                     }
 
                 chunk_text = (top_chunk.text or "").strip()
-                question_text = self._extract_faq_question_text(chunk_text)
-                if not question_text:
+                faq_title = self._extract_faq_title(top_chunk.metadata, chunk_text)
+                if not faq_title:
                     unmatched_response = self._build_unmatched_image_response(agent_message.language)
                     await message_queue.put(format_stream_content(message_id, unmatched_response))
                     await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
@@ -576,11 +592,11 @@ class AgentChatService:
                     }
 
                 llm_agent_message = merged_agent_message.model_copy(
-                    update={"query": self._build_image_search_text_query(original_user_query, question_text)}
+                    update={"query": self._build_image_search_text_query(original_user_query, faq_title, agent_message.language)}
                 )
 
             comprehensive_prompt = build_agent_query_prompt(
-                chat_id, agent_message=llm_agent_message, user=user, template=resolved_query_prompt, is_search_confirmed=is_search_confirmed
+                chat_id, agent_message=llm_agent_message, user=user, template=resolved_query_prompt, is_search_confirmed=False
             )
             if is_expert_expansion_confirmed:
                 comprehensive_prompt = self._build_expert_expansion_prompt(agent_message.query)
@@ -646,7 +662,56 @@ class AgentChatService:
             # Handle unexpected errors with generic processing error
             return format_processing_error(str(exception), language)
 
-    def _build_greeting_response(self, query: str, language: Optional[str]) -> Optional[str]:
+    def _should_search_knowledge_base(
+        self, query: str, files: Optional[List[view_models.File]], memory
+    ) -> bool:
+        """Decide whether to route user message to knowledge base search.
+
+        Triggers:
+        1. User uploaded image files (screenshot of SAP error)
+        2. User explicitly requests search (contains trigger phrases)
+        3. User query contains SAP/business-specific keywords
+        4. User is confirming expansion of a previous FAQ answer
+
+        Default: free conversation without search tools.
+        """
+        if not query:
+            return False
+
+        # Trigger 1: image upload
+        if self._has_image_files(files):
+            logger.info("KB search triggered: image upload")
+            return True
+
+        # Trigger 4: expansion confirmation from previous FAQ turn
+        if self._detect_expert_expansion_confirmation(query, memory):
+            logger.info("KB search triggered: expansion confirmation")
+            return True
+
+        normalized = re.sub(r"[\s!！?？。,.，；;:：~～]+", "", query).lower()
+
+        # Trigger 2: explicit search request
+        search_triggers = {
+            "查一下", "查查", "帮我查", "帮我搜", "搜一下", "搜索", "检索",
+            "从知识库查", "知识库查", "查知识库", "搜知识库", "问知识库",
+            "search", "lookup", "find", "check", "querykb",
+        }
+        if any(trigger in normalized for trigger in search_triggers):
+            logger.info("KB search triggered: explicit search request '%s'", query)
+            return True
+
+        # Trigger 3: business/SAP keywords
+        business_markers = {
+            "sap", "faq", "报错", "错误", "流程", "账号", "帐号", "锁定",
+            "截图", "凭证", "订单", "发票", "付款", "报错码", "异常",
+            "工单", "审批", "采购", "库存", "资产", "成本", "预算",
+            "合同", "供应商", "银行", "税收", "科目", "总账",
+        }
+        if any(marker in normalized for marker in business_markers):
+            logger.info("KB search triggered: business keyword in '%s'", query)
+            return True
+
+        return False
         """Return a direct response for short greetings and thanks."""
         if not query:
             return None
@@ -684,23 +749,26 @@ class AgentChatService:
             "早安",
             "晚安",
         }
-        chinese_thanks = {"谢谢", "多谢", "感谢", "谢谢你", "谢谢啦", "多谢了", "辛苦了"}
+        chinese_thanks = {
+            "谢谢", "多谢", "感谢", "谢谢你", "谢谢啦", "多谢了", "辛苦了",
+            "好的谢谢", "好的感谢", "好谢谢", "好的多谢",
+        }
         english_greetings = {"hi", "hello", "hey", "goodmorning", "goodafternoon", "goodevening"}
-        english_thanks = {"thanks", "thankyou", "thx", "ty"}
+        english_thanks = {"thanks", "thankyou", "thx", "ty", "okthanks", "okaythanks", "greatthanks"}
 
         if normalized in chinese_greetings:
             return (
                 "你好！我是 SAPilot 运维FAQ问答助手，可以帮你查询 SAP 人财物运维常见问题、解释报错原因，"
                 "并给出现场处理建议。你可以直接描述问题，或上传报错截图。"
             )
-        if normalized in chinese_thanks:
+        if normalized in chinese_thanks or any(word in normalized for word in chinese_thanks):
             return "不客气！你可以继续描述 SAP 运维问题，或上传报错截图，我会继续帮你分析。"
         if normalized in english_greetings:
             return (
                 "Hello! I am the SAPilot Operations FAQ Assistant. I can help you look up SAP support FAQs, "
                 "explain errors, and suggest on-site troubleshooting steps. You can describe the issue or upload an error screenshot."
             )
-        if normalized in english_thanks:
+        if normalized in english_thanks or any(word in normalized for word in english_thanks):
             return "You're welcome. You can continue describing the SAP support issue or upload an error screenshot for analysis."
 
         if language == "zh-CN" and normalized in {"好", "嗯", "行"}:
@@ -708,11 +776,16 @@ class AgentChatService:
 
         return None
 
-    def _build_image_search_text_query(self, original_query: str, question_text: str) -> str:
+    def _build_image_search_text_query(self, original_query: str, faq_title: str, language: Optional[str] = None) -> str:
+        language_rule = (
+            "回答语言规则：中文问中文回答，英文问英文回答，"
+            f"其他语言问则用Agent默认语言（{language or 'en-US'}）回答。\n"
+        )
         return (
-            "用户上传的截图疑似对应以下问题描述。请把该问题描述作为检索关键词，"
+            f"{language_rule}"
+            "用户上传的截图疑似对应以下FAQ标题。请把该标题作为检索关键词，"
             "继续调用 search_collection 检索运维FAQ知识库，再按检索结果回答。\n"
-            f"检索关键词：{question_text}\n\n"
+            f"检索关键词：{faq_title}\n\n"
             f"用户原始问题：{original_query}"
         )
 
@@ -773,8 +846,14 @@ class AgentChatService:
         score = result.score if result else None
         return isinstance(score, (int, float)) and score >= settings.dingtalk_image_search_confirmed_similarity
 
+    def _extract_faq_title(self, metadata: Optional[dict], chunk_text: str) -> str:
+        """Extract FAQ title from metadata first, then fallback to parsing chunk text."""
+        if metadata and metadata.get("faq_title"):
+            return metadata["faq_title"].strip()
+
+        return self._extract_faq_question_text(chunk_text)
+
     def _extract_faq_question_text(self, chunk_text: str) -> str:
-        """Extract the FAQ problem description from an enriched FAQ chunk."""
         if not chunk_text:
             return ""
 
@@ -1164,6 +1243,9 @@ class AgentChatService:
         if "是否需要我从专业角度扩展解答" not in last_ai_content:
             return False
 
+        if self._detect_expansion_rejection(current_query, memory):
+            return False
+
         confirmation_words = {
             "可以",
             "好",
@@ -1186,6 +1268,42 @@ class AgentChatService:
         if query_lower in confirmation_words:
             return True
         return any(word in query_lower for word in confirmation_words)
+
+    def _detect_expansion_rejection(self, current_query: str, memory) -> bool:
+        """Detect if user is rejecting the expansion offer from a previous FAQ turn."""
+        if not current_query or not memory:
+            return False
+
+        last_ai_content = self._get_last_ai_content(memory)
+        if "是否需要我从专业角度扩展解答" not in last_ai_content:
+            return False
+
+        rejection_words = {
+            "不用",
+            "不用了",
+            "不需要",
+            "不需要了",
+            "不用扩展",
+            "算了",
+            "不了",
+            "没必要",
+            "no",
+            "nope",
+            "notneeded",
+            "skip",
+            "不用谢谢",
+            "不了谢谢",
+            "oknothanks",
+        }
+        query_lower = current_query.lower().strip()
+        if query_lower in rejection_words:
+            return True
+        return any(word in query_lower for word in rejection_words)
+
+    def _build_expansion_rejection_response(self, language: Optional[str]) -> str:
+        if language == "zh-CN":
+            return "好的，如有其他问题随时提问。"
+        return "Sure, feel free to ask if you have other questions."
 
     def _get_last_ai_content(self, memory) -> str:
         """Return the most recent assistant message content from memory history."""

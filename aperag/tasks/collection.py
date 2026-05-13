@@ -133,9 +133,12 @@ class CollectionTask:
 
     def _initialize_fulltext_index(self, collection_id: str) -> None:
         """Initialize fulltext search index"""
-        index_name = generate_fulltext_index_name(collection_id)
-        create_index(index_name)
-        logger.debug(f"Initialized fulltext index {index_name}")
+        try:
+            index_name = generate_fulltext_index_name(collection_id)
+            create_index(index_name)
+            logger.debug(f"Initialized fulltext index {index_name}")
+        except Exception as e:
+            logger.warning(f"Skipping fulltext index initialization for collection {collection_id}: {str(e)}")
 
     def _delete_knowledge_graph_data(self, collection) -> Dict[str, Any]:
         """Delete knowledge graph data for the collection"""
@@ -198,9 +201,12 @@ class CollectionTask:
 
     def _delete_fulltext_index(self, collection_id: str) -> None:
         """Delete fulltext search index"""
-        index_name = generate_fulltext_index_name(collection_id)
-        delete_index(index_name)
-        logger.debug(f"Deleted fulltext index {index_name}")
+        try:
+            index_name = generate_fulltext_index_name(collection_id)
+            delete_index(index_name)
+            logger.debug(f"Deleted fulltext index {index_name}")
+        except Exception as e:
+            logger.warning(f"Skipping fulltext index deletion for collection {collection_id}: {str(e)}")
 
     def cleanup_expired_documents(self, collection_id: str):
         """

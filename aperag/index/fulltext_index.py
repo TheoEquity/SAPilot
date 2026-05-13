@@ -47,13 +47,42 @@ class FulltextIndexer(BaseIndexer):
     def __init__(self, es_host: str = None):
         super().__init__(IndexType.FULLTEXT)
         self.es_host = es_host if es_host else settings.es_host
-        config = _create_es_client_config()
-        self.es = Elasticsearch(self.es_host, **config)
-        self.async_es = AsyncElasticsearch(self.es_host, **config)
+        self._es: Optional[Elasticsearch] = None
+        self._async_es: Optional[AsyncElasticsearch] = None
+        self._es_available: Optional[bool] = None
+
+    def _check_es_available(self) -> bool:
+        """Check if Elasticsearch is reachable"""
+        if self._es_available is not None:
+            return self._es_available
+        try:
+            config = _create_es_client_config()
+            config["request_timeout"] = 3
+            client = Elasticsearch(self.es_host, **config)
+            result = client.ping()
+            self._es_available = bool(result)
+            return self._es_available
+        except Exception:
+            self._es_available = False
+            return False
+
+    @property
+    def es(self) -> Elasticsearch:
+        if self._es is None:
+            config = _create_es_client_config()
+            self._es = Elasticsearch(self.es_host, **config)
+        return self._es
+
+    @property
+    def async_es(self) -> AsyncElasticsearch:
+        if self._async_es is None:
+            config = _create_es_client_config()
+            self._async_es = AsyncElasticsearch(self.es_host, **config)
+        return self._async_es
 
     def is_enabled(self, collection) -> bool:
-        """Fulltext indexing is always enabled"""
-        return True
+        """Fulltext indexing is enabled only when ES is available"""
+        return self._check_es_available()
 
     def _extract_chunk_data(self, part) -> Tuple[str, str, Dict[str, Any]]:
         """Extract chunk content, title and metadata from a document part"""
@@ -119,6 +148,13 @@ class FulltextIndexer(BaseIndexer):
 
     def create_index(self, document_id: int, content: str, doc_parts: List[Any], collection, **kwargs) -> IndexResult:
         """Create fulltext index for document chunks"""
+        if not self._check_es_available():
+            logger.info(f"Skipping fulltext index for document {document_id}: Elasticsearch not available")
+            return IndexResult(
+                success=True,
+                index_type=self.index_type,
+                metadata={"message": "Skipped: Elasticsearch not available", "status": "skipped"},
+            )
         try:
             # Filter out non-text parts
             doc_parts = [part for part in doc_parts if hasattr(part, "content") and part.content]
@@ -149,6 +185,13 @@ class FulltextIndexer(BaseIndexer):
 
     def update_index(self, document_id: int, content: str, doc_parts: List[Any], collection, **kwargs) -> IndexResult:
         """Update fulltext index for document chunks"""
+        if not self._check_es_available():
+            logger.info(f"Skipping fulltext index update for document {document_id}: Elasticsearch not available")
+            return IndexResult(
+                success=True,
+                index_type=self.index_type,
+                metadata={"message": "Skipped: Elasticsearch not available", "status": "skipped"},
+            )
         try:
             document = db_ops.query_document_by_id(document_id)
             if not document:
@@ -190,6 +233,13 @@ class FulltextIndexer(BaseIndexer):
 
     def delete_index(self, document_id: int, collection, **kwargs) -> IndexResult:
         """Delete fulltext index for document chunks"""
+        if not self._check_es_available():
+            logger.info(f"Skipping fulltext index delete for document {document_id}: Elasticsearch not available")
+            return IndexResult(
+                success=True,
+                index_type=self.index_type,
+                metadata={"message": "Skipped: Elasticsearch not available", "status": "skipped"},
+            )
         try:
             index_name = generate_fulltext_index_name(collection.id)
             deleted_count = self._remove_document_chunks(index_name, document_id)
@@ -559,29 +609,37 @@ async def extract_keywords(text: str, ctx: Dict[str, Any]) -> List[str]:
 
 def create_index(index: str):
     """Create ES index with proper mapping for chunks"""
-    config = _create_es_client_config()
-    es = Elasticsearch(settings.es_host, **config)
+    try:
+        config = _create_es_client_config()
+        config["request_timeout"] = 3
+        es = Elasticsearch(settings.es_host, **config)
 
-    if not es.indices.exists(index=index).body:
-        mapping = {
-            "properties": {
-                "content": {"type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart"},
-                "title": {"type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart"},
-                "document_id": {"type": "keyword"},
-                "chunk_id": {"type": "keyword"},
-                "name": {"type": "keyword"},
-                "metadata": {"type": "object", "enabled": False},
+        if not es.indices.exists(index=index).body:
+            mapping = {
+                "properties": {
+                    "content": {"type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart"},
+                    "title": {"type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart"},
+                    "document_id": {"type": "keyword"},
+                    "chunk_id": {"type": "keyword"},
+                    "name": {"type": "keyword"},
+                    "metadata": {"type": "object", "enabled": False},
+                }
             }
-        }
-        es.indices.create(index=index, body={"mappings": mapping})
-    else:
-        logger.warning("index %s already exists", index)
+            es.indices.create(index=index, body={"mappings": mapping})
+        else:
+            logger.warning("index %s already exists", index)
+    except Exception as e:
+        logger.warning(f"Skipping fulltext index creation: Elasticsearch not available ({str(e)})")
 
 
 def delete_index(index: str):
     """Delete ES index"""
-    config = _create_es_client_config()
-    es = Elasticsearch(settings.es_host, **config)
+    try:
+        config = _create_es_client_config()
+        config["request_timeout"] = 3
+        es = Elasticsearch(settings.es_host, **config)
 
-    if es.indices.exists(index=index).body:
-        es.indices.delete(index=index)
+        if es.indices.exists(index=index).body:
+            es.indices.delete(index=index)
+    except Exception as e:
+        logger.warning(f"Skipping fulltext index deletion: Elasticsearch not available ({str(e)})")
