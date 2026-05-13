@@ -32,6 +32,7 @@ from aperag.schema import view_models
 from aperag.service.agent_chat_service import AgentChatService
 from aperag.service.image_search_service import image_search_service
 from aperag.service.prompt_template_service import prompt_template_service
+from aperag.service.setting_service import setting_service
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +46,36 @@ class DingTalkBotService:
         self._access_token: Optional[str] = None
         self._access_token_expire_at = 0.0
 
-    def verify_signature(self, timestamp: Optional[str], sign: Optional[str]) -> bool:
-        if not settings.dingtalk_webhook_secret:
+    async def _settings(self) -> Dict[str, Any]:
+        db_settings = await setting_service.get_all_settings()
+        return {
+            "enabled": db_settings.get("dingtalk_enabled", settings.dingtalk_enabled),
+            "webhook_secret": db_settings.get("dingtalk_webhook_secret", settings.dingtalk_webhook_secret),
+            "outgoing_webhook_url": db_settings.get(
+                "dingtalk_outgoing_webhook_url", settings.dingtalk_outgoing_webhook_url
+            ),
+            "outgoing_webhook_secret": db_settings.get(
+                "dingtalk_outgoing_webhook_secret", settings.dingtalk_outgoing_webhook_secret
+            ),
+            "bot_user_id": db_settings.get("dingtalk_bot_user_id", settings.dingtalk_bot_user_id),
+            "bot_id": db_settings.get("dingtalk_bot_id", settings.dingtalk_bot_id),
+            "response_mode": db_settings.get("dingtalk_response_mode", settings.dingtalk_response_mode),
+            "robot_code": db_settings.get("dingtalk_robot_code", settings.dingtalk_stream_client_id),
+            "app_key": db_settings.get("dingtalk_app_key", settings.dingtalk_app_key),
+            "app_secret": db_settings.get("dingtalk_app_secret", settings.dingtalk_app_secret),
+            "image_search_enabled": settings.dingtalk_image_search_enabled,
+            "sap_community_search_enabled": settings.dingtalk_sap_community_search_enabled,
+        }
+
+    def verify_signature(self, timestamp: Optional[str], sign: Optional[str], webhook_secret: Optional[str] = None) -> bool:
+        secret = webhook_secret if webhook_secret is not None else settings.dingtalk_webhook_secret
+        if not secret:
             return True
         if not timestamp or not sign:
             return False
 
-        string_to_sign = f"{timestamp}\n{settings.dingtalk_webhook_secret}".encode("utf-8")
-        digest = hmac.new(settings.dingtalk_webhook_secret.encode("utf-8"), string_to_sign, hashlib.sha256).digest()
+        string_to_sign = f"{timestamp}\n{secret}".encode("utf-8")
+        digest = hmac.new(secret.encode("utf-8"), string_to_sign, hashlib.sha256).digest()
         expected = urllib.parse.quote_plus(base64.b64encode(digest))
         return hmac.compare_digest(expected, sign)
 
@@ -60,13 +83,14 @@ class DingTalkBotService:
         self, payload: Dict[str, Any], timestamp: Optional[str], sign: Optional[str]
     ) -> Dict[str, Any]:
         logger.info("Received DingTalk callback with keys: %s", sorted(payload.keys()))
-        if not settings.dingtalk_enabled:
+        dingtalk_settings = await self._settings()
+        if not dingtalk_settings["enabled"]:
             return self._text_response("SAPilot 钉钉机器人尚未启用。")
-        if not self.verify_signature(timestamp, sign):
+        if not self.verify_signature(timestamp, sign, dingtalk_settings["webhook_secret"]):
             return self._text_response("钉钉消息签名校验失败。")
 
-        user_id = settings.dingtalk_bot_user_id.strip()
-        bot_id = settings.dingtalk_bot_id.strip()
+        user_id = str(dingtalk_settings["bot_user_id"] or "").strip()
+        bot_id = str(dingtalk_settings["bot_id"] or "").strip()
         if not user_id:
             return self._text_response("SAPilot 钉钉机器人未配置 DINGTALK_BOT_USER_ID。")
 
@@ -82,7 +106,7 @@ class DingTalkBotService:
 
         logger.info("Processing DingTalk message for bot %s, chat payload peer %s", bot.id, self._peer_id(payload))
         session_webhook = self._session_webhook(payload)
-        if settings.dingtalk_response_mode == "webhook" and session_webhook:
+        if dingtalk_settings["response_mode"] == "webhook" and session_webhook:
             await self.send_text("SAPilot：收到，正在分析...", webhook_url=session_webhook)
 
         bot_config = self._parse_bot_config(bot)
@@ -98,7 +122,7 @@ class DingTalkBotService:
             bot_config=bot_config,
             default_collections=default_collections,
         )
-        if settings.dingtalk_response_mode == "webhook":
+        if dingtalk_settings["response_mode"] == "webhook":
             answer = f"SAPilot：{answer}"
             logger.info("DingTalk answer length=%s prefix=%r", len(answer), answer[:120])
             await self.send_text(answer, webhook_url=session_webhook)
@@ -114,11 +138,12 @@ class DingTalkBotService:
     async def _send_outgoing_message(
         self, message: Dict[str, Any], webhook_url: Optional[str] = None
     ) -> Dict[str, Any]:
-        webhook_url = (webhook_url or settings.dingtalk_outgoing_webhook_url).strip()
+        dingtalk_settings = await self._settings()
+        webhook_url = (webhook_url or dingtalk_settings["outgoing_webhook_url"] or "").strip()
         if not webhook_url:
             raise ValueError("DINGTALK_OUTGOING_WEBHOOK_URL is required to send DingTalk messages")
 
-        url = self._signed_outgoing_url(webhook_url)
+        url = self._signed_outgoing_url(webhook_url, dingtalk_settings["outgoing_webhook_secret"])
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(url, json=message)
             response.raise_for_status()
@@ -129,8 +154,8 @@ class DingTalkBotService:
         logger.info("Sent DingTalk outgoing message successfully: %s", result)
         return result
 
-    def _signed_outgoing_url(self, webhook_url: str) -> str:
-        secret = settings.dingtalk_outgoing_webhook_secret.strip()
+    def _signed_outgoing_url(self, webhook_url: str, outgoing_secret: Optional[str] = None) -> str:
+        secret = (outgoing_secret if outgoing_secret is not None else settings.dingtalk_outgoing_webhook_secret).strip()
         if not secret:
             return webhook_url
 
@@ -175,7 +200,7 @@ class DingTalkBotService:
             query=query,
             collections=[],
             completion=None,
-            web_search_enabled=settings.dingtalk_sap_community_search_enabled,
+            web_search_enabled=(await self._settings())["sap_community_search_enabled"],
             language="zh-CN",
             files=[],
         )
@@ -273,7 +298,8 @@ class DingTalkBotService:
     async def _build_image_search_context(
         self, payload: Dict[str, Any], user_id: str, collections: List[view_models.Collection]
     ) -> str:
-        if not settings.dingtalk_image_search_enabled:
+        dingtalk_settings = await self._settings()
+        if not dingtalk_settings["image_search_enabled"]:
             return ""
 
         image_refs = self._extract_image_urls(payload)
@@ -331,7 +357,8 @@ class DingTalkBotService:
         if not token:
             return ""
 
-        robot_code = str(payload.get("robotCode") or settings.dingtalk_stream_client_id or "").strip()
+        dingtalk_settings = await self._settings()
+        robot_code = str(payload.get("robotCode") or dingtalk_settings["robot_code"] or "").strip()
         if not robot_code:
             logger.warning("DingTalk image download skipped because robotCode is unavailable")
             return ""
@@ -355,8 +382,9 @@ class DingTalkBotService:
         if self._access_token and time.time() < self._access_token_expire_at:
             return self._access_token
 
-        app_key = (settings.dingtalk_app_key or settings.dingtalk_stream_client_id).strip()
-        app_secret = (settings.dingtalk_app_secret or settings.dingtalk_stream_client_secret).strip()
+        dingtalk_settings = await self._settings()
+        app_key = (dingtalk_settings["app_key"] or settings.dingtalk_stream_client_id).strip()
+        app_secret = (dingtalk_settings["app_secret"] or settings.dingtalk_stream_client_secret).strip()
         if not app_key or not app_secret:
             logger.warning("DingTalk access token skipped because app key or app secret is missing")
             return ""

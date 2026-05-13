@@ -16,9 +16,25 @@ import json
 from typing import Any
 
 import httpx
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from aperag.db import models as db_models
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops, db_ops
+from aperag.exceptions import ResourceNotFoundException, ValidationException
+
+DINGTALK_SETTING_KEYS = {
+    "dingtalk_enabled",
+    "dingtalk_webhook_secret",
+    "dingtalk_outgoing_webhook_url",
+    "dingtalk_outgoing_webhook_secret",
+    "dingtalk_bot_user_id",
+    "dingtalk_bot_id",
+    "dingtalk_response_mode",
+    "dingtalk_robot_code",
+    "dingtalk_app_key",
+    "dingtalk_app_secret",
+}
 
 
 class SettingService:
@@ -75,6 +91,45 @@ class SettingService:
         for key, value in settings.items():
             if value is not None:
                 await self.update_setting(key, value)
+
+    async def update_admin_settings(self, settings: dict, admin_user_id: str):
+        dingtalk_settings = {key: value for key, value in settings.items() if key in DINGTALK_SETTING_KEYS}
+        if dingtalk_settings:
+            await self._validate_and_protect_dingtalk_bot(dingtalk_settings, admin_user_id)
+            settings = {**settings, "dingtalk_bot_user_id": admin_user_id}
+        await self.update_settings(settings)
+
+    async def get_dingtalk_bound_bot_id(self) -> str | None:
+        bot_id = await self.get_setting("dingtalk_bot_id")
+        if not bot_id:
+            return None
+        return str(bot_id).strip() or None
+
+    async def _validate_and_protect_dingtalk_bot(self, settings: dict, admin_user_id: str):
+        enabled = settings.get("dingtalk_enabled")
+        bot_id = (settings.get("dingtalk_bot_id") or "").strip()
+        if enabled and not bot_id:
+            raise ValidationException("DingTalk Agent Bot is required when DingTalk integration is enabled")
+        if not bot_id:
+            return
+
+        async def _operation(session):
+            stmt = select(db_models.Bot).where(
+                db_models.Bot.id == bot_id,
+                db_models.Bot.user == admin_user_id,
+                db_models.Bot.status != db_models.BotStatus.DELETED,
+            )
+            result = await session.execute(stmt)
+            bot = result.scalars().first()
+            if not bot:
+                raise ResourceNotFoundException("Bot", bot_id)
+            if bot.type != db_models.BotType.AGENT:
+                raise ValidationException("DingTalk integration can only bind an Agent Bot")
+            if not bot.is_protected:
+                bot.is_protected = True
+                session.add(bot)
+
+        await self.db_ops.execute_with_transaction(_operation)
 
     async def test_mineru_token(self, token: str) -> dict:
         """Test the MinerU API token."""

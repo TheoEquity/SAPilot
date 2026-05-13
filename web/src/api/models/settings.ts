@@ -44,5 +44,58 @@ export interface Settings {
      * @memberof Settings
      */
     'use_markitdown'?: boolean;
+    /**
+     * Whether to enable DingTalk integration
+     * @type {boolean}
+     * @memberof Settings
+     */
+    'dingtalk_enabled'?: boolean;
+    /**
+     * DingTalk callback signature secret
+     * @type {string}
+     * @memberof Settings
+     */
+    'dingtalk_webhook_secret'?: string;
+    /**
+     * DingTalk outgoing robot webhook URL
+     * @type {string}
+     * @memberof Settings
+     */
+    'dingtalk_outgoing_webhook_url'?: string;
+    /**
+     * DingTalk outgoing robot webhook secret
+     * @type {string}
+     * @memberof Settings
+     */
+    'dingtalk_outgoing_webhook_secret'?: string;
+    /**
+     * Bound SAPilot Agent Bot ID for DingTalk
+     * @type {string}
+     * @memberof Settings
+     */
+    'dingtalk_bot_id'?: string;
+    /**
+     * DingTalk response mode: sync or webhook
+     * @type {string}
+     * @memberof Settings
+     */
+    'dingtalk_response_mode'?: string;
+    /**
+     * DingTalk robot code for file downloads
+     * @type {string}
+     * @memberof Settings
+     */
+    'dingtalk_robot_code'?: string;
+    /**
+     * DingTalk app key
+     * @type {string}
+     * @memberof Settings
+     */
+    'dingtalk_app_key'?: string;
+    /**
+     * DingTalk app secret
+     * @type {string}
+     * @memberof Settings
+     */
+    'dingtalk_app_secret'?: string;
 }
-

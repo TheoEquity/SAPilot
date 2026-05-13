@@ -26,6 +26,7 @@ from aperag.exceptions import (
 from aperag.schema import view_models
 from aperag.schema.view_models import Bot, BotList
 from aperag.service.quota_service import quota_service
+from aperag.service.setting_service import setting_service
 
 
 class BotService:
@@ -174,6 +175,12 @@ class BotService:
         if bot is None:
             return None
 
+        dingtalk_bot_id = await setting_service.get_dingtalk_bound_bot_id()
+        if dingtalk_bot_id == bot_id:
+            if not bot.is_protected:
+                await self._protect_bot(user, bot_id)
+            raise PermissionDeniedError("该 Agent 已绑定钉钉接口，请先停用或解绑钉钉接口")
+
         # Check if bot is protected
         if bot.is_protected:
             raise PermissionDeniedError("Cannot delete a protected system bot")
@@ -211,6 +218,23 @@ class BotService:
             return await self.build_bot_response(deleted_bot)
 
         return None
+
+    async def _protect_bot(self, user: str, bot_id: str):
+        async def _operation(session):
+            from sqlalchemy import select
+
+            stmt = select(db_models.Bot).where(
+                db_models.Bot.id == bot_id,
+                db_models.Bot.user == user,
+                db_models.Bot.status != db_models.BotStatus.DELETED,
+            )
+            result = await session.execute(stmt)
+            bot = result.scalars().first()
+            if bot and not bot.is_protected:
+                bot.is_protected = True
+                session.add(bot)
+
+        await self.db_ops.execute_with_transaction(_operation)
 
 
 # Create a global service instance for easy access

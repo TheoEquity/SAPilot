@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11.12, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12.4'",
@@ -271,6 +271,7 @@ dependencies = [
     { name = "cryptography" },
     { name = "dashscope" },
     { name = "ddgs" },
+    { name = "dingtalk-stream" },
     { name = "django-celery-beat" },
     { name = "django-environ" },
     { name = "duckduckgo-search" },
@@ -392,6 +393,7 @@ requires-dist = [
     { name = "datamodel-code-generator", marker = "extra == 'dev'", specifier = ">=0.30.0" },
     { name = "ddgs", specifier = ">=9.0.0" },
     { name = "deptry", marker = "extra == 'dev'", specifier = ">=0.23.0,<1.0.0" },
+    { name = "dingtalk-stream", specifier = ">=0.13.0" },
     { name = "django-celery-beat", specifier = ">=2.5.0,<3.0.0" },
     { name = "django-environ", specifier = ">=0.12.0" },
     { name = "duckduckgo-search", specifier = ">=8.1.1" },
@@ -1391,6 +1393,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/17/4d/ac7ffa80c69ea1df30a8aa11b3578692a5118e7cd1aa157e3ef73b092d15/dill-0.3.8.tar.gz", hash = "sha256:3ebe3c479ad625c4553aca177444d89b486b1d84982eeacded644afc0cf797ca", size = 184847, upload-time = "2024-01-27T23:42:16.145Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c9/7a/cef76fd8438a42f96db64ddaa85280485a9c395e7df3db8158cfec1eee34/dill-0.3.8-py3-none-any.whl", hash = "sha256:c36ca9ffb54365bdd2f8eb3eff7d2a21237f8452b57ace88b1ac615b7e815bd7", size = 116252, upload-time = "2024-01-27T23:42:14.239Z" },
+]
+
+[[package]]
+name = "dingtalk-stream"
+version = "0.24.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "requests" },
+    { name = "websockets" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/44/102dede3f371277598df6aa9725b82e3add068c729333c7a5dbc12764579/dingtalk_stream-0.24.3-py3-none-any.whl", hash = "sha256:2160403656985962878bf60cdf5adf41619f21067348e06f07a7c7eebf5943ad", size = 27813, upload-time = "2025-10-24T09:36:57.497Z" },
 ]
 
 [[package]]

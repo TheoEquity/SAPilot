@@ -80,6 +80,7 @@ dependencies = [
     "opentelemetry-instrumentation-sqlalchemy>=0.41b0",
     "pypdfium2>=4.30.0",
     "httpx-oauth>=0.16.1",
+    "dingtalk-stream>=0.13.0",
 ]
 name = "aperag"
 version = "0.1.0"

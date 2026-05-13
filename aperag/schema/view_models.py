@@ -1041,6 +1041,15 @@ class Settings(BaseModel):
     use_markitdown: Optional[bool] = Field(
         None, description='Whether to use MarkItDown'
     )
+    dingtalk_enabled: Optional[bool] = Field(None, description='Whether to enable DingTalk integration')
+    dingtalk_webhook_secret: Optional[str] = Field(None, description='DingTalk callback signature secret')
+    dingtalk_outgoing_webhook_url: Optional[str] = Field(None, description='DingTalk outgoing robot webhook URL')
+    dingtalk_outgoing_webhook_secret: Optional[str] = Field(None, description='DingTalk outgoing robot webhook secret')
+    dingtalk_bot_id: Optional[str] = Field(None, description='Bound SAPilot Agent Bot ID for DingTalk')
+    dingtalk_response_mode: Optional[str] = Field(None, description='DingTalk response mode: sync or webhook')
+    dingtalk_robot_code: Optional[str] = Field(None, description='DingTalk robot code for file downloads')
+    dingtalk_app_key: Optional[str] = Field(None, description='DingTalk app key')
+    dingtalk_app_secret: Optional[str] = Field(None, description='DingTalk app secret')
 
 
 class PromptDetail(BaseModel):

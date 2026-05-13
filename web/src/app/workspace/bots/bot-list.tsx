@@ -29,7 +29,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api/client';
-import { cn } from '@/lib/utils';
 import {
   Calendar,
   EllipsisVertical,
@@ -172,22 +171,20 @@ export const BotList = ({ bots }: { bots: Bot[] }) => {
                             {page_bot('edit')}
                           </Link>
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn(
-                            'h-7 cursor-pointer px-2',
-                            bot.is_protected && 'cursor-not-allowed opacity-50',
-                          )}
-                          disabled={bot.is_protected}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(bot);
-                          }}
-                        >
-                          <Trash2 className="mr-1 size-3" />
-                          {page_bot('delete')}
-                        </Button>
+                        {!bot.is_protected && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 cursor-pointer px-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(bot);
+                            }}
+                          >
+                            <Trash2 className="mr-1 size-3" />
+                            {page_bot('delete')}
+                          </Button>
+                        )}
                       </div>
                     </CardFooter>
                   </Card>

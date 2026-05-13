@@ -38,6 +38,7 @@ from aperag.agent.agent_session_manager_lifecycle import agent_session_manager_l
 from aperag.exception_handlers import register_exception_handlers
 from aperag.llm.litellm_track import register_custom_llm_track
 from aperag.mcp import mcp_server
+from aperag.service.dingtalk_stream_service import dingtalk_stream_consumer  # noqa: E402
 from aperag.views.api_key import router as api_key_router
 from aperag.views.audit import router as audit_router
 from aperag.views.auth import router as auth_router
@@ -69,11 +70,25 @@ async def combined_lifespan(app: FastAPI):
     # Initialize the global proxy listener at startup
     await agent_event_listener.initialize()
 
+    # Start DingTalk Stream consumer if enabled
+    try:
+        await dingtalk_stream_consumer.start()
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Failed to start DingTalk Stream consumer")
+
     # Start MCP server first
     async with mcp_app.lifespan(app):
         # Then start Agent session manager
         async with agent_session_manager_lifespan(app):
             yield
+            
+            # Stop DingTalk Stream consumer on shutdown
+            try:
+                await dingtalk_stream_consumer.stop()
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception("Failed to stop DingTalk Stream consumer")
 
 
 # Create the main FastAPI app with combined lifespan

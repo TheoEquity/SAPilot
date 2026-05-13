@@ -19,23 +19,23 @@ from fastapi.responses import JSONResponse
 
 from aperag.schema.view_models import Settings
 from aperag.service.setting_service import setting_service
-from aperag.views.auth import required_user
+from aperag.views.auth import get_current_admin, required_user
 
 router = APIRouter()
 
 
 @router.get("/settings", tags=["Settings"])
-async def get_settings(user: dict = Depends(required_user)):
-    settings = await setting_service.get_all_settings()
-    return settings
+async def get_settings(user: dict = Depends(required_user)) -> Settings:
+    settings_dict = await setting_service.get_all_settings()
+    return Settings(**settings_dict)
 
 
 @router.put("/settings", tags=["Settings"])
 async def update_settings(
     settings: Settings,
-    user: dict = Depends(required_user),
+    user: dict = Depends(get_current_admin),
 ):
-    await setting_service.update_settings(settings.model_dump())
+    await setting_service.update_admin_settings(settings.model_dump(), str(user.id))
     return Response(status_code=204)
 
 
