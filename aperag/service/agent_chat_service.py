@@ -505,13 +505,13 @@ class AgentChatService:
             memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
 
             # Decide whether to search knowledge base based on trigger rules
-            search_kb = self._should_search_knowledge_base(
+            search_trigger = self._should_search_knowledge_base(
                 query=merged_agent_message.query,
                 files=merged_agent_message.files,
                 memory=memory,
             )
 
-            if not search_kb:
+            if not search_trigger:
                 # Free conversation mode: LLM responds without search tools
                 session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
                 llm = await session.get_llm(final_completion.model)
@@ -541,8 +541,8 @@ class AgentChatService:
 
             # Knowledge base search mode: full MCP agent with search tools
 
-            # Detect expansion follow-up from previous FAQ turn
-            is_expert_expansion_confirmed = self._detect_expert_expansion_confirmation(agent_message.query, memory)
+            # Only allow expansion mode when triggered by expansion confirmation
+            is_expert_expansion_confirmed = search_trigger == "expansion"
 
             # Get chat session using merged agent message and resolved system prompt
             session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
@@ -664,33 +664,24 @@ class AgentChatService:
 
     def _should_search_knowledge_base(
         self, query: str, files: Optional[List[view_models.File]], memory
-    ) -> bool:
+    ) -> Optional[str]:
         """Decide whether to route user message to knowledge base search.
 
-        Triggers:
-        1. User uploaded image files (screenshot of SAP error)
-        2. User explicitly requests search (contains trigger phrases)
-        3. User query contains SAP/business-specific keywords
-        4. User is confirming expansion of a previous FAQ answer
-
-        Default: free conversation without search tools.
+        Returns trigger reason string or None for free conversation.
         """
         if not query:
-            return False
+            return None
 
-        # Trigger 1: image upload
         if self._has_image_files(files):
             logger.info("KB search triggered: image upload")
-            return True
+            return "image"
 
-        # Trigger 4: expansion confirmation from previous FAQ turn
         if self._detect_expert_expansion_confirmation(query, memory):
             logger.info("KB search triggered: expansion confirmation")
-            return True
+            return "expansion"
 
         normalized = re.sub(r"[\s!！?？。,.，；;:：~～]+", "", query).lower()
 
-        # Trigger 2: explicit search request
         search_triggers = {
             "查一下", "查查", "帮我查", "帮我搜", "搜一下", "搜索", "检索",
             "从知识库查", "知识库查", "查知识库", "搜知识库", "问知识库",
@@ -698,9 +689,8 @@ class AgentChatService:
         }
         if any(trigger in normalized for trigger in search_triggers):
             logger.info("KB search triggered: explicit search request '%s'", query)
-            return True
+            return "explicit"
 
-        # Trigger 3: business/SAP keywords
         business_markers = {
             "sap", "faq", "报错", "错误", "流程", "账号", "帐号", "锁定",
             "截图", "凭证", "订单", "发票", "付款", "报错码", "异常",
@@ -709,9 +699,9 @@ class AgentChatService:
         }
         if any(marker in normalized for marker in business_markers):
             logger.info("KB search triggered: business keyword in '%s'", query)
-            return True
+            return "keyword"
 
-        return False
+        return None
         """Return a direct response for short greetings and thanks."""
         if not query:
             return None
@@ -1246,8 +1236,9 @@ class AgentChatService:
         if self._detect_expansion_rejection(current_query, memory):
             return False
 
-        confirmation_words = {
+        confirmation_words_exact = {
             "可以",
+            "好的",
             "好",
             "是",
             "行",
@@ -1256,7 +1247,7 @@ class AgentChatService:
             "要的",
             "扩展",
             "扩展一下",
-            "专业角度",
+            "专业解答",
             "详细说说",
             "补充一下",
             "继续",
@@ -1265,9 +1256,13 @@ class AgentChatService:
             "sure",
         }
         query_lower = current_query.lower().strip()
-        if query_lower in confirmation_words:
+
+        # Only match if the query is itself a short confirmation (<=10 chars)
+        # or if an exact confirmation word appears as a standalone token
+        if len(query_lower) <= 10 and query_lower in confirmation_words_exact:
             return True
-        return any(word in query_lower for word in confirmation_words)
+        tokens = set(query_lower.split())
+        return any(word in tokens and word in confirmation_words_exact for word in tokens)
 
     def _detect_expansion_rejection(self, current_query: str, memory) -> bool:
         """Detect if user is rejecting the expansion offer from a previous FAQ turn."""

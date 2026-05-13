@@ -105,15 +105,23 @@ class DingTalkBotService:
             return self._text_response("请发送 SAP 运维、开发问题、日志或报错截图。")
 
         logger.info("Processing DingTalk message for bot %s, chat payload peer %s", bot.id, self._peer_id(payload))
-        session_webhook = self._session_webhook(payload)
-        if dingtalk_settings["response_mode"] == "webhook" and session_webhook:
-            await self.send_text("SAPilot：收到，正在分析...", webhook_url=session_webhook)
 
         bot_config = self._parse_bot_config(bot)
         default_collections = await self._default_collections(user_id, bot_config)
-        image_context = await self._build_image_search_context(payload, user_id, default_collections)
+
+        search_mode = self._should_search_kb(query, payload)
+        if search_mode:
+            image_context = await self._build_image_search_context(payload, user_id, default_collections)
+            formatted_query = self._format_dingtalk_query(query, image_context=image_context)
+        else:
+            formatted_query = (
+                f"{query}\n\n"
+                "你是在钉钉群里的 SAP 运维问诊助手。当前是闲聊模式，不要检索知识库。"
+                "回复简短礼貌（不超过100字），引导用户描述 SAP 报错、事务码或上传截图来触发知识库检索。"
+                "不要使用 emoji、不要自我发挥格式、不要编造诊断流程。"
+            )
+
         chat = await self._get_or_create_dingtalk_chat(user_id, bot.id, payload)
-        formatted_query = self._format_dingtalk_query(query, image_context=image_context)
         answer = await self._ask_agent(
             user_id,
             bot,
@@ -121,12 +129,8 @@ class DingTalkBotService:
             formatted_query,
             bot_config=bot_config,
             default_collections=default_collections,
+            search_mode=search_mode,
         )
-        if dingtalk_settings["response_mode"] == "webhook":
-            answer = f"SAPilot：{answer}"
-            logger.info("DingTalk answer length=%s prefix=%r", len(answer), answer[:120])
-            await self.send_text(answer, webhook_url=session_webhook)
-            return {}
         return self._markdown_response("SAPilot 现场问诊", answer)
 
     async def send_markdown(self, title: str, content: str) -> Dict[str, Any]:
@@ -188,6 +192,7 @@ class DingTalkBotService:
         query: str,
         bot_config: Optional[view_models.BotConfig] = None,
         default_collections: Optional[List[view_models.Collection]] = None,
+        search_mode: bool = False,
     ) -> str:
         if bot_config is None:
             bot_config = self._parse_bot_config(bot)
@@ -500,6 +505,44 @@ class DingTalkBotService:
         if len(content) <= 18000:
             return content
         return content[:18000] + "\n\n回答较长，已截断。请继续追问获取后续步骤。"
+
+    def _should_search_kb(self, query: str, payload: Dict[str, Any]) -> bool:
+        """Decide whether DingTalk message needs knowledge base search.
+
+        Triggers: image upload, explicit search request, SAP/business keywords.
+        Default: free conversation.
+        """
+        image_urls = self._extract_image_urls(payload)
+        if image_urls:
+            logger.info("DingTalk KB search triggered: image upload")
+            return True
+
+        if not query:
+            return False
+
+        import re
+        normalized = re.sub(r"[\s!！?？。,.，；;:：~～]+", "", query).lower()
+
+        search_triggers = {
+            "查一下", "查查", "帮我查", "帮我搜", "搜一下", "搜索", "检索",
+            "从知识库查", "知识库查", "查知识库", "搜知识库", "问知识库",
+            "search", "lookup", "find", "check",
+        }
+        if any(trigger in normalized for trigger in search_triggers):
+            logger.info("DingTalk KB search triggered: explicit search '%s'", query)
+            return True
+
+        business_markers = {
+            "sap", "faq", "报错", "错误", "流程", "账号", "帐号", "锁定",
+            "截图", "凭证", "订单", "发票", "付款", "报错码", "异常",
+            "工单", "审批", "采购", "库存", "资产", "成本", "预算",
+            "合同", "供应商", "银行", "税收", "科目", "总账",
+        }
+        if any(marker in normalized for marker in business_markers):
+            logger.info("DingTalk KB search triggered: business keyword '%s'", query)
+            return True
+
+        return False
 
 
 class _CollectingMessageQueue:
