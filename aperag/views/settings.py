@@ -14,14 +14,36 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Response
+from fastapi import APIRouter, Body, Depends, Query, Response
 from fastapi.responses import JSONResponse
 
+from aperag.db.models import User
 from aperag.schema.view_models import Settings
+from aperag.service.config_export_import_service import config_export_import_service
 from aperag.service.setting_service import setting_service
 from aperag.views.auth import get_current_admin, required_user
 
 router = APIRouter()
+
+
+@router.get("/settings/export", tags=["Settings"])
+async def export_config(
+    user: User = Depends(required_user),
+):
+    """Export all bots, collection metadata, and DingTalk settings as JSON."""
+    data = await config_export_import_service.export_config(str(user.id))
+    return JSONResponse(content=data)
+
+
+@router.post("/settings/import", tags=["Settings"])
+async def import_config(
+    data: dict = Body(...),
+    mode: str = Query("merge", description="merge (skip existing) or replace (delete existing first)"),
+    user: User = Depends(get_current_admin),
+):
+    """Import bots and DingTalk settings from exported JSON."""
+    result = await config_export_import_service.import_config(str(user.id), data, mode=mode)
+    return JSONResponse(content=result)
 
 
 @router.get("/settings", tags=["Settings"])
