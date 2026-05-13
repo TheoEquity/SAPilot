@@ -53,12 +53,13 @@ from aperag.agent.exceptions import (
 )
 from aperag.agent.response_types import AgentErrorResponse, AgentToolCallResultResponse
 from aperag.chat.history.message import StoredChatMessage, create_assistant_message
+from aperag.config import settings
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops
+from aperag.query.query import DocumentWithScore
 from aperag.schema import view_models
 from aperag.service.image_search_service import image_search_service
 from aperag.service.prompt_template_service import build_agent_query_prompt, prompt_template_service
 from aperag.trace import trace_async_function
-from aperag.query.query import DocumentWithScore
 
 logger = logging.getLogger(__name__)
 
@@ -242,8 +243,9 @@ class AgentChatService:
             # Get document metadata and associate documents with message if files are provided
             from aperag.service.chat_document_service import chat_document_service
 
+            document_ids = [file.id for file in agent_message.files or [] if file.id]
             files = await chat_document_service.associate_documents_with_message(
-                chat_id=chat_id, message_id=message_id, files=[file.id for file in agent_message.files], user=user
+                chat_id=chat_id, message_id=message_id, files=document_ids, user=user
             )
 
             # Message Producer: Start background task to process agent generation message
@@ -522,7 +524,10 @@ class AgentChatService:
 
             llm.history = memory
 
-            # Pre-execute image search to find matching FAQ chunks
+            original_user_query = merged_agent_message.query
+            llm_agent_message = merged_agent_message
+
+            # Pre-execute image search only to identify the matched FAQ question text.
             image_search_results: List[DocumentWithScore] = []
             if merged_agent_message.files:
                 image_search_results = await self._execute_image_search(
@@ -531,15 +536,17 @@ class AgentChatService:
                     files=merged_agent_message.files,
                     collections=final_collections or [],
                 )
-                # Inject the top FAQ chunk text into query, same flow as text search
                 if image_search_results:
                     top_chunk = image_search_results[0]
                     chunk_text = (top_chunk.text or "").strip()
-                    if chunk_text:
-                        merged_agent_message.query = f"{chunk_text}\n\n{merged_agent_message.query}"
+                    question_text = self._extract_faq_question_text(chunk_text)
+                    if question_text:
+                        llm_agent_message = merged_agent_message.model_copy(
+                            update={"query": f"{question_text}\n\n{original_user_query}"}
+                        )
 
             comprehensive_prompt = build_agent_query_prompt(
-                chat_id, agent_message=merged_agent_message, user=user, template=resolved_query_prompt, is_search_confirmed=is_search_confirmed
+                chat_id, agent_message=llm_agent_message, user=user, template=resolved_query_prompt, is_search_confirmed=is_search_confirmed
             )
             if is_expert_expansion_confirmed:
                 comprehensive_prompt = self._build_expert_expansion_prompt(agent_message.query)
@@ -561,17 +568,13 @@ class AgentChatService:
             await message_queue.put(format_stream_content(message_id, full_content))
 
             tool_references = extract_tool_call_references(llm.history)
-            
-            # If no tool references but we have image search results, create standard references from image search
-            if not tool_references and image_search_results:
-                tool_references = self._build_image_search_standard_references(image_search_results)
 
             urls = []
 
             await message_queue.put(format_stream_end(message_id, references=tool_references, urls=urls))
 
             return {
-                "query": merged_agent_message.query,
+                "query": original_user_query,
                 "content": full_content,
                 "references": tool_references,
             }
@@ -679,6 +682,42 @@ class AgentChatService:
             "如果候选与用户文字明显矛盾，请说明需要补充更清晰截图或错误文本。\n"
             f"{image_context}"
         )
+
+    def _extract_faq_question_text(self, chunk_text: str) -> str:
+        """Extract the FAQ problem description from an enriched FAQ chunk."""
+        if not chunk_text:
+            return ""
+
+        table_rows = [
+            [cell.strip() for cell in line.strip().strip("|").split("|")]
+            for line in chunk_text.splitlines()
+            if "|" in line
+        ]
+        def is_separator_row(cells: List[str]) -> bool:
+            return all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells if cell)
+
+        for row_index, cells in enumerate(table_rows):
+            if len(cells) < 2 or is_separator_row(cells):
+                continue
+            for index, cell in enumerate(cells[:-1]):
+                if "问题描述" in cell:
+                    inline_match = re.search(r"问题描述\s*[:：]\s*(.+)", cell)
+                    if inline_match:
+                        return inline_match.group(1).strip()
+                    for next_row in table_rows[row_index + 1 :]:
+                        if is_separator_row(next_row):
+                            continue
+                        if len(next_row) > index and next_row[index]:
+                            return next_row[index].strip()
+                    for next_cell in cells[index + 1 :]:
+                        if next_cell:
+                            return next_cell.strip()
+
+        match = re.search(r"问题描述\s*[:：]\s*([^|\n]+)", chunk_text)
+        if match:
+            return match.group(1).strip()
+
+        return ""
 
     async def _execute_image_search(
         self,
@@ -976,7 +1015,7 @@ class AgentChatService:
         2. Current user message is a confirmation word
         """
         if not current_query or not memory:
-            logger.info(f"_detect_search_confirmation: No query or memory, returning False")
+            logger.info("_detect_search_confirmation: No query or memory, returning False")
             return False
             
         # Check if last AI message asked about search
@@ -994,7 +1033,7 @@ class AgentChatService:
                     break
         
         if not last_ai_msg:
-            logger.info(f"_detect_search_confirmation: No last AI message found in memory.history, returning False")
+            logger.info("_detect_search_confirmation: No last AI message found in memory.history, returning False")
             return False
             
         # Check if AI asked about web search
@@ -1006,7 +1045,7 @@ class AgentChatService:
         logger.info(f"_detect_search_confirmation: Last AI content (first 300): {last_ai_content[:300]}")
         
         if '是否需要启动联网搜索' not in last_ai_content and '是否需要搜索' not in last_ai_content:
-            logger.info(f"_detect_search_confirmation: Last AI message did not ask about search, returning False")
+            logger.info("_detect_search_confirmation: Last AI message did not ask about search, returning False")
             return False
             
         # Check if user's current message is a confirmation
@@ -1016,14 +1055,14 @@ class AgentChatService:
         
         # Direct match or contains any confirmation word
         if query_lower in confirmation_words:
-            logger.info(f"_detect_search_confirmation: Query matches confirmation word directly, returning True")
+            logger.info("_detect_search_confirmation: Query matches confirmation word directly, returning True")
             return True
         for word in confirmation_words:
             if word in query_lower:
                 logger.info(f"_detect_search_confirmation: Query contains confirmation word '{word}', returning True")
                 return True
                 
-        logger.info(f"_detect_search_confirmation: No confirmation found, returning False")
+        logger.info("_detect_search_confirmation: No confirmation found, returning False")
         return False
 
     def _detect_expert_expansion_confirmation(self, current_query: str, memory) -> bool:

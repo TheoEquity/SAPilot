@@ -123,6 +123,7 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
         type: 'message',
         role: 'human',
         data: params.query,
+        files: params.files,
         timestamp,
       };
       setMessages((msgs) => {
@@ -200,9 +201,9 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
       {messages.map((parts, index) => {
         const isAI = parts.some((part) => part.role === 'ai');
         // Ensure role is properly set for safety
-        const safeParts = parts.map(part => ({
+        const safeParts = parts.map((part) => ({
           ...part,
-          role: part.role || (isAI ? 'ai' : 'human')
+          role: part.role || (isAI ? 'ai' : 'human'),
         }));
         const isLoading = loading && index + 1 === messages.length;
         const isAIPending =

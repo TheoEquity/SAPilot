@@ -37,13 +37,7 @@ import { cn } from '@/lib/utils';
 import { useInterval } from 'ahooks';
 import { motion } from 'framer-motion';
 import _ from 'lodash';
-import {
-  Bot,
-  Globe,
-  LoaderCircle,
-  Paperclip,
-  Trash2,
-} from 'lucide-react';
+import { Bot, Globe, LoaderCircle, Paperclip, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { defaultStyles, FileIcon } from 'react-file-icon';
@@ -65,6 +59,7 @@ export type ChatInputSubmitParams = {
   files: {
     id: string;
     name: string;
+    previewUrl?: string;
   }[];
 };
 
@@ -114,8 +109,10 @@ export const ChatInput = ({
   const [query, setQuery] = useState<string>('');
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const page_chat = useTranslations('page_chat');
-  const welcomeTitle = bot?.config?.agent?.welcome_title || page_chat('hello_world');
-  const welcomeSubtitle = bot?.config?.agent?.welcome_subtitle || page_chat('rag_description');
+  const welcomeTitle =
+    bot?.config?.agent?.welcome_title || page_chat('hello_world');
+  const welcomeSubtitle =
+    bot?.config?.agent?.welcome_subtitle || page_chat('rag_description');
   const [webSearchEnabled, setWebSearchEnabled] = useLocalStorageState<boolean>(
     'web-search-enabled',
     {
@@ -244,7 +241,9 @@ export const ChatInput = ({
             const item = items.find((item) => item.id === attachment.id);
             if (item) {
               item.document_id = res.data.id;
-              item.progress_status = isImageFile(item.file) ? 'success' : 'uploaded';
+              item.progress_status = isImageFile(item.file)
+                ? 'success'
+                : 'uploaded';
               // Generate preview URL for images
               if (isImageFile(item.file)) {
                 item.previewUrl = URL.createObjectURL(item.file);
@@ -618,7 +617,9 @@ export const ChatInput = ({
                         </Button>
                       </FileUploadTrigger>
                     </TooltipTrigger>
-                    <TooltipContent>上传文件或图片，支持粘贴截图</TooltipContent>
+                    <TooltipContent>
+                      上传文件或图片，支持粘贴截图
+                    </TooltipContent>
                   </Tooltip>
                 </FileUpload>
 

@@ -21,16 +21,21 @@
  */
 export interface ModelFile {
     /**
-     * 
+     *
      * @type {string}
      * @memberof ModelFile
      */
     'id'?: string;
     /**
-     * 
+     *
      * @type {string}
      * @memberof ModelFile
      */
     'name'?: string;
+    /**
+     *
+     * @type {string}
+     * @memberof ModelFile
+     */
+    'previewUrl'?: string;
 }
-

@@ -602,6 +602,7 @@ class Feedback(BaseModel):
 class File(BaseModel):
     id: Optional[str] = None
     name: Optional[str] = None
+    previewUrl: Optional[str] = None
 
 
 class ChatMessage(BaseModel):

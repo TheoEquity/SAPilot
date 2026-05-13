@@ -113,6 +113,7 @@ class ChatDocumentService:
                         file_info = {
                             "id": document.id,
                             "name": document.name,
+                            "previewUrl": f"/api/v1/collections/{collection.id}/documents/{document.id}/download",
                             "size": document.size,
                             "status": getattr(document.status, "value", document.status),
                             "created": document.gmt_created.isoformat(),
