@@ -1,10 +1,10 @@
-import { NextMiddleware, NextResponse, NextRequest } from 'next/server';
+import { NextMiddleware, NextRequest, NextResponse } from 'next/server';
 import { withApiProxy } from './middlewares/apiProxy';
 
 type MiddlewareFactory = (next: NextMiddleware) => NextMiddleware;
 
 export function withRootRedirect(next: NextMiddleware): NextMiddleware {
-  return async (req: NextRequest) => {
+  return async (req: NextRequest, event) => {
     const { pathname } = req.nextUrl;
     // 如果是根路径，直接重定向到登录页
     if (pathname === '/') {
@@ -12,7 +12,7 @@ export function withRootRedirect(next: NextMiddleware): NextMiddleware {
       url.pathname = '/auth/signin';
       return NextResponse.redirect(url);
     }
-    return next(req);
+    return next(req, event);
   };
 }
 

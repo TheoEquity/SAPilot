@@ -127,6 +127,7 @@ export const BotForm = () => {
   const agentConfig = bot.config?.agent;
   const selectedCollectionIds =
     agentConfig?.collections?.map((c) => c.id).filter(Boolean) || [];
+  const completion = agentConfig?.completion;
 
   const defaultValues: FormValueType = {
     title: bot.title || '',
@@ -134,11 +135,17 @@ export const BotForm = () => {
     is_default: bot.is_default || false,
     config: {
       agent: {
-        completion: agentConfig?.completion || {
-          custom_llm_provider: '',
-          model: '',
-          model_service_provider: '',
-        },
+        completion: completion
+          ? {
+              custom_llm_provider: completion.custom_llm_provider || '',
+              model: completion.model || '',
+              model_service_provider: completion.model_service_provider || '',
+            }
+          : {
+              custom_llm_provider: '',
+              model: '',
+              model_service_provider: '',
+            },
         welcome_title: agentConfig?.welcome_title || DEFAULT_WELCOME_TITLE,
         welcome_subtitle:
           agentConfig?.welcome_subtitle || DEFAULT_WELCOME_SUBTITLE,
@@ -146,7 +153,11 @@ export const BotForm = () => {
           agentConfig?.system_prompt_template || DEFAULT_SYSTEM_PROMPT,
         query_prompt_template:
           agentConfig?.query_prompt_template || DEFAULT_QUERY_PROMPT,
-        collections: agentConfig?.collections || [],
+        collections:
+          agentConfig?.collections
+            ?.map((collection) => collection.id)
+            .filter((id): id is string => Boolean(id))
+            .map((id) => ({ id })) || [],
       },
     },
   };
@@ -480,7 +491,7 @@ export const BotForm = () => {
               render={({ field }) => {
                 const selectedIds = field.value?.map((c) => c.id) || [];
                 const selectedItems = collections.filter((c) =>
-                  selectedIds.includes(c.id),
+                  c.id ? selectedIds.includes(c.id) : false,
                 );
 
                 return (
@@ -496,7 +507,7 @@ export const BotForm = () => {
                           >
                             {selectedItems.length > 0
                               ? page_bot('collection_selected', {
-                                  count: selectedItems.length,
+                                  count: String(selectedItems.length),
                                 })
                               : page_bot('collection_placeholder')}
                             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
@@ -530,6 +541,7 @@ export const BotForm = () => {
                                             ),
                                           );
                                         } else {
+                                          if (!collection.id) return;
                                           form.setValue(
                                             'config.agent.collections',
                                             [...current, { id: collection.id }],

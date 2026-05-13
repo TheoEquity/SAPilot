@@ -178,6 +178,9 @@ class Config(BaseSettings):
     dingtalk_image_search_enabled: bool = Field(True, alias="DINGTALK_IMAGE_SEARCH_ENABLED")
     dingtalk_image_search_topk: int = Field(5, alias="DINGTALK_IMAGE_SEARCH_TOPK")
     dingtalk_image_search_similarity: float = Field(0.2, alias="DINGTALK_IMAGE_SEARCH_SIMILARITY")
+    dingtalk_image_search_confirmed_similarity: float = Field(
+        0.8, alias="DINGTALK_IMAGE_SEARCH_CONFIRMED_SIMILARITY"
+    )
     dingtalk_sap_community_search_enabled: bool = Field(True, alias="DINGTALK_SAP_COMMUNITY_SEARCH_ENABLED")
 
     # Opik

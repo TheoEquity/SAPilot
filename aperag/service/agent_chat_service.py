@@ -514,6 +514,16 @@ class AgentChatService:
             history = await self.history_manager.get_chat_history(chat_id)
             memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
 
+            if self._should_continue_unmatched_image_prompt(agent_message.query, history):
+                unmatched_response = self._build_unmatched_image_response(agent_message.language)
+                await message_queue.put(format_stream_content(message_id, unmatched_response))
+                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                return {
+                    "query": merged_agent_message.query,
+                    "content": unmatched_response,
+                    "references": [],
+                }
+
             # Detect if user is confirming an optional follow-up from a previous turn
             is_expert_expansion_confirmed = self._detect_expert_expansion_confirmation(agent_message.query, memory)
             is_search_confirmed = self._detect_search_confirmation(agent_message.query, memory)
@@ -529,21 +539,45 @@ class AgentChatService:
 
             # Pre-execute image search only to identify the matched FAQ question text.
             image_search_results: List[DocumentWithScore] = []
-            if merged_agent_message.files:
+            has_image_files = self._has_image_files(merged_agent_message.files)
+            if has_image_files:
                 image_search_results = await self._execute_image_search(
                     user=user,
                     chat_id=chat_id,
                     files=merged_agent_message.files,
                     collections=final_collections or [],
                 )
-                if image_search_results:
-                    top_chunk = image_search_results[0]
-                    chunk_text = (top_chunk.text or "").strip()
-                    question_text = self._extract_faq_question_text(chunk_text)
-                    if question_text:
-                        llm_agent_message = merged_agent_message.model_copy(
-                            update={"query": f"{question_text}\n\n{original_user_query}"}
-                        )
+                top_chunk = image_search_results[0] if image_search_results else None
+                if not top_chunk or not self._is_confirmed_image_search_hit(top_chunk):
+                    logger.info(
+                        "Image search did not find a confirmed hit: score=%s threshold=%s",
+                        top_chunk.score if top_chunk else None,
+                        settings.dingtalk_image_search_confirmed_similarity,
+                    )
+                    unmatched_response = self._build_unmatched_image_response(agent_message.language)
+                    await message_queue.put(format_stream_content(message_id, unmatched_response))
+                    await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                    return {
+                        "query": original_user_query,
+                        "content": unmatched_response,
+                        "references": [],
+                    }
+
+                chunk_text = (top_chunk.text or "").strip()
+                question_text = self._extract_faq_question_text(chunk_text)
+                if not question_text:
+                    unmatched_response = self._build_unmatched_image_response(agent_message.language)
+                    await message_queue.put(format_stream_content(message_id, unmatched_response))
+                    await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                    return {
+                        "query": original_user_query,
+                        "content": unmatched_response,
+                        "references": [],
+                    }
+
+                llm_agent_message = merged_agent_message.model_copy(
+                    update={"query": self._build_image_search_text_query(original_user_query, question_text)}
+                )
 
             comprehensive_prompt = build_agent_query_prompt(
                 chat_id, agent_message=llm_agent_message, user=user, template=resolved_query_prompt, is_search_confirmed=is_search_confirmed
@@ -674,14 +708,70 @@ class AgentChatService:
 
         return None
 
-    def _append_image_search_context(self, query: str, image_context: str) -> str:
+    def _build_image_search_text_query(self, original_query: str, question_text: str) -> str:
         return (
-            f"{query}\n\n"
-            "用户本轮上传了报错截图。以下是图片相似检索得到的 FAQ 候选。"
-            "请把第 1 条候选作为主依据，按 FAQ 标准回答格式输出；"
-            "如果候选与用户文字明显矛盾，请说明需要补充更清晰截图或错误文本。\n"
-            f"{image_context}"
+            "用户上传的截图疑似对应以下问题描述。请把该问题描述作为检索关键词，"
+            "继续调用 search_collection 检索运维FAQ知识库，再按检索结果回答。\n"
+            f"检索关键词：{question_text}\n\n"
+            f"用户原始问题：{original_query}"
         )
+
+    def _build_unmatched_image_response(self, language: Optional[str]) -> str:
+        if language == "zh-CN":
+            return "未匹配到知识库中的明确图片，请用文字描述问题或补充报错文本，我再帮你查询。"
+        return "I could not find a clear matching image in the knowledge base. Please describe the issue in text or provide the error message, and I will search again."
+
+    def _should_continue_unmatched_image_prompt(self, query: str, history: List[StoredChatMessage]) -> bool:
+        if not self._is_short_follow_up_query(query):
+            return False
+        last_assistant = self._get_last_assistant_history_message(history)
+        if not last_assistant:
+            return False
+        return self._is_unmatched_image_response(last_assistant.content or "")
+
+    def _is_short_follow_up_query(self, query: str) -> bool:
+        normalized = re.sub(r"[\s!！?？。,.，；;:：~～]+", "", query or "").lower()
+        return normalized in {
+            "怎么办",
+            "怎么处理",
+            "如何处理",
+            "怎么解决",
+            "如何解决",
+            "咋办",
+            "然后呢",
+            "下一步",
+            "继续",
+            "处理办法",
+            "解决办法",
+            "whatnow",
+            "howtofix",
+            "howtosolve",
+        }
+
+    def _get_last_assistant_history_message(self, history: List[StoredChatMessage]) -> Optional[StoredChatMessage]:
+        for message in reversed(history or []):
+            if message.role == "assistant":
+                return message
+        return None
+
+    def _is_unmatched_image_response(self, content: str) -> bool:
+        return (
+            "未匹配到知识库中的明确图片" in content
+            or "could not find a clear matching image" in content.lower()
+        )
+
+    def _has_image_files(self, files: Optional[List[view_models.File]]) -> bool:
+        if not files:
+            return False
+        return any(self._is_image_file(file) for file in files)
+
+    def _is_image_file(self, file: view_models.File) -> bool:
+        name = (getattr(file, "name", None) or "").lower()
+        return name.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"))
+
+    def _is_confirmed_image_search_hit(self, result: DocumentWithScore) -> bool:
+        score = result.score if result else None
+        return isinstance(score, (int, float)) and score >= settings.dingtalk_image_search_confirmed_similarity
 
     def _extract_faq_question_text(self, chunk_text: str) -> str:
         """Extract the FAQ problem description from an enriched FAQ chunk."""

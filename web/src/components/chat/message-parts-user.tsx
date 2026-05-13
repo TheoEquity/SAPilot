@@ -1,12 +1,64 @@
+'use client';
+
 import { ChatMessage } from '@/api';
-import { Markdown } from '@/components/markdown';
+import { ImagePreview, Markdown } from '@/components/markdown';
 import { FileImage, UserRound } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { MessageTimestamp } from './message-timestamp';
 
 const resolvePreviewUrl = (url?: string) => {
   if (!url) return undefined;
   if (!url.startsWith('/')) return url;
   return `${process.env.NEXT_PUBLIC_BASE_PATH || ''}${url}`;
+};
+
+const isImageAttachment = (name?: string) =>
+  /\.(png|jpe?g|webp|gif|bmp)$/i.test(name || '');
+
+const ChatAttachmentImage = ({
+  name,
+  previewUrl,
+  className,
+}: {
+  name?: string;
+  previewUrl: string;
+  className: string;
+}) => {
+  const [imageUrl, setImageUrl] = useState<string>();
+
+  const getImageSrc = useCallback(async () => {
+    const response = await fetch(previewUrl);
+    if (!response.ok) return;
+    const blob = await response.blob();
+    setImageUrl(URL.createObjectURL(blob));
+  }, [previewUrl]);
+
+  useEffect(() => {
+    getImageSrc();
+  }, [getImageSrc]);
+
+  useEffect(() => {
+    return () => {
+      if (imageUrl) {
+        URL.revokeObjectURL(imageUrl);
+      }
+    };
+  }, [imageUrl]);
+
+  const content = (
+    <span className={className} title={name || 'Attachment'}>
+      <FileImage className="size-4 shrink-0" />
+      <span className="truncate">{name || 'Attachment'}</span>
+    </span>
+  );
+
+  if (!imageUrl) return content;
+
+  return (
+    <ImagePreview imageUrl={imageUrl} alt={name || 'Attachment'}>
+      {content}
+    </ImagePreview>
+  );
 };
 
 export const MessagePartsUser = ({ parts }: { parts: ChatMessage[] }) => {
@@ -22,23 +74,30 @@ export const MessagePartsUser = ({ parts }: { parts: ChatMessage[] }) => {
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {files.map((file, index) => {
               const previewUrl = resolvePreviewUrl(file.previewUrl);
+              const canPreview = previewUrl && isImageAttachment(file.name);
+              const className =
+                'bg-muted text-muted-foreground hover:bg-muted/80 flex max-w-48 items-center gap-2 rounded-md border px-2 py-1 text-xs transition-colors';
+
+              if (canPreview) {
+                return (
+                  <ChatAttachmentImage
+                    key={`${file.id || file.name || 'file'}-${index}`}
+                    name={file.name}
+                    previewUrl={previewUrl}
+                    className={className}
+                  />
+                );
+              }
+
               return (
-                <a
+                <span
                   key={`${file.id || file.name || 'file'}-${index}`}
-                  href={previewUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bg-muted text-muted-foreground hover:bg-muted/80 flex max-w-48 items-center gap-2 rounded-md border px-2 py-1 text-xs transition-colors"
-                  onClick={(event) => {
-                    if (!previewUrl) {
-                      event.preventDefault();
-                    }
-                  }}
+                  className={className}
                   title={file.name || 'Attachment'}
                 >
                   <FileImage className="size-4 shrink-0" />
                   <span className="truncate">{file.name || 'Attachment'}</span>
-                </a>
+                </span>
               );
             })}
           </div>

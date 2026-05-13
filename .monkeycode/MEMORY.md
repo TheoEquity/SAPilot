@@ -30,3 +30,21 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
 - 这有助于避免冗余条目，保持记忆文件整洁
 
 ## 条目
+
+[SAPilot 变更验证命令]
+- Date: 2026-05-13
+- Context: Agent 在执行图片搜索历史与附件展示修复时发现
+- Category: 测试方法
+- Instructions:
+  - 后端单文件语法检查可使用 `.venv/bin/python -m py_compile <files>`。
+  - 后端 lint 可使用 `.venv/bin/python -m ruff check <files>`。
+  - 图搜相关单测可使用 `.venv/bin/python -m pytest tests/unit_test/test_image_search_refactor.py -q`。
+  - 前端格式检查可在 `web` 目录使用 `npx prettier --check <files>`。
+  - 前端全量类型检查可在 `web` 目录使用 `yarn tsc --noEmit --pretty false`。
+
+[SAPilot 聊天附件图片预览交互]
+- Date: 2026-05-13
+- Context: 用户要求聊天中上传的图片附件点击回看时采用平台同类交互
+- Instructions:
+  - 聊天图片附件应以小图标/附件入口展示，点击后在页面内弹窗回看原图。
+  - 图片回看弹窗应支持鼠标滚轮放大缩小。

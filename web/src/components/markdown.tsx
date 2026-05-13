@@ -5,13 +5,13 @@ import { ImageIcon, XIcon } from 'lucide-react';
 import Link from 'next/link';
 import {
   JSX,
-  WheelEvent,
   MouseEvent,
   MouseEventHandler,
   useCallback,
   useEffect,
   useMemo,
   useState,
+  WheelEvent,
 } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
@@ -93,9 +93,6 @@ export const CustomImage = ({
   ...props
 }: JSX.IntrinsicElements['img']) => {
   const [imageUrl, setImageUrl] = useState<string>();
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [transformOrigin, setTransformOrigin] = useState('center center');
 
   const getImageSrc = useCallback(async () => {
     if (typeof src !== 'string') return;
@@ -125,6 +122,37 @@ export const CustomImage = ({
       }
     };
   }, [imageUrl]);
+
+  return imageUrl ? (
+    <ImagePreview imageUrl={imageUrl} alt={props.alt || '图片预览'}>
+      <span className="block cursor-zoom-in">
+        <img
+          {...props}
+          alt={props.alt}
+          src={imageUrl}
+          className="h-auto w-full max-w-none min-w-64 rounded border object-contain"
+        />
+      </span>
+    </ImagePreview>
+  ) : (
+    <Skeleton className="my-4 h-[125px] w-full rounded-xl py-4 pt-8 text-center">
+      <ImageIcon className="mx-auto size-12 opacity-20" />
+    </Skeleton>
+  );
+};
+
+export const ImagePreview = ({
+  imageUrl,
+  alt,
+  children,
+}: {
+  imageUrl: string;
+  alt: string;
+  children: React.ReactNode;
+}) => {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [transformOrigin, setTransformOrigin] = useState('center center');
 
   const resetPreview = () => {
     setScale(1);
@@ -161,19 +189,14 @@ export const CustomImage = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewOpen]);
 
-  return imageUrl ? (
+  return (
     <>
       <button
         className="block cursor-zoom-in"
         onClick={() => setPreviewOpen(true)}
         type="button"
       >
-        <img
-          {...props}
-          alt={props.alt}
-          src={imageUrl}
-          className="h-auto w-full min-w-64 max-w-none rounded border object-contain"
-        />
+        {children}
       </button>
       {previewOpen && (
         <div
@@ -190,8 +213,8 @@ export const CustomImage = ({
             <span className="sr-only">关闭图片预览</span>
           </button>
           <img
-            alt={props.alt || '图片预览'}
-            className="max-h-[90vh] max-w-[90vw] select-none object-contain"
+            alt={alt}
+            className="max-h-[90vh] max-w-[90vw] object-contain select-none"
             draggable={false}
             src={imageUrl}
             style={{
@@ -203,10 +226,6 @@ export const CustomImage = ({
         </div>
       )}
     </>
-  ) : (
-    <Skeleton className="my-4 h-[125px] w-full rounded-xl py-4 pt-8 text-center">
-      <ImageIcon className="mx-auto size-12 opacity-20" />
-    </Skeleton>
   );
 };
 

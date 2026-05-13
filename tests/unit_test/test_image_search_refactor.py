@@ -20,19 +20,21 @@ Tests cover:
 2. `_build_image_search_standard_references` - returns references with correct format
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 import sys
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from aperag.query.query import DocumentWithScore
-from aperag.service.agent_chat_service import AgentChatService
 from aperag.schema import view_models
+from aperag.service.agent_chat_service import AgentChatService
 
 
 class MockSettings:
     """Mock settings object with required attributes."""
     dingtalk_image_search_topk = 5
     dingtalk_image_search_similarity = 0.7
+    dingtalk_image_search_confirmed_similarity = 0.8
 
 
 def setup_mock_settings():
@@ -409,3 +411,115 @@ class TestBuildImageSearchStandardReferences:
         assert metadata["result_count"] == 1
         assert metadata["extra_field"] == "extra_value"
         assert metadata["collection_title"] == "My Collection"
+
+
+class TestBuildImageSearchTextQuery:
+    """Tests for image-search-to-text query handoff."""
+
+    @pytest.fixture
+    def service(self):
+        return AgentChatService(session=None)
+
+    def test_builds_query_that_requires_text_search(self, service):
+        result = service._build_image_search_text_query(
+            original_query="怎么回事",
+            question_text="不允许负值总计金额",
+        )
+
+        assert "检索关键词：不允许负值总计金额" in result
+        assert "用户原始问题：怎么回事" in result
+        assert "调用 search_collection 检索运维FAQ知识库" in result
+
+    def test_does_not_treat_image_hit_as_final_answer_context(self, service):
+        result = service._build_image_search_text_query(
+            original_query="帮我看下截图",
+            question_text="预算冻结时报错",
+        )
+
+        assert "候选" not in result
+        assert "主依据" not in result
+        assert "按 FAQ 标准回答格式输出" not in result
+
+
+class TestConfirmedImageSearchHit:
+    """Tests for image search confirmed-hit threshold."""
+
+    @pytest.fixture
+    def service(self):
+        return AgentChatService(session=None)
+
+    def test_accepts_hit_at_confirmed_threshold(self, service):
+        result = DocumentWithScore(text="FAQ content", score=0.8, metadata={})
+
+        assert service._is_confirmed_image_search_hit(result) is True
+
+    def test_rejects_hit_below_confirmed_threshold(self, service):
+        result = DocumentWithScore(text="FAQ content", score=0.79, metadata={})
+
+        assert service._is_confirmed_image_search_hit(result) is False
+
+    def test_rejects_hit_without_numeric_score(self, service):
+        result = DocumentWithScore(text="FAQ content", score=None, metadata={})
+
+        assert service._is_confirmed_image_search_hit(result) is False
+
+
+class TestImageSearchNoMatchResponse:
+    """Tests for image-search no-match guardrail helpers."""
+
+    @pytest.fixture
+    def service(self):
+        return AgentChatService(session=None)
+
+    def test_detects_image_files(self, service):
+        image_file = MagicMock(spec=view_models.File)
+        image_file.name = "screenshot.PNG"
+        text_file = MagicMock(spec=view_models.File)
+        text_file.name = "notes.txt"
+
+        assert service._has_image_files([text_file, image_file]) is True
+
+    def test_ignores_non_image_files(self, service):
+        text_file = MagicMock(spec=view_models.File)
+        text_file.name = "notes.txt"
+
+        assert service._has_image_files([text_file]) is False
+
+    def test_builds_chinese_unmatched_image_response(self, service):
+        response = service._build_unmatched_image_response("zh-CN")
+
+        assert "未匹配到知识库中的明确图片" in response
+        assert "文字描述" in response
+
+    def test_builds_english_unmatched_image_response(self, service):
+        response = service._build_unmatched_image_response("en-US")
+
+        assert "could not find a clear matching image" in response
+        assert "describe the issue in text" in response
+
+    def test_continues_unmatched_image_prompt_for_short_follow_up(self, service):
+        history_message = MagicMock()
+        history_message.role = "assistant"
+        history_message.content = service._build_unmatched_image_response("zh-CN")
+
+        result = service._should_continue_unmatched_image_prompt("怎么办", [history_message])
+
+        assert result is True
+
+    def test_allows_specific_follow_up_after_unmatched_image_prompt(self, service):
+        history_message = MagicMock()
+        history_message.role = "assistant"
+        history_message.content = service._build_unmatched_image_response("zh-CN")
+
+        result = service._should_continue_unmatched_image_prompt("报错提示总计金额为负", [history_message])
+
+        assert result is False
+
+    def test_allows_short_follow_up_without_unmatched_image_prompt(self, service):
+        history_message = MagicMock()
+        history_message.role = "assistant"
+        history_message.content = "这是一个正常 FAQ 回答"
+
+        result = service._should_continue_unmatched_image_prompt("怎么办", [history_message])
+
+        assert result is False
