@@ -75,3 +75,12 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
   - 方案B：默认自由对话不搜知识库，只有明确触发才注入搜索工具。触发条件：上传图片、明确搜索请求、含SAP业务关键词、扩展确认。
   - 非触发场景用 tool_filter={"aperag": set()} 禁用 MCP 工具，LLM 自由回答。
   - 1.3版本将引入工作流和意图识别替代当前规则触发器。
+
+[SAPilot 钉钉 Stream 图片接收规则]
+- Date: 2026-05-14
+- Context: Agent 在验证钉钉 Stream 模式图片接收链路时发现
+- Category: 代码模式
+- Instructions:
+  - Stream 模式接收图片时，优先使用 `ChatbotMessage.get_image_list()` 获取原始 `downloadCode`。
+  - 避免用 SDK 的 `extract_image_from_incoming_message()` 作为接收判断，因为该 helper 会立即下载并重新上传图片，容易把“收到图片凭证”和“下载图片失败”混在一起。
+  - 钉钉端发图能命中图搜时，说明第一步“Agent 能收到钉钉图片凭证并进入图搜链路”已打通。

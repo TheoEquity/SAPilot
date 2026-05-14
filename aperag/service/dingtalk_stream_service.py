@@ -54,7 +54,26 @@ class DingTalkStreamBotHandler(ChatbotHandler):
 
             text_list = self.extract_text_from_incoming_message(chatbot_message)
             text_content = "\n".join(text_list) if text_list else ""
-            image_list = self.extract_image_from_incoming_message(chatbot_message)
+            # Keep raw DingTalk downloadCode values. The SDK helper downloads and
+            # re-uploads images, which hides whether Stream delivered the image.
+            image_list = chatbot_message.get_image_list() or []
+
+            logger.info(
+                "DingTalk Stream: incoming message msg_id=%s type=%s text_count=%s image_count=%s content_keys=%s",
+                chatbot_message.message_id,
+                chatbot_message.message_type,
+                len(text_list or []),
+                len(image_list),
+                sorted((message.data.get("content") or {}).keys()) if isinstance(message.data.get("content"), dict) else [],
+            )
+
+            if image_list:
+                logger.info(
+                    "DingTalk Stream: received image message type=%s count=%s refs=%s",
+                    chatbot_message.message_type,
+                    len(image_list),
+                    [str(code)[:30] for code in image_list],
+                )
 
             if not text_content.strip():
                 if image_list:
