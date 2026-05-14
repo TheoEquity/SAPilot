@@ -618,6 +618,7 @@ class ChatMessage(BaseModel):
             'tool_call_result',
             'thinking',
             'references',
+            'faq_choice',
         ]
     ] = None
     timestamp: Optional[float] = None
@@ -627,6 +628,7 @@ class ChatMessage(BaseModel):
     urls: Optional[list[str]] = None
     feedback: Optional[Feedback] = None
     files: Optional[list[File]] = None
+    options: Optional[list[dict]] = None
 
 
 class ChatDetails(BaseModel):
@@ -2802,6 +2804,11 @@ class AgentMessage(BaseModel):
         'en-US', description='Language preference for the response', examples=['en-US']
     )
     files: Optional[list[File]] = None
+    action: Optional[str] = Field(
+        None,
+        description='Structured chat action, such as faq_expand or faq_end',
+        examples=['faq_expand'],
+    )
 
 
 class ExportTaskResponse(BaseModel):

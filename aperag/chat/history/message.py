@@ -18,7 +18,7 @@ class StoredChatMessagePart(BaseModel):
     timestamp: float = Field(default_factory=time.time, description="Part timestamp")
 
     # Message content
-    type: Literal["message", "tool_call_result", "thinking", "references"] = Field(
+    type: Literal["message", "tool_call_result", "thinking", "references", "faq_choice"] = Field(
         default="message", description="Part type"
     )
     role: Literal["human", "ai", "system"] = Field(default="ai", description="Message role")

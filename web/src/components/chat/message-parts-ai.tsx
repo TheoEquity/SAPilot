@@ -16,11 +16,13 @@ export const MessagePartsAi = ({
   loading,
   parts,
   hanldeMessageFeedback,
+  onFaqChoice,
 }: {
   pending: boolean;
   loading: boolean;
   parts: ChatMessage[];
   hanldeMessageFeedback: (part: ChatMessage, feedback: Feedback) => void;
+  onFaqChoice: (action: string, label: string) => void;
 }) => {
   const references = useMemo(
     () => parts.findLast((part) => part.references)?.references || [],
@@ -28,7 +30,7 @@ export const MessagePartsAi = ({
   );
 
   return (
-    <div className="flex w-max flex-row gap-4">
+    <div className="flex w-full flex-row gap-4">
       <div>
         <div className="bg-muted text-muted-foreground relative flex size-12 flex-col justify-center rounded-full">
           {loading && (
@@ -37,7 +39,7 @@ export const MessagePartsAi = ({
           <Bot className={cn('size-6 self-center')} />
         </div>
       </div>
-      <div className="flex max-w-sm flex-col gap-1 sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
+      <div className="flex w-full max-w-sm flex-col gap-1 sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
         <Card className="dark:border-card/0 block gap-0 px-4 py-4 text-sm">
           {pending ? (
             <div className="flex flex-row gap-2 py-2">
@@ -51,6 +53,7 @@ export const MessagePartsAi = ({
                 key={`${index}-${part.id}`}
                 part={part}
                 loading={loading}
+                onFaqChoice={onFaqChoice}
               />
             ))
           )}

@@ -48,6 +48,7 @@ import useLocalStorageState from 'use-local-storage-state';
 
 export type ChatInputSubmitParams = {
   query: string;
+  action?: string;
   collections: Collection[];
   completion: {
     model: string;

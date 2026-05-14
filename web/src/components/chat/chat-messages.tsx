@@ -10,6 +10,7 @@ import { apiClient } from '@/lib/api/client';
 import { ReadyState } from 'ahooks/lib/useWebSocket';
 import { motion } from 'framer-motion';
 import _ from 'lodash';
+import { useLocale } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChatInput, ChatInputSubmitParams } from './chat-input';
@@ -19,6 +20,7 @@ import { MessagePartsUser } from './message-parts-user';
 export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
   const { chatRename } = useBotContext();
   const { botId, chatId } = useParams<{ botId: string; chatId: string }>();
+  const locale = useLocale();
   const [messages, setMessages] = useState<Array<Array<ChatMessage>>>(
     chat?.history || [],
   );
@@ -122,7 +124,7 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
       const part: ChatMessage = {
         type: 'message',
         role: 'human',
-        data: params.query,
+        data: params.query || ' ',
         files: params.files,
         timestamp,
       };
@@ -134,6 +136,35 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
       sendMessage(JSON.stringify(params));
     },
     [sendMessage],
+  );
+
+  const handleFaqChoice = useCallback(
+    (action: string, label: string) => {
+      const timestamp = Math.floor(new Date().getTime() / 1000);
+      const part: ChatMessage = {
+        type: 'message',
+        role: 'human',
+        data: label,
+        timestamp,
+      };
+      setMessages((msgs) => {
+        msgs?.push([part]);
+        return [...msgs];
+      });
+
+      sendMessage(
+        JSON.stringify({
+          query: label,
+          action,
+          collections: [],
+          completion: null,
+          web_search_enabled: false,
+          language: locale,
+          files: [],
+        }),
+      );
+    },
+    [locale, sendMessage],
   );
 
   const hanldeMessageFeedback = useCallback(
@@ -227,6 +258,7 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
                 loading={isLoading}
                 parts={safeParts}
                 hanldeMessageFeedback={hanldeMessageFeedback}
+                onFaqChoice={handleFaqChoice}
               />
             ) : (
               <MessagePartsUser parts={safeParts} />

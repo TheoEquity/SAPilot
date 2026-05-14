@@ -142,6 +142,10 @@ class AgentChatService:
             message_data = safe_json_parse(raw_data, "websocket_message")
 
             # Step 2: Validate required query field early
+            action = message_data.get("action")
+            if action in {"faq_expand", "faq_end"} and not message_data.get("query"):
+                message_data["query"] = "是，专业扩展" if action == "faq_expand" else "否，结束"
+
             query = message_data.get("query", "").strip()
             if not query:
                 from aperag.agent.exceptions import agent_config_invalid
@@ -494,6 +498,7 @@ class AgentChatService:
             web_search_enabled=agent_message.web_search_enabled,
             language=agent_message.language,
             files=agent_message.files,
+            action=agent_message.action,
         )
 
         try:
@@ -503,6 +508,16 @@ class AgentChatService:
             # Create memory from chat history
             history = await self.history_manager.get_chat_history(chat_id)
             memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
+
+            if merged_agent_message.action == "faq_end":
+                end_response = self._build_faq_choice_end_response(agent_message.language)
+                await message_queue.put(format_stream_content(message_id, end_response))
+                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                return {
+                    "query": merged_agent_message.query,
+                    "content": end_response,
+                    "references": [],
+                }
 
             # Decide whether to search knowledge base based on trigger rules
             search_trigger = self._should_search_knowledge_base(
@@ -539,6 +554,16 @@ class AgentChatService:
                     "references": tool_references,
                 }
 
+            if search_trigger == "faq_end":
+                end_response = self._build_faq_choice_end_response(agent_message.language)
+                await message_queue.put(format_stream_content(message_id, end_response))
+                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                return {
+                    "query": merged_agent_message.query,
+                    "content": end_response,
+                    "references": [],
+                }
+
             # Knowledge base search mode: full MCP agent with search tools
 
             # Only allow expansion mode when triggered by expansion confirmation
@@ -552,6 +577,11 @@ class AgentChatService:
 
             original_user_query = merged_agent_message.query
             llm_agent_message = merged_agent_message
+
+            if search_trigger == "kb_existence":
+                llm_agent_message = merged_agent_message.model_copy(
+                    update={"query": self._build_knowledge_base_existence_query(original_user_query)}
+                )
 
             # Pre-execute image search only to identify the matched FAQ question text.
             image_search_results: List[DocumentWithScore] = []
@@ -612,6 +642,9 @@ class AgentChatService:
             )
             response = await llm.generate_str(comprehensive_prompt, request_params)
             full_content = response if response else "No response generated"
+            faq_choice = self._extract_faq_choice(full_content)
+            if faq_choice:
+                full_content = faq_choice["content"]
 
             await asyncio.sleep(0.1)  # Allow time for the message to be processed in listener
 
@@ -620,6 +653,9 @@ class AgentChatService:
             tool_references = extract_tool_call_references(llm.history)
 
             urls = []
+
+            if faq_choice:
+                await message_queue.put(self._format_faq_choice_message(message_id, faq_choice["label"]))
 
             await message_queue.put(format_stream_end(message_id, references=tool_references, urls=urls))
 
@@ -676,32 +712,81 @@ class AgentChatService:
             logger.info("KB search triggered: image upload")
             return "image"
 
+        if query in {"是，专业扩展", "faq_expand"}:
+            logger.info("KB search triggered: structured FAQ expansion action")
+            return "expansion"
+
+        if query in {"否，结束", "faq_end"}:
+            logger.info("KB search skipped: structured FAQ end action")
+            return "faq_end"
+
         if self._detect_expert_expansion_confirmation(query, memory):
             logger.info("KB search triggered: expansion confirmation")
             return "expansion"
 
         normalized = re.sub(r"[\s!！?？。,.，；;:：~～]+", "", query).lower()
 
+        if self._is_non_local_knowledge_base_query(normalized):
+            logger.info("KB search skipped: non-local knowledge-base question '%s'", query)
+            return None
+
+        if self._is_knowledge_base_existence_query(normalized):
+            logger.info("KB search triggered: knowledge-base existence question '%s'", query)
+            return "kb_existence"
+
         search_triggers = {
             "查一下", "查查", "帮我查", "帮我搜", "搜一下", "搜索", "检索",
             "从知识库查", "知识库查", "查知识库", "搜知识库", "问知识库",
+            "知识库", "本地库", "本地知识库",
             "search", "lookup", "find", "check", "querykb",
         }
         if any(trigger in normalized for trigger in search_triggers):
             logger.info("KB search triggered: explicit search request '%s'", query)
             return "explicit"
 
-        business_markers = {
-            "sap", "faq", "报错", "错误", "流程", "账号", "帐号", "锁定",
-            "截图", "凭证", "订单", "发票", "付款", "报错码", "异常",
-            "工单", "审批", "采购", "库存", "资产", "成本", "预算",
-            "合同", "供应商", "银行", "税收", "科目", "总账",
-        }
-        if any(marker in normalized for marker in business_markers):
-            logger.info("KB search triggered: business keyword in '%s'", query)
-            return "keyword"
-
         return None
+
+    def _is_knowledge_base_existence_query(self, normalized_query: str) -> bool:
+        if not normalized_query:
+            return False
+
+        kb_terms = {"知识库", "本地知识库", "本地库", "库里", "库中"}
+        if not any(term in normalized_query for term in kb_terms):
+            return False
+
+        existence_terms = {
+            "有没有", "是否有", "有无", "是否存在", "是否收录", "收录了",
+            "有相关", "相关资料", "相关文档", "包含", "有哪些",
+        }
+        return any(term in normalized_query for term in existence_terms)
+
+    def _is_non_local_knowledge_base_query(self, normalized_query: str) -> bool:
+        if not normalized_query:
+            return False
+
+        non_local_kb_terms = {
+            "外部知识库", "官方知识库", "sap官方", "你的知识库",
+            "公共知识库", "公开知识库", "网上知识库", "外部库", "官方库",
+        }
+        return any(term in normalized_query for term in non_local_kb_terms)
+
+    def _build_knowledge_base_existence_query(self, original_query: str) -> str:
+        return (
+            "用户正在询问当前绑定的本地知识库是否包含相关资料。\n"
+            "请先从对话历史识别用户实际询问的资料主题；如果当前问题只是纠正句或追问句，"
+            "例如“我问的是知识库中有没有”，请使用上一轮相关主题作为检索关键词。\n"
+            "请调用 search_collection 搜索所有可用的绑定知识库，然后基于检索结果回答。\n"
+            "回答要求：\n"
+            "1. 如果检索结果能证明存在相关资料，说明找到的知识库、文档或 FAQ 标题，并概括命中内容。\n"
+            "2. 如果检索结果只能证明有相近资料，说明是相近资料，并标明差异。\n"
+            "3. 如果检索到 ABAP 自测规范、ABAP 开发检查项、ABAP 开发相关文档，应回答知识库有相关 ABAP 开发规范资料，"
+            "并说明资料名称和覆盖范围；不要因为资料不是 SAP 官方开发规范就回答没有相关内容。\n"
+            "4. 只有 search_collection 没有返回相关或相近结果时，才回答当前知识库未检索到明确资料。\n"
+            "5. 不要编造 FAQ 编号、文档名、审计信息或来源。\n\n"
+            f"用户原问题：{original_query}"
+        )
+
+    def _build_short_direct_response(self, query: str, language: Optional[str]) -> Optional[str]:
         """Return a direct response for short greetings and thanks."""
         if not query:
             return None
@@ -778,6 +863,32 @@ class AgentChatService:
             f"检索关键词：{faq_title}\n\n"
             f"用户原始问题：{original_query}"
         )
+
+    def _extract_faq_choice(self, content: str) -> Optional[Dict[str, str]]:
+        marker = "是否需要我从专业角度扩展解答？"
+        if marker not in content:
+            return None
+        return {
+            "content": content,
+            "label": marker,
+        }
+
+    def _format_faq_choice_message(self, message_id: str, label: str) -> Dict[str, Any]:
+        return {
+            "type": "faq_choice",
+            "id": message_id,
+            "data": label,
+            "timestamp": int(time.time()),
+            "options": [
+                {"label": "是，专业扩展", "action": "faq_expand"},
+                {"label": "否，结束", "action": "faq_end"},
+            ],
+        }
+
+    def _build_faq_choice_end_response(self, language: Optional[str]) -> str:
+        if language == "zh-CN":
+            return "好的，本次基于知识库标准答案的解答已结束。"
+        return "OK. This FAQ answer is complete."
 
     def _build_unmatched_image_response(self, language: Optional[str]) -> str:
         if language == "zh-CN":
@@ -1316,6 +1427,7 @@ class AgentChatService:
         return f"""用户确认需要专业扩展解答。
 
 请基于上一轮 FAQ 标准回答和对话上下文，从 SAP 顾问现场支持角度补充说明。不要再次检索知识库，不要启动联网搜索，不要重复 FAQ 标准回答。
+不要重新询问用户遇到了什么 SAP 报错，不要回到接待话术，不要再次询问是否需要扩展解答。
 
 回答格式：
 【专业扩展解答】

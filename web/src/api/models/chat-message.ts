@@ -86,6 +86,12 @@ export interface ChatMessage {
      * @memberof ChatMessage
      */
     'files'?: Array<any>;
+    /**
+     * 
+     * @type {Array<any>}
+     * @memberof ChatMessage
+     */
+    'options'?: Array<any>;
 }
 
 export const ChatMessageTypeEnum = {
@@ -96,7 +102,8 @@ export const ChatMessageTypeEnum = {
     error: 'error',
     tool_call_result: 'tool_call_result',
     thinking: 'thinking',
-    references: 'references'
+    references: 'references',
+    faq_choice: 'faq_choice'
 } as const;
 
 export type ChatMessageTypeEnum = typeof ChatMessageTypeEnum[keyof typeof ChatMessageTypeEnum];
@@ -106,5 +113,4 @@ export const ChatMessageRoleEnum = {
 } as const;
 
 export type ChatMessageRoleEnum = typeof ChatMessageRoleEnum[keyof typeof ChatMessageRoleEnum];
-
 

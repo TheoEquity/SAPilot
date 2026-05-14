@@ -114,12 +114,7 @@ class DingTalkBotService:
             image_context = await self._build_image_search_context(payload, user_id, default_collections)
             formatted_query = self._format_dingtalk_query(query, image_context=image_context)
         else:
-            formatted_query = (
-                f"{query}\n\n"
-                "你是在钉钉群里的 SAP 运维问诊助手。当前是闲聊模式，不要检索知识库。"
-                "回复简短礼貌（不超过100字），引导用户描述 SAP 报错、事务码或上传截图来触发知识库检索。"
-                "不要使用 emoji、不要自我发挥格式、不要编造诊断流程。"
-            )
+            formatted_query = query
 
         chat = await self._get_or_create_dingtalk_chat(user_id, bot.id, payload)
         answer = await self._ask_agent(
@@ -229,6 +224,7 @@ class DingTalkBotService:
                 resolved_query_prompt=resolved_query_prompt,
             )
             ai_response = result.get("content") or "未生成有效回答。"
+            ai_response = self._append_faq_choice_text(ai_response, queue.messages)
             await self.agent_chat_service._save_conversation_history(
                 chat_id,
                 message_id,
@@ -257,6 +253,33 @@ class DingTalkBotService:
             return view_models.BotConfig(**json.loads(bot.config))
         except (json.JSONDecodeError, ValueError):
             return None
+
+    def _append_faq_choice_text(self, content: str, messages: List[Dict[str, Any]]) -> str:
+        faq_choice = next(
+            (
+                message
+                for message in messages
+                if isinstance(message, dict) and message.get("type") == "faq_choice"
+            ),
+            None,
+        )
+        if not faq_choice:
+            return content
+
+        options = faq_choice.get("options") or [
+            {"label": "是，专业扩展"},
+            {"label": "否，结束"},
+        ]
+        labels = [str(option.get("label") or "").strip() for option in options]
+        labels = [label for label in labels if label]
+        if not labels:
+            return content
+
+        if all(label in content for label in labels):
+            return content
+
+        choice_text = "\n\n请选择或直接回复：" + " / ".join(labels)
+        return f"{content}{choice_text}"
 
     async def _default_collections(
         self, user_id: str, bot_config: Optional[view_models.BotConfig]
@@ -480,20 +503,9 @@ class DingTalkBotService:
         return query.strip()
 
     def _format_dingtalk_query(self, query: str, image_context: str = "") -> str:
-        image_section = f"\n\n{image_context}" if image_context else ""
-        community_instruction = ""
-        if settings.dingtalk_sap_community_search_enabled:
-            community_instruction = """
-5. 如知识库信息不足，使用 web_search 限定 source=community.sap.com 搜索 SAP Community；必要时再用 source=help.sap.com 核对官方文档。
-6. 引用外部资料时保留来源链接，并优先总结可执行处理步骤。"""
-
-        return f"""{query}{image_section}
-
-请按钉钉现场问诊场景回答：
-1. 回答控制在 500 字以内。
-2. 先给最可能原因，再给 3 到 5 条处理步骤。
-3. 信息不足时列出需要补充的关键字段。
-4. 避免长表格和大段背景说明。{community_instruction}"""
+        if not image_context:
+            return query
+        return f"{query}\n\n{image_context}"
 
     def _text_response(self, content: str) -> Dict[str, Any]:
         return {"msgtype": "text", "text": {"content": content}}
@@ -523,26 +535,49 @@ class DingTalkBotService:
         import re
         normalized = re.sub(r"[\s!！?？。,.，；;:：~～]+", "", query).lower()
 
+        if self._is_non_local_knowledge_base_query(normalized):
+            logger.info("DingTalk KB search skipped: non-local knowledge-base question '%s'", query)
+            return False
+
+        if self._is_knowledge_base_existence_query(normalized):
+            logger.info("DingTalk KB search triggered: knowledge-base existence question '%s'", query)
+            return True
+
         search_triggers = {
             "查一下", "查查", "帮我查", "帮我搜", "搜一下", "搜索", "检索",
             "从知识库查", "知识库查", "查知识库", "搜知识库", "问知识库",
+            "知识库", "本地库", "本地知识库",
             "search", "lookup", "find", "check",
         }
         if any(trigger in normalized for trigger in search_triggers):
             logger.info("DingTalk KB search triggered: explicit search '%s'", query)
             return True
 
-        business_markers = {
-            "sap", "faq", "报错", "错误", "流程", "账号", "帐号", "锁定",
-            "截图", "凭证", "订单", "发票", "付款", "报错码", "异常",
-            "工单", "审批", "采购", "库存", "资产", "成本", "预算",
-            "合同", "供应商", "银行", "税收", "科目", "总账",
-        }
-        if any(marker in normalized for marker in business_markers):
-            logger.info("DingTalk KB search triggered: business keyword '%s'", query)
-            return True
-
         return False
+
+    def _is_knowledge_base_existence_query(self, normalized_query: str) -> bool:
+        if not normalized_query:
+            return False
+
+        kb_terms = {"知识库", "本地知识库", "本地库", "库里", "库中"}
+        if not any(term in normalized_query for term in kb_terms):
+            return False
+
+        existence_terms = {
+            "有没有", "是否有", "有无", "是否存在", "是否收录", "收录了",
+            "有相关", "相关资料", "相关文档", "包含", "有哪些",
+        }
+        return any(term in normalized_query for term in existence_terms)
+
+    def _is_non_local_knowledge_base_query(self, normalized_query: str) -> bool:
+        if not normalized_query:
+            return False
+
+        non_local_kb_terms = {
+            "外部知识库", "官方知识库", "sap官方", "你的知识库",
+            "公共知识库", "公开知识库", "网上知识库", "外部库", "官方库",
+        }
+        return any(term in normalized_query for term in non_local_kb_terms)
 
 
 class _CollectingMessageQueue:
