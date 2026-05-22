@@ -73,7 +73,8 @@ export interface LlmProviderModelCreate {
 export const LlmProviderModelCreateApiEnum = {
     completion: 'completion',
     embedding: 'embedding',
-    rerank: 'rerank'
+    rerank: 'rerank',
+    intent: 'intent'
 } as const;
 
 export type LlmProviderModelCreateApiEnum = typeof LlmProviderModelCreateApiEnum[keyof typeof LlmProviderModelCreateApiEnum];

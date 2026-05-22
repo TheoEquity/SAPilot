@@ -1816,6 +1816,7 @@ class ModelConfig(BaseModel):
     embedding: Optional[list[ModelSpec]] = None
     completion: Optional[list[ModelSpec]] = None
     rerank: Optional[list[ModelSpec]] = None
+    intent: Optional[list[ModelSpec]] = None
 
 
 class ModelConfigList(BaseModel):
@@ -1916,7 +1917,7 @@ class LlmProviderModel(BaseModel):
     provider_name: str = Field(
         ..., description='Reference to LLMProvider.name', examples=['openai']
     )
-    api: Literal['completion', 'embedding', 'rerank'] = Field(
+    api: Literal['completion', 'embedding', 'rerank', 'intent'] = Field(
         ..., description='API type for this model', examples=['completion']
     )
     model: str = Field(
@@ -2019,7 +2020,7 @@ class LlmProviderModelList(BaseModel):
 
 class LlmProviderModelCreate(BaseModel):
     provider_name: str = Field(..., description='Reference to LLMProvider.name')
-    api: Literal['completion', 'embedding', 'rerank'] = Field(
+    api: Literal['completion', 'embedding', 'rerank', 'intent'] = Field(
         ..., description='API type for this model'
     )
     model: str = Field(..., description='Model name/identifier')

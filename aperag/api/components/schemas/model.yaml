@@ -255,7 +255,7 @@ llmProviderModel:
       example: "openai"
     api:
       type: string
-      enum: [completion, embedding, rerank]
+      enum: [completion, embedding, rerank, intent]
       description: API type for this model
       example: "completion"
     model:
@@ -317,7 +317,7 @@ llmProviderModelCreate:
       description: Reference to LLMProvider.name
     api:
       type: string
-      enum: [completion, embedding, rerank]
+      enum: [completion, embedding, rerank, intent]
       description: API type for this model
     model:
       type: string

@@ -23,11 +23,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import * as z from 'zod';
+import { apiClient } from '@/lib/api/client';
+import { LlmProviderModel } from '@/api';
 import { normalizeOrchestration, updateBotOrchestration } from '../bot-config-updater';
 import { FlowCanvasEditor } from '../flow-canvas-editor';
 import { FlowJsonEditor } from '../flow-json-editor';
@@ -112,6 +114,39 @@ export const IntentRouterEditor = () => {
   const [flowDraft, setFlowDraft] = useState(() =>
     normalizeFlowSchema(intentRouter?.flow),
   );
+
+  const [intentModels, setIntentModels] = useState<LlmProviderModel[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
+
+  const uniqueProviders = useMemo(
+    () => [...new Set(intentModels.map((m) => m.provider_name))],
+    [intentModels],
+  );
+
+  const availableModels = useMemo(
+    () => intentModels.filter((m) => m.provider_name === selectedProvider),
+    [intentModels, selectedProvider],
+  );
+
+  const fetchIntentModels = useCallback(async () => {
+    try {
+      const res = await apiClient.defaultApi.llmConfigurationGet();
+      const models = res.data?.models || [];
+      setIntentModels(models.filter((m) => m.api === 'intent'));
+    } catch (error) {
+      console.error('Failed to fetch LLM configuration:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchIntentModels();
+  }, [fetchIntentModels]);
+
+  useEffect(() => {
+    if (intentRouter?.llm?.provider) {
+      setSelectedProvider(intentRouter.llm.provider);
+    }
+  }, [intentRouter?.llm?.provider]);
 
   const form = useForm<
     z.input<typeof intentRouterSchema>,
@@ -272,10 +307,26 @@ export const IntentRouterEditor = () => {
                 name="llm_provider"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>LLM Provider</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value || ''} />
-                    </FormControl>
+                    <FormLabel>Intent Model Provider</FormLabel>
+                    <Select
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        setSelectedProvider(val);
+                      }}
+                      value={field.value || ''}
+                      disabled={uniqueProviders.length === 0}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select provider" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {uniqueProviders.map((p) => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormItem>
                 )}
               />
@@ -285,10 +336,23 @@ export const IntentRouterEditor = () => {
                 name="llm_model"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>LLM Model</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value || ''} />
-                    </FormControl>
+                    <FormLabel>Intent Model</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || ''}
+                      disabled={availableModels.length === 0}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select model" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableModels.map((m) => (
+                          <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormItem>
                 )}
               />

@@ -190,6 +190,7 @@ class APIType(str, Enum):
     COMPLETION = "completion"
     EMBEDDING = "embedding"
     RERANK = "rerank"
+    INTENT = "intent"
 
 
 class QuestionType(str, Enum):

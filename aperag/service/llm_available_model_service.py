@@ -56,7 +56,7 @@ class LlmAvailableModelService:
         """Build ModelConfig objects from already fetched data"""
         from collections import defaultdict
 
-        provider_model_map = defaultdict(lambda: {"completion": [], "embedding": [], "rerank": []})
+        provider_model_map = defaultdict(lambda: {"completion": [], "embedding": [], "rerank": [], "intent": []})
 
         for model in provider_models:
             model_dict = _build_model_dict(model)

@@ -39,6 +39,7 @@ import {
   ChevronDown,
   Columns3,
   EllipsisVertical,
+  GitBranch,
   MessageSquareCode,
   Plus,
   SquarePen,
@@ -227,6 +228,9 @@ export function ModelTable({
             case 'rerank':
               icon = <ArrowUpDown />;
               break;
+            case 'intent':
+              icon = <GitBranch />;
+              break;
           }
           return (
             <Badge variant="outline">
@@ -341,6 +345,7 @@ export function ModelTable({
               <SelectItem value="completion">Completion</SelectItem>
               <SelectItem value="embedding">Embedding</SelectItem>
               <SelectItem value="rerank">Rerank</SelectItem>
+              <SelectItem value="intent">Intent</SelectItem>
             </SelectContent>
           </Select>
           <Input

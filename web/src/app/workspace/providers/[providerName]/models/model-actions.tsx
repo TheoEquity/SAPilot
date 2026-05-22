@@ -321,6 +321,20 @@ export const ModelActions = ({
                             Rerank
                           </Label>
                         </div>
+                        <div className="bg-card flex h-9 items-center gap-3 rounded-md border px-3">
+                          <RadioGroupItem
+                            value={LlmProviderModelCreateApiEnum.intent}
+                            id="intent"
+                          />
+                          <Label
+                            htmlFor="intent"
+                            className={
+                              model == undefined ? '' : 'text-muted-foreground'
+                            }
+                          >
+                            Intent
+                          </Label>
+                        </div>
                       </RadioGroup>
                     </FormControl>
                   </FormItem>

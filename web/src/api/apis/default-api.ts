@@ -9562,7 +9562,8 @@ export type CollectionsCollectionIdDocumentsGetSortOrderEnum = typeof Collection
 export const LlmProvidersProviderNameModelsApiModelDeleteApiEnum = {
     completion: 'completion',
     embedding: 'embedding',
-    rerank: 'rerank'
+    rerank: 'rerank',
+    intent: 'intent'
 } as const;
 export type LlmProvidersProviderNameModelsApiModelDeleteApiEnum = typeof LlmProvidersProviderNameModelsApiModelDeleteApiEnum[keyof typeof LlmProvidersProviderNameModelsApiModelDeleteApiEnum];
 /**
@@ -9571,7 +9572,8 @@ export type LlmProvidersProviderNameModelsApiModelDeleteApiEnum = typeof LlmProv
 export const LlmProvidersProviderNameModelsApiModelPutApiEnum = {
     completion: 'completion',
     embedding: 'embedding',
-    rerank: 'rerank'
+    rerank: 'rerank',
+    intent: 'intent'
 } as const;
 export type LlmProvidersProviderNameModelsApiModelPutApiEnum = typeof LlmProvidersProviderNameModelsApiModelPutApiEnum[keyof typeof LlmProvidersProviderNameModelsApiModelPutApiEnum];
 /**
