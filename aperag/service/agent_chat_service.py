@@ -536,13 +536,13 @@ class AgentChatService:
 
             # Check required fields
             missing = []
-            if not intent_router.get('fallback_skill_id'):
+            if not intent_router.fallback_skill_id:
                 missing.append("fallback skill")
-            if not intent_router.get('candidate_skills'):
+            if not intent_router.candidate_skills:
                 missing.append("candidate skills")
-            if not intent_router.get('llm', {}).get('provider') or not intent_router.get('llm', {}).get('model'):
+            if not intent_router.llm or not intent_router.llm.provider or not intent_router.llm.model:
                 missing.append("intent model")
-            if not intent_router.get('prompt_template'):
+            if not intent_router.prompt_template:
                 missing.append("prompt template")
 
             if missing:
@@ -555,10 +555,12 @@ class AgentChatService:
             target_skill_id = None
 
             # Step 1: Hard rules matching
-            if intent_router.get('mode') == 'rules+llm' and intent_router.get('rules'):
+            if intent_router.mode == 'rules+llm' and intent_router.rules:
+                # Convert Pydantic models to dicts for try_hard_rules_match
+                rules_dict = [rule.model_dump() for rule in intent_router.rules]
                 matched = self.try_hard_rules_match(
                     query=merged_agent_message.query,
-                    rules=intent_router.get('rules', [])
+                    rules=rules_dict
                 )
                 if matched:
                     target_skill_id = matched
@@ -567,32 +569,32 @@ class AgentChatService:
             # Step 2: LLM intent classification
             if not target_skill_id:
                 session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
-                llm = await session.get_llm(intent_router['llm']['model'])
+                llm = await session.get_llm(intent_router.llm.model)
                 llm.history = memory
 
-                candidate_skills = intent_router.get('candidate_skills', [])
+                candidate_skills = intent_router.candidate_skills
                 skills_desc = "\n".join([
-                    f"- {s['skill_id']}: {s.get('label', '')} - {s.get('description', '')}"
-                    for s in candidate_skills if s.get('enabled', True)
+                    f"- {s.skill_id}: {s.label or ''} - {s.description or ''}"
+                    for s in candidate_skills if s.enabled
                 ])
 
-                prompt = intent_router.get('prompt_template', '') or (
+                prompt = intent_router.prompt_template or (
                     f"Classify into one skill:\n{skills_desc}\n\nQuery: {merged_agent_message.query}\nReply with skill_id only."
                 )
 
                 params = RequestParams(
-                    maxTokens=512, model=intent_router['llm']['model'], use_history=False,
-                    max_iterations=1, temperature=float(intent_router['llm'].get('temperature', 0)),
+                    maxTokens=512, model=intent_router.llm.model, use_history=False,
+                    max_iterations=1, temperature=float(intent_router.llm.temperature or 0),
                     user=user, tool_filter={"aperag": set()},
                 )
                 resp = await llm.generate_str(prompt, params)
                 classified = (resp or "").strip()
 
-                valid_ids = {s['skill_id'] for s in candidate_skills if s.get('enabled', True)}
+                valid_ids = {s.skill_id for s in candidate_skills if s.enabled}
                 if classified in valid_ids:
                     target_skill_id = classified
                 else:
-                    target_skill_id = intent_router['fallback_skill_id']
+                    target_skill_id = intent_router.fallback_skill_id
 
                 logger.info("Intent classified: %s -> %s", merged_agent_message.query, target_skill_id)
 
