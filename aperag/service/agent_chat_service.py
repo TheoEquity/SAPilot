@@ -519,50 +519,86 @@ class AgentChatService:
                     "references": [],
                 }
 
-            # Decide whether to search knowledge base based on trigger rules
-            search_trigger = self._should_search_knowledge_base(
-                query=merged_agent_message.query,
-                files=merged_agent_message.files,
-                memory=memory,
-            )
+            # NEW: Validate orchestration configuration
+            orchestration = bot_config.orchestration if bot_config else None
+            if not orchestration:
+                error_msg = "Bot orchestration configuration is missing. Please configure intent router and skills in bot settings."
+                await message_queue.put(format_stream_content(message_id, error_msg))
+                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                return {"query": merged_agent_message.query, "content": error_msg, "references": []}
 
-            if not search_trigger:
-                # Free conversation mode: LLM responds without search tools
+            intent_router = orchestration.intent_router
+            if not intent_router:
+                error_msg = "Intent router is not configured. Please configure the intent router."
+                await message_queue.put(format_stream_content(message_id, error_msg))
+                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                return {"query": merged_agent_message.query, "content": error_msg, "references": []}
+
+            # Check required fields
+            missing = []
+            if not intent_router.get('fallback_skill_id'):
+                missing.append("fallback skill")
+            if not intent_router.get('candidate_skills'):
+                missing.append("candidate skills")
+            if not intent_router.get('llm', {}).get('provider') or not intent_router.get('llm', {}).get('model'):
+                missing.append("intent model")
+            if not intent_router.get('prompt_template'):
+                missing.append("prompt template")
+
+            if missing:
+                error_msg = f"Intent router configuration incomplete. Missing: {', '.join(missing)}"
+                await message_queue.put(format_stream_content(message_id, error_msg))
+                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                return {"query": merged_agent_message.query, "content": error_msg, "references": []}
+
+            # NEW: Intent routing (bypass old _should_search_knowledge_base)
+            target_skill_id = None
+
+            # Step 1: Hard rules matching
+            if intent_router.get('mode') == 'rules+llm' and intent_router.get('rules'):
+                matched = self.try_hard_rules_match(
+                    query=merged_agent_message.query,
+                    rules=intent_router.get('rules', [])
+                )
+                if matched:
+                    target_skill_id = matched
+                    logger.info("Hard rule matched: %s -> %s", merged_agent_message.query, target_skill_id)
+
+            # Step 2: LLM intent classification
+            if not target_skill_id:
                 session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
-                llm = await session.get_llm(final_completion.model)
+                llm = await session.get_llm(intent_router['llm']['model'])
                 llm.history = memory
 
-                request_params = RequestParams(
-                    maxTokens=8192,
-                    model=final_completion.model,
-                    use_history=True,
-                    max_iterations=1,
-                    temperature=0.7,
-                    user=user,
-                    tool_filter={"aperag": set()},
+                candidate_skills = intent_router.get('candidate_skills', [])
+                skills_desc = "\n".join([
+                    f"- {s['skill_id']}: {s.get('label', '')} - {s.get('description', '')}"
+                    for s in candidate_skills if s.get('enabled', True)
+                ])
+
+                prompt = intent_router.get('prompt_template', '') or (
+                    f"Classify into one skill:\n{skills_desc}\n\nQuery: {merged_agent_message.query}\nReply with skill_id only."
                 )
-                response = await llm.generate_str(merged_agent_message.query, request_params)
-                full_content = response if response else "No response generated"
 
-                await asyncio.sleep(0.1)
-                await message_queue.put(format_stream_content(message_id, full_content))
-                tool_references = extract_tool_call_references(llm.history)
-                await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[]))
-                return {
-                    "query": merged_agent_message.query,
-                    "content": full_content,
-                    "references": tool_references,
-                }
+                params = RequestParams(
+                    maxTokens=512, model=intent_router['llm']['model'], use_history=False,
+                    max_iterations=1, temperature=float(intent_router['llm'].get('temperature', 0)),
+                    user=user, tool_filter={"aperag": set()},
+                )
+                resp = await llm.generate_str(prompt, params)
+                classified = (resp or "").strip()
 
-            if search_trigger == "faq_end":
-                end_response = self._build_faq_choice_end_response(agent_message.language)
-                await message_queue.put(format_stream_content(message_id, end_response))
-                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
-                return {
-                    "query": merged_agent_message.query,
-                    "content": end_response,
-                    "references": [],
-                }
+                valid_ids = {s['skill_id'] for s in candidate_skills if s.get('enabled', True)}
+                if classified in valid_ids:
+                    target_skill_id = classified
+                else:
+                    target_skill_id = intent_router['fallback_skill_id']
+
+                logger.info("Intent classified: %s -> %s", merged_agent_message.query, target_skill_id)
+
+            # Step 3: Execute skill (placeholder for now)
+            result = await self._execute_skill(target_skill_id, merged_agent_message, user, chat_id, message_id, message_queue, memory, resolved_query_prompt)
+            return result
 
             # Knowledge base search mode: full MCP agent with search tools
 
@@ -914,6 +950,47 @@ class AgentChatService:
                 {"label": "是，专业扩展", "action": "faq_expand"},
                 {"label": "否，结束", "action": "faq_end"},
             ],
+        }
+
+    async def _execute_skill(
+        self,
+        skill_id: str,
+        agent_message: view_models.AgentMessage,
+        user: str,
+        chat_id: str,
+        message_id: str,
+        message_queue: AgentMessageQueue,
+        memory,
+        resolved_query_prompt: str,
+    ) -> Dict[str, Any]:
+        """Execute a skill based on intent routing result.
+        
+        This is a placeholder implementation. In the future, this should:
+        1. Look up the skill configuration from orchestration.skills
+        2. Execute the skill's flow or direct action
+        3. Return the skill execution result
+        """
+        # For now, return a placeholder response
+        # TODO: Implement actual skill execution logic
+        skill_response = (
+            f"[Skill Execution]\n"
+            f"**Target Skill**: {skill_id}\n"
+            f"**Query**: {agent_message.query}\n\n"
+            f"Skill execution logic is under development. "
+            f"The intent router has successfully classified your query to skill: `{skill_id}`.\n\n"
+            f"Next steps:\n"
+            f"1. Configure the skill's execution flow in the bot orchestration settings\n"
+            f"2. Implement skill-specific handlers in the backend\n"
+        )
+        
+        await asyncio.sleep(0.1)
+        await message_queue.put(format_stream_content(message_id, skill_response))
+        tool_references = []
+        await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[]))
+        return {
+            "query": agent_message.query,
+            "content": skill_response,
+            "references": tool_references,
         }
 
     def _build_faq_choice_end_response(self, language: Optional[str]) -> str:
