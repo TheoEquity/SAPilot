@@ -18,6 +18,17 @@ cp envs/env.template .env
 
 Edit the `.env` file to configure your AI service settings if needed. The default settings work with the local database services started in the next step.
 
+For a machine with 8GB RAM and 20GB disk, use the lite template directly:
+
+```bash
+cp envs/env.dev-lite.template .env
+```
+
+This template reduces pool sizes, concurrency, and quota defaults while keeping the 4-container development mode.
+It also sets Elasticsearch heap to `512m`, which fits an 8GB local machine better.
+The Celery worker concurrency also defaults to `4`, which reduces background memory pressure.
+The database pool is also reduced to `4/4`, which fits lightweight local development better.
+
 ### 2. 📋 System Prerequisites
 
 Before you begin, ensure your system has:
@@ -32,30 +43,30 @@ Before you begin, ensure your system has:
 Use Docker Compose to start the essential database services:
 
 ```bash
-# Start core databases: PostgreSQL, Redis, Qdrant, Elasticsearch
+# Start 4 core infrastructure containers: PostgreSQL, Redis, Qdrant, Elasticsearch
 make compose-infra
 ```
 
-This will start all required database services in the background. The default connection settings in your `.env` file are pre-configured to work with these services.
+This starts 4 development infrastructure containers in the background. The default development path skips Neo4j, DocRay, and GPU/CUDA-related services, which fits machines with limited memory and disk. The default connection settings in your `.env` file are pre-configured to work with these services.
 
 <details>
 <summary><strong>Advanced Database Options</strong></summary>
 
 ```bash
-# Use Neo4j instead of PostgreSQL for graph storage
+# Use Neo4j for graph storage
 make compose-infra WITH_NEO4J=1
 
-# Add advanced document parsing service (DocRay)
+# Add advanced document parsing service (DocRay / MinerU)
 make compose-infra WITH_DOCRAY=1
 
 # Combine multiple options
 make compose-infra WITH_NEO4J=1 WITH_DOCRAY=1
 
-# GPU-accelerated document parsing (requires ~6GB VRAM)
+# GPU-accelerated document parsing (requires NVIDIA CUDA and ~6GB VRAM)
 make compose-infra WITH_DOCRAY=1 WITH_GPU=1
 ```
 
-**Note**: DocRay provides enhanced document parsing for complex PDFs, tables, and formulas. CPU mode requires 4+ cores and 8GB+ RAM.
+**Note**: DocRay provides enhanced document parsing for complex PDFs, tables, and formulas. CPU mode requires 4+ cores and 8GB+ RAM. Keep the default 4-container mode on resource-constrained machines.
 
 </details>
 
@@ -122,6 +133,16 @@ This starts the Celery worker for processing asynchronous background tasks.
 make run-frontend
 ```
 This starts the frontend development server at `http://localhost:3000` with hot reload.
+
+Recommended development startup sequence:
+
+```bash
+make compose-infra
+make run-backend
+make run-frontend
+```
+
+This keeps the databases containerized while the backend and frontend run from source with hot reload.
 
 ### 8. 🌐 Access ApeRAG
 

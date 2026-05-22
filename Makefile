@@ -135,7 +135,7 @@ compose-up:
 #   make compose-infra WITH_NEO4J=1    # adds Neo4j
 #   make compose-infra WITH_JAEGER=1   # adds Jaeger
 compose-infra:
-	docker-compose $(_PROFILES_TO_ACTIVATE) -f docker-compose.yml up -d postgres redis qdrant es jaeger
+	docker-compose $(_PROFILES_TO_ACTIVATE) -f docker-compose.yml up -d postgres redis qdrant es
 
 compose-down:
 	docker-compose --profile docray --profile docray-gpu --profile neo4j --profile jaeger -f docker-compose.yml down $(_COMPOSE_DOWN_FLAGS)
@@ -150,10 +150,10 @@ compose-logs:
 # Local development services
 .PHONY: run-backend run-frontend run-celery run-flower run-beat
 run-backend: migrate
-	uvicorn aperag.app:app --host 0.0.0.0 --log-config scripts/uvicorn-log-config.yaml
+	uvicorn aperag.app:app --host 0.0.0.0 --reload --log-config scripts/uvicorn-log-config.yaml
 
 run-celery:
-	celery -A config.celery worker -B -l INFO --pool=threads --concurrency=16
+	celery -A config.celery worker -B -l INFO --pool=threads --concurrency=$${CELERY_CONCURRENCY:-16}
 
 run-beat:
 	celery -A config.celery beat -l INFO

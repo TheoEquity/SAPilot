@@ -26,6 +26,24 @@ cp envs/env.template .env
 docker-compose up -d --pull always
 ```
 
+#### Low-Resource Local Deployment
+
+For a local machine with around 8GB RAM and 20GB disk, use the lite development path instead of the full default stack.
+
+Recommended constraints for this mode:
+- Start only 4 infrastructure containers: PostgreSQL, Redis, Qdrant, Elasticsearch
+- Keep NVIDIA, CUDA, MinerU / DocRay, and Neo4j out of the default installation path
+- Use `envs/env.dev-lite.template` as the local `.env` template
+
+Quick start:
+
+```bash
+cp envs/env.dev-lite.template .env
+bash scripts/dev-lite-start.sh
+```
+
+This mode applies lower Elasticsearch heap, lower Celery concurrency, and a smaller database connection pool. It is the recommended setup for business users and resource-constrained development machines.
+
 After running, you can access SAPilot in your browser at:
 - **Web Interface**: http://localhost:3000/web/
 - **API Documentation**: http://localhost:8000/docs
@@ -61,6 +79,8 @@ The MCP server provides:
 #### 增强的文档解析
 
 For enhanced document parsing capabilities, ApeRAG supports an **advanced document parsing service** powered by MinerU, which provides superior parsing for complex documents, tables, and formulas. 
+
+On low-resource local machines, keep MinerU / DocRay disabled unless you explicitly need advanced parsing and have enough CPU, memory, and disk budget.
 
 <details>
 <summary><strong>Enhanced Document Parsing Commands</strong></summary>

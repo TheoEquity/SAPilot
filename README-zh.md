@@ -37,6 +37,24 @@ cp envs/env.template .env
 docker-compose up -d --pull always
 ```
 
+#### 8G/20G 本地轻量部署
+
+如果本地机器大约为 8GB 内存、20GB 磁盘，建议使用轻量开发路径，不要直接启动完整默认栈。
+
+该模式建议遵循以下约束：
+- 只启动 4 个基础设施容器：PostgreSQL、Redis、Qdrant、Elasticsearch
+- 默认安装路径中保持 NVIDIA、CUDA、MinerU / DocRay、Neo4j 关闭
+- 本地 `.env` 优先使用 `envs/env.dev-lite.template`
+
+快速启动方式：
+
+```bash
+cp envs/env.dev-lite.template .env
+bash scripts/dev-lite-start.sh
+```
+
+这个模式会自动降低 Elasticsearch 堆内存、Celery 并发和数据库连接池大小，适合业务同事和资源受限的开发机器。
+
 运行后，您可以在浏览器中访问 ApeRAG：
 - **Web 界面**: http://localhost:3000/web/
 - **API 文档**: http://localhost:8000/docs
@@ -72,6 +90,8 @@ MCP 服务器提供：
 #### 增强文档解析
 
 为了获得增强的文档解析能力，ApeRAG 支持由 MinerU 驱动的**高级文档解析服务**，可为复杂文档、表格和公式提供优异的解析能力。
+
+对于低资源本地机器，建议保持 MinerU / DocRay 关闭。只有在明确需要高级解析，并且 CPU、内存、磁盘资源充足时再启用。
 
 <details>
 <summary><strong>增强文档解析命令</strong></summary>

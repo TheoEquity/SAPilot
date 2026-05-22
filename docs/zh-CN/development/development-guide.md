@@ -23,6 +23,19 @@ cp envs/env.template .env
 
 如果需要，编辑 `.env` 文件以配置您的 AI 服务设置。默认设置适用于下一步启动的本地数据库服务。
 
+8GB 内存、20GB 磁盘的本机开发建议直接使用精简模板：
+
+```bash
+cp envs/env.dev-lite.template .env
+```
+
+这个模板会降低连接池、并发和配额相关默认值，同时保持 4 个基础设施容器开发模式。
+其中 Elasticsearch 默认堆内存为 `512m`，更适合 8GB 本机开发。
+其中 Celery worker 默认并发为 `4`，可以进一步降低后台任务的内存占用。
+数据库连接池默认也已压到 `4/4`，适合轻量本地开发。
+
+如果使用者是业务同事，可以直接参考一键说明：`docs/zh-CN/deployment/local-lite-business-guide.md`
+
 ### 2. 📋 系统前提条件
 
 在开始之前，请确保您的系统具备：
@@ -37,30 +50,30 @@ cp envs/env.template .env
 使用 Docker Compose 启动必要的数据库服务：
 
 ```bash
-# 启动核心数据库：PostgreSQL、Redis、Qdrant、Elasticsearch
+# 启动 4 个核心基础设施容器：PostgreSQL、Redis、Qdrant、Elasticsearch
 make compose-infra
 ```
 
-这将在后台启动所有必需的数据库服务。您的 `.env` 文件中的默认连接设置已预配置为与这些服务一起工作。
+这会在后台启动 4 个开发基础设施容器。默认开发模式不启动 Neo4j、DocRay、GPU/CUDA 相关服务，适合 8GB 内存、20GB 磁盘的本地机器。您的 `.env` 文件中的默认连接设置已预配置为与这些服务一起工作。
 
 <details>
 <summary><strong>高级数据库选项</strong></summary>
 
 ```bash
-# 使用 Neo4j 而不是 PostgreSQL 进行图存储
+# 使用 Neo4j 进行图存储
 make compose-infra WITH_NEO4J=1
 
-# 添加高级文档解析服务（DocRay）
+# 添加高级文档解析服务（DocRay / MinerU）
 make compose-infra WITH_DOCRAY=1
 
 # 组合多个选项
 make compose-infra WITH_NEO4J=1 WITH_DOCRAY=1
 
-# GPU 加速文档解析（需要约 6GB VRAM）
+# GPU 加速文档解析（需要 NVIDIA CUDA 和约 6GB VRAM）
 make compose-infra WITH_DOCRAY=1 WITH_GPU=1
 ```
 
-**注意**：DocRay 为复杂的 PDF、表格和公式提供增强的文档解析。CPU 模式需要 4+ 核心和 8GB+ RAM。
+**注意**：DocRay 为复杂的 PDF、表格和公式提供增强的文档解析。CPU 模式需要 4+ 核心和 8GB+ RAM。资源受限机器建议保持默认 4 容器模式。
 
 </details>
 
@@ -127,6 +140,16 @@ make run-celery
 make run-frontend
 ```
 这将在 `http://localhost:3000` 启动前端开发服务器，支持热重载。
+
+推荐开发启动顺序：
+
+```bash
+make compose-infra
+make run-backend
+make run-frontend
+```
+
+这个组合会保留数据库容器化，同时让后端和前端直接基于源码热启动。
 
 ### 8. 🌐 访问 ApeRAG
 

@@ -32,18 +32,23 @@ Modifications by ApeRAG Team:
 """
 
 # Direct import of storage implementations
-from .neo4j_sync_impl import Neo4JSyncStorage
+try:
+    from .neo4j_sync_impl import Neo4JSyncStorage
+except ImportError:
+    Neo4JSyncStorage = None
 from .pg_ops_sync_graph_storage import PGOpsSyncGraphStorage
 from .pg_ops_sync_kv_storage import PGOpsSyncKVStorage
 from .pg_ops_sync_vector_storage import PGOpsSyncVectorStorage
 
 # Storage implementation class registry
 STORAGES = {
-    "Neo4JSyncStorage": Neo4JSyncStorage,
     "PGOpsSyncGraphStorage": PGOpsSyncGraphStorage,
     "PGOpsSyncKVStorage": PGOpsSyncKVStorage,
     "PGOpsSyncVectorStorage": PGOpsSyncVectorStorage,
 }
+
+if Neo4JSyncStorage is not None:
+    STORAGES["Neo4JSyncStorage"] = Neo4JSyncStorage
 
 
 def verify_storage_implementation(storage_type: str, storage_name: str) -> None:
