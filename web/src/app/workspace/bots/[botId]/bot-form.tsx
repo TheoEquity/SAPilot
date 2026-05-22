@@ -66,6 +66,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
+import {
+  DEFAULT_AGENT_QUERY_PROMPT,
+  DEFAULT_AGENT_SYSTEM_PROMPT,
+  DEFAULT_AGENT_WELCOME_SUBTITLE,
+  DEFAULT_AGENT_WELCOME_TITLE,
+} from '../agent-defaults';
+import { BotOrchestrationCard } from './bot-orchestration-card';
+import type { BotConfigWithOrchestration } from './orchestration-types';
 
 const botConfigAgentModelSchema = z
   .object({
@@ -99,17 +107,6 @@ export type ProviderModel = {
   models?: ModelSpec[];
 };
 
-const DEFAULT_SYSTEM_PROMPT = `You are a helpful AI assistant. Answer user questions based on the provided context and your knowledge. If you don't know the answer, say so clearly.`;
-
-const DEFAULT_QUERY_PROMPT = `Answer the following question based on the provided context:
-
-{query}`;
-
-const DEFAULT_WELCOME_TITLE = 'Hi, 我是 SAPilot.';
-
-const DEFAULT_WELCOME_SUBTITLE =
-  'SAPilot 是面向 SAP 运维场景的智能助手，可结合企业知识库与运维经验，帮助顾问快速定位问题、分析原因并提供处理建议。';
-
 export const BotForm = () => {
   const router = useRouter();
   const { bot, collections, loadBot } = useBotConfigContext();
@@ -123,8 +120,9 @@ export const BotForm = () => {
   const page_bot = useTranslations('page_bot');
   const common_tips = useTranslations('common.tips');
   const common_action = useTranslations('common.action');
+  const botConfig = (bot.config || {}) as BotConfigWithOrchestration;
 
-  const agentConfig = bot.config?.agent;
+  const agentConfig = botConfig.agent;
   const selectedCollectionIds =
     agentConfig?.collections?.map((c) => c.id).filter(Boolean) || [];
   const completion = agentConfig?.completion;
@@ -146,13 +144,13 @@ export const BotForm = () => {
               model: '',
               model_service_provider: '',
             },
-        welcome_title: agentConfig?.welcome_title || DEFAULT_WELCOME_TITLE,
+        welcome_title: agentConfig?.welcome_title || DEFAULT_AGENT_WELCOME_TITLE,
         welcome_subtitle:
-          agentConfig?.welcome_subtitle || DEFAULT_WELCOME_SUBTITLE,
+          agentConfig?.welcome_subtitle || DEFAULT_AGENT_WELCOME_SUBTITLE,
         system_prompt_template:
-          agentConfig?.system_prompt_template || DEFAULT_SYSTEM_PROMPT,
+          agentConfig?.system_prompt_template || DEFAULT_AGENT_SYSTEM_PROMPT,
         query_prompt_template:
-          agentConfig?.query_prompt_template || DEFAULT_QUERY_PROMPT,
+          agentConfig?.query_prompt_template || DEFAULT_AGENT_QUERY_PROMPT,
         collections:
           agentConfig?.collections
             ?.map((collection) => collection.id)
@@ -204,6 +202,8 @@ export const BotForm = () => {
             query_prompt_template: values.config.agent.query_prompt_template,
             collections: selectedCollections,
           },
+          flow: botConfig.flow,
+          orchestration: botConfig.orchestration,
         },
       };
 
@@ -232,7 +232,7 @@ export const BotForm = () => {
       toast.success(common_tips('update_success'));
       loadBot();
     },
-    [bot?.id, bot.config, collections, common_tips, loadBot],
+    [bot?.id, botConfig.flow, botConfig.orchestration, collections, common_tips, loadBot],
   );
 
   const handleSubmit = useCallback(
@@ -311,11 +311,17 @@ export const BotForm = () => {
   }, [loadModels]);
 
   const handleRestoreSystemPrompt = () => {
-    form.setValue('config.agent.system_prompt_template', DEFAULT_SYSTEM_PROMPT);
+    form.setValue(
+      'config.agent.system_prompt_template',
+      DEFAULT_AGENT_SYSTEM_PROMPT,
+    );
   };
 
   const handleRestoreQueryPrompt = () => {
-    form.setValue('config.agent.query_prompt_template', DEFAULT_QUERY_PROMPT);
+    form.setValue(
+      'config.agent.query_prompt_template',
+      DEFAULT_AGENT_QUERY_PROMPT,
+    );
   };
 
   return (
@@ -476,6 +482,8 @@ export const BotForm = () => {
             />
           </CardContent>
         </Card>
+
+        <BotOrchestrationCard />
 
         <Card>
           <CardHeader>

@@ -40,6 +40,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { apiClient } from '@/lib/api/client';
+import {
+  DEFAULT_AGENT_QUERY_PROMPT,
+  DEFAULT_AGENT_SYSTEM_PROMPT,
+  DEFAULT_AGENT_WELCOME_SUBTITLE,
+  DEFAULT_AGENT_WELCOME_TITLE,
+} from '../agent-defaults';
 import { zodResolver } from '@hookform/resolvers/zod';
 import _ from 'lodash';
 import { useTranslations } from 'next-intl';
@@ -83,16 +89,6 @@ export type ProviderModel = {
   models?: ModelSpec[];
 };
 
-const DEFAULT_SYSTEM_PROMPT = `You are a helpful AI assistant. Answer user questions based on the provided context and your knowledge. If you don't know the answer, say so clearly.`;
-
-const DEFAULT_QUERY_PROMPT = `Answer the following question based on the provided context:
-
-{query}`;
-
-const DEFAULT_WELCOME_TITLE = 'Hi, 我是 SAPilot.';
-
-const DEFAULT_WELCOME_SUBTITLE = 'SAPilot 是面向 SAP 运维场景的智能助手，可结合企业知识库与运维经验，帮助顾问快速定位问题、分析原因并提供处理建议。';
-
 export const BotCreateForm = () => {
   const router = useRouter();
   const [completionModels, setCompletionModels] = useState<ProviderModel[]>();
@@ -119,10 +115,10 @@ export const BotCreateForm = () => {
           model: '',
           model_service_provider: '',
         },
-        welcome_title: DEFAULT_WELCOME_TITLE,
-        welcome_subtitle: DEFAULT_WELCOME_SUBTITLE,
-        system_prompt_template: DEFAULT_SYSTEM_PROMPT,
-        query_prompt_template: DEFAULT_QUERY_PROMPT,
+        welcome_title: DEFAULT_AGENT_WELCOME_TITLE,
+        welcome_subtitle: DEFAULT_AGENT_WELCOME_SUBTITLE,
+        system_prompt_template: DEFAULT_AGENT_SYSTEM_PROMPT,
+        query_prompt_template: DEFAULT_AGENT_QUERY_PROMPT,
         collections: [],
       },
     },

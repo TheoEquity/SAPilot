@@ -470,9 +470,120 @@ class Agent(BaseModel):
     collections: Optional[list[Collection]] = None
 
 
+class IntentRouterLLMConfig(BaseModel):
+    provider: str
+    model: str
+    temperature: float = 0
+    max_tokens: int = 1024
+    top_p: Optional[float] = None
+    timeout_ms: Optional[int] = None
+
+
+class CandidateSkill(BaseModel):
+    skill_id: str
+    label: str
+    description: Optional[str] = None
+    enabled: bool = True
+    examples: Optional[list[str]] = None
+
+
+class ReactFlowViewport(BaseModel):
+    x: float
+    y: float
+    zoom: float
+
+
+class ReactFlowNode(BaseModel):
+    id: str
+    type: str
+    position: dict[str, float]
+    data: dict[str, Any]
+
+
+class ReactFlowEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    sourceHandle: Optional[str] = None
+    targetHandle: Optional[str] = None
+    type: Optional[str] = None
+    data: Optional[dict[str, Any]] = None
+
+
+class ReactFlowSchema(BaseModel):
+    version: str
+    viewport: Optional[ReactFlowViewport] = None
+    nodes: list[ReactFlowNode] = Field(default_factory=list)
+    edges: list[ReactFlowEdge] = Field(default_factory=list)
+
+
+class IntentRouterConfig(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    enabled: bool = True
+    mode: Literal['llm', 'rules+llm'] = 'llm'
+    llm: IntentRouterLLMConfig
+    prompt_template: str
+    confidence_threshold: float = 0.6
+    fallback_skill_id: str
+    candidate_skills: list[CandidateSkill] = Field(default_factory=list)
+    flow: Optional[ReactFlowSchema] = None
+    meta: Optional[dict[str, Any]] = None
+
+
+class SkillToolBinding(BaseModel):
+    tool_id: str
+    enabled: bool = True
+    required: Optional[bool] = False
+    timeout_ms: Optional[int] = None
+    retry_count: Optional[int] = 0
+
+
+class SkillPrompts(BaseModel):
+    system_prompt: Optional[str] = None
+    query_prompt: Optional[str] = None
+    skill_prompt: Optional[str] = None
+
+
+class SkillRuntimeConfig(BaseModel):
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    temperature: Optional[float] = 0.7
+    max_tokens: Optional[int] = 2048
+    top_p: Optional[float] = 1
+    timeout_ms: Optional[int] = 30000
+
+
+class SkillIOConfig(BaseModel):
+    input_schema: Optional[dict[str, Any]] = None
+    output_schema: Optional[dict[str, Any]] = None
+
+
+class SkillConfig(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    enabled: bool = True
+    type: Literal['llm', 'tool', 'workflow', 'hybrid'] = 'workflow'
+    category: Optional[str] = None
+    runtime: Optional[SkillRuntimeConfig] = None
+    prompts: Optional[SkillPrompts] = None
+    tools: list[SkillToolBinding] = Field(default_factory=list)
+    io: Optional[SkillIOConfig] = None
+    flow: Optional[ReactFlowSchema] = None
+    meta: Optional[dict[str, Any]] = None
+
+
+class OrchestrationConfig(BaseModel):
+    intent_router: Optional[IntentRouterConfig] = None
+    skills: list[SkillConfig] = Field(default_factory=list)
+
+
 class BotConfig(BaseModel):
     agent: Optional[Agent] = None
     flow: Optional[WorkflowDefinition] = None
+    orchestration: Optional[OrchestrationConfig] = None
 
 
 class Bot(BaseModel):

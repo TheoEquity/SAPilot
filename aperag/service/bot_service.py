@@ -32,12 +32,46 @@ from aperag.service.setting_service import setting_service
 class BotService:
     """Bot service that handles business logic for bots"""
 
+    DEFAULT_AGENT_BOT_TITLE = "Default Agent Bot"
+    DEFAULT_AGENT_BOT_DESCRIPTION = "Default agent bot created on registration."
+    DEFAULT_AGENT_WELCOME_TITLE = "Hi, 我是 SAPilot."
+    DEFAULT_AGENT_WELCOME_SUBTITLE = (
+        "SAPilot 是面向 SAP 运维场景的智能助手，可结合企业知识库与运维经验，"
+        "帮助顾问快速定位问题、分析原因并提供处理建议。"
+    )
+    DEFAULT_AGENT_SYSTEM_PROMPT = (
+        "You are a helpful AI assistant. Answer user questions based on the provided context "
+        "and your knowledge. If you don't know the answer, say so clearly."
+    )
+    DEFAULT_AGENT_QUERY_PROMPT = "Answer the following question based on the provided context:\n\n{query}"
+
     def __init__(self, session: AsyncSession = None):
         # Use global db_ops instance by default, or create custom one with provided session
         if session is None:
             self.db_ops = async_db_ops  # Use global instance
         else:
             self.db_ops = AsyncDatabaseOps(session)  # Create custom instance for transaction control
+
+    def build_default_agent_config(self) -> view_models.BotConfig:
+        return view_models.BotConfig(
+            agent=view_models.Agent(
+                welcome_title=self.DEFAULT_AGENT_WELCOME_TITLE,
+                welcome_subtitle=self.DEFAULT_AGENT_WELCOME_SUBTITLE,
+                system_prompt_template=self.DEFAULT_AGENT_SYSTEM_PROMPT,
+                query_prompt_template=self.DEFAULT_AGENT_QUERY_PROMPT,
+                collections=[],
+            )
+        )
+
+    def build_default_agent_bot_create(self) -> view_models.BotCreate:
+        return view_models.BotCreate(
+            title=self.DEFAULT_AGENT_BOT_TITLE,
+            type='agent',
+            description=self.DEFAULT_AGENT_BOT_DESCRIPTION,
+            config=self.build_default_agent_config(),
+            is_default=True,
+            is_protected=True,
+        )
 
     async def build_bot_response(self, bot: db_models.Bot) -> view_models.Bot:
         """Build Bot response object for API return."""
@@ -207,7 +241,7 @@ class BotService:
             await session.refresh(bot_to_delete)
 
             # Release quota within the transaction (only for non-system bots)
-            if bot_to_delete.title != "Default Agent Bot":
+            if bot_to_delete.title != self.DEFAULT_AGENT_BOT_TITLE:
                 await quota_service.release_quota(user, "max_bot_count", 1, session)
 
             return bot_to_delete

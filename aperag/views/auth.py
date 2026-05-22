@@ -65,8 +65,6 @@ class UserManager(BaseUserManager[User, str]):
 
         # Initialize user resources for all new users (including OAuth users)
         try:
-            from aperag.db.models import BotType
-            from aperag.schema.view_models import BotCreate
             from aperag.service.bot_service import bot_service
             from aperag.service.chat_collection_service import chat_collection_service
             from aperag.service.quota_service import quota_service
@@ -80,14 +78,7 @@ class UserManager(BaseUserManager[User, str]):
             await async_db_ops.create_api_key(user=str(user.id), description="default", is_system=False)
 
             # Create a default bot for the user (skip quota check for system bot)
-            bot_create = BotCreate(
-                title="Default Agent Bot",
-                type=BotType.AGENT,
-                description="Default agent bot created on registration.",
-                collection_ids=[],
-                is_default=True,
-                is_protected=True,
-            )
+            bot_create = bot_service.build_default_agent_bot_create()
             await bot_service.create_bot(user=str(user.id), bot_in=bot_create, skip_quota_check=True)
 
             # Create user's chat collection

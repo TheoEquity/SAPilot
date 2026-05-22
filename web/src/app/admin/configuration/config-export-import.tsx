@@ -41,6 +41,12 @@ async function apiPost<T>(url: string, body: unknown, params?: Record<string, st
   return res.json();
 }
 
+type ImportSettingsResult = {
+  bots_created: number;
+  bots_skipped: number;
+  errors?: string[];
+};
+
 export const ConfigExportImport = () => {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -90,7 +96,7 @@ export const ConfigExportImport = () => {
     try {
       const text = await pendingFile.text();
       const data = JSON.parse(text);
-      const result = await apiPost('/api/v1/settings/import', data, {
+      const result = await apiPost<ImportSettingsResult>('/api/v1/settings/import', data, {
         mode: importMode,
       });
       const messages: string[] = [];
