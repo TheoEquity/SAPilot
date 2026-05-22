@@ -17,6 +17,14 @@ export type CandidateSkill = {
   examples?: string[];
 };
 
+export type IntentRouterRule = {
+  rule_type: 'keyword' | 'regex';
+  value: string;
+  target_skill_id: string;
+  enabled?: boolean;
+  description?: string;
+};
+
 export type ReactFlowViewport = {
   x: number;
   y: number;
@@ -58,6 +66,7 @@ type OrchestrationIntentRouter = {
   confidence_threshold?: number;
   fallback_skill_id?: string;
   candidate_skills?: CandidateSkill[];
+  rules?: IntentRouterRule[];
   flow?: ReactFlowSchema;
   meta?: Record<string, unknown>;
 };

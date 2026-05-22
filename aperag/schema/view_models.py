@@ -487,6 +487,14 @@ class CandidateSkill(BaseModel):
     examples: Optional[list[str]] = None
 
 
+class IntentRouterRule(BaseModel):
+    rule_type: Literal['keyword', 'regex']
+    value: str
+    target_skill_id: str
+    enabled: bool = True
+    description: Optional[str] = None
+
+
 class ReactFlowViewport(BaseModel):
     x: float
     y: float
@@ -528,6 +536,7 @@ class IntentRouterConfig(BaseModel):
     confidence_threshold: float = 0.6
     fallback_skill_id: str
     candidate_skills: list[CandidateSkill] = Field(default_factory=list)
+    rules: list[IntentRouterRule] = Field(default_factory=list)
     flow: Optional[ReactFlowSchema] = None
     meta: Optional[dict[str, Any]] = None
 

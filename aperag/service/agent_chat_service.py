@@ -746,6 +746,37 @@ class AgentChatService:
 
         return None
 
+    @staticmethod
+    def try_hard_rules_match(
+        query: str,
+        rules: list,
+    ) -> Optional[str]:
+        """Try to match hard rules against the query. Returns target_skill_id or None."""
+        for rule in rules:
+            if not rule.get('enabled', True):
+                continue
+
+            rule_type = rule.get('rule_type', 'keyword')
+            value = rule.get('value', '')
+            target_skill_id = rule.get('target_skill_id', '')
+
+            if not value or not target_skill_id:
+                continue
+
+            matched = False
+            if rule_type == 'keyword':
+                matched = value in query or value.lower() in query.lower()
+            elif rule_type == 'regex':
+                try:
+                    matched = bool(re.search(value, query, re.IGNORECASE | re.UNICODE))
+                except re.error:
+                    continue
+
+            if matched:
+                return target_skill_id
+
+        return None
+
     def _is_knowledge_base_existence_query(self, normalized_query: str) -> bool:
         if not normalized_query:
             return False

@@ -34,6 +34,7 @@ import { normalizeOrchestration, updateBotOrchestration } from '../bot-config-up
 import { FlowCanvasEditor } from '../flow-canvas-editor';
 import { FlowJsonEditor } from '../flow-json-editor';
 import { normalizeFlowSchema } from '../flow-utils';
+import { IntentRouterRule } from '../orchestration-types';
 
 const intentRouterSchema = z.object({
   name: z.string().min(1),
@@ -64,6 +65,17 @@ export const IntentRouterEditor = () => {
   const skillOptions = useMemo(
     () => skills.filter((skill) => skill.id && skill.name),
     [skills],
+  );
+
+  const getRulePlaceholder = useCallback(
+    (ruleType: string): string => {
+      const key =
+        ruleType === 'regex'
+          ? 'rule_value_placeholder_regex'
+          : 'rule_value_placeholder_keyword';
+      return (page_bot as (key: string) => string)(key);
+    },
+    [page_bot],
   );
 
   const validFallbackSkillId = useMemo(() => {
@@ -115,6 +127,10 @@ export const IntentRouterEditor = () => {
     normalizeFlowSchema(intentRouter?.flow),
   );
 
+  const [rules, setRules] = useState<IntentRouterRule[]>(
+    () => intentRouter?.rules || [],
+  );
+
   const [intentModels, setIntentModels] = useState<LlmProviderModel[]>([]);
   const [selectedProvider, setSelectedProvider] = useState('');
 
@@ -134,7 +150,7 @@ export const IntentRouterEditor = () => {
       const models = res.data?.models || [];
       setIntentModels(models.filter((m) => m.api === 'intent'));
     } catch (error) {
-      console.error('Failed to fetch LLM configuration:', error);
+      console.error(page_bot('failed_to_fetch_llm_config'), error);
     }
   }, []);
 
@@ -184,6 +200,7 @@ export const IntentRouterEditor = () => {
         },
         prompt_template: values.prompt_template,
         candidate_skills: candidateSkills,
+        rules,
         flow: flowDraft,
         meta: {
           ...(intentRouter?.meta || {}),
@@ -231,11 +248,115 @@ export const IntentRouterEditor = () => {
                 <FormItem>
                   <FormLabel>{page_bot('description')}</FormLabel>
                   <FormControl>
-                    <Textarea {...field} value={field.value || ''} className="h-24" />
+                    <Input {...field} value={field.value || ''} />
                   </FormControl>
                 </FormItem>
               )}
             />
+
+            <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b">
+              <summary className="select-none font-medium text-sm">
+                {page_bot('model_configuration')}
+                <span className="text-muted-foreground transition-transform group-open:rotate-90">▶</span>
+              </summary>
+              <div className="p-4 space-y-3">
+                <FormField
+                  control={form.control}
+                  name="confidence_threshold"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{page_bot('confidence_threshold')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          {...field}
+                          value={typeof field.value === 'number' ? field.value : ''}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="llm_provider"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{page_bot('intent_model_provider')}</FormLabel>
+                        <Select
+                          onValueChange={(val) => {
+                            field.onChange(val);
+                            setSelectedProvider(val);
+                          }}
+                          value={field.value || ''}
+                          disabled={uniqueProviders.length === 0}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={page_bot('select_provider')} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {uniqueProviders.map((p) => (
+                              <SelectItem key={p} value={p}>{p}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="llm_model"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{page_bot('intent_model')}</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || ''}
+                          disabled={availableModels.length === 0}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={page_bot('select_model')} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableModels.map((m) => (
+                              <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </details>
+
+            <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b">
+              <summary className="select-none font-medium text-sm">
+                {page_bot('intent_prompt')}
+                <span className="text-muted-foreground transition-transform group-open:rotate-90">▶</span>
+              </summary>
+              <div className="p-4">
+                <FormField
+                  control={form.control}
+                  name="prompt_template"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{page_bot('query_prompt_template')}</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} value={field.value || ''} className="h-40 font-mono text-sm" />
+                      </FormControl>
+                    </FormItem>
+                    )}
+                  />
+              </div>
+            </details>
 
             <FormField
               control={form.control}
@@ -256,7 +377,7 @@ export const IntentRouterEditor = () => {
                 name="mode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mode</FormLabel>
+                    <FormLabel>{page_bot('mode')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -264,8 +385,8 @@ export const IntentRouterEditor = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="llm">LLM</SelectItem>
-                        <SelectItem value="rules+llm">Rules + LLM</SelectItem>
+                        <SelectItem value="llm">{page_bot('llm_only')}</SelectItem>
+                        <SelectItem value="rules+llm">{page_bot('rules_and_llm')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
@@ -301,62 +422,77 @@ export const IntentRouterEditor = () => {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="llm_provider"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Intent Model Provider</FormLabel>
+            <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b" open={form.watch('mode') === 'rules+llm'}>
+              <summary className="select-none font-medium text-sm">
+                {page_bot('hard_rules')}
+                <span className="text-muted-foreground transition-transform group-open:rotate-90">▶</span>
+              </summary>
+              <div className="p-4 space-y-3">
+                <p className="text-muted-foreground text-xs">{page_bot('hard_rules_description')}</p>
+                {rules.map((rule, idx) => (
+                  <div key={idx} className="flex items-center gap-2 border rounded-md p-3">
                     <Select
+                      value={rule.rule_type}
                       onValueChange={(val) => {
-                        field.onChange(val);
-                        setSelectedProvider(val);
+                        const next = [...rules];
+                        next[idx] = { ...next[idx], rule_type: val as 'keyword' | 'regex' };
+                        setRules(next);
                       }}
-                      value={field.value || ''}
-                      disabled={uniqueProviders.length === 0}
                     >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select provider" />
-                        </SelectTrigger>
-                      </FormControl>
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {uniqueProviders.map((p) => (
-                          <SelectItem key={p} value={p}>{p}</SelectItem>
-                        ))}
+                        <SelectItem value="keyword">{page_bot('rule_type_keyword')}</SelectItem>
+                        <SelectItem value="regex">{page_bot('rule_type_regex')}</SelectItem>
                       </SelectContent>
                     </Select>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="llm_model"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Intent Model</FormLabel>
+                    <Input
+                      value={rule.value}
+                      onChange={(e) => {
+                        const next = [...rules];
+                        next[idx] = { ...next[idx], value: e.target.value };
+                        setRules(next);
+                      }}
+                      placeholder={getRulePlaceholder(rule.rule_type)}
+                      className="flex-1"
+                    />
                     <Select
-                      onValueChange={field.onChange}
-                      value={field.value || ''}
-                      disabled={availableModels.length === 0}
+                      value={rule.target_skill_id}
+                      onValueChange={(val) => {
+                        const next = [...rules];
+                        next[idx] = { ...next[idx], target_skill_id: val };
+                        setRules(next);
+                      }}
                     >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select model" />
-                        </SelectTrigger>
-                      </FormControl>
+                      <SelectTrigger className="w-36">
+                        <SelectValue placeholder={page_bot('target_skill')} />
+                      </SelectTrigger>
                       <SelectContent>
-                        {availableModels.map((m) => (
-                          <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>
+                        {skillOptions.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </FormItem>
-                )}
-              />
-            </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      onClick={() => setRules(rules.filter((_, i) => i !== idx))}
+                    >
+                      ×
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRules([...rules, { rule_type: 'keyword', value: '', target_skill_id: validFallbackSkillId || '', enabled: true }])}
+                >
+                  {page_bot('add_rule')}
+                </Button>
+              </div>
+            </details>
 
             <div className="grid gap-4 md:grid-cols-2">
               <FormField
@@ -364,7 +500,7 @@ export const IntentRouterEditor = () => {
                 name="temperature"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Temperature</FormLabel>
+                    <FormLabel>{page_bot('temperature')}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -382,7 +518,7 @@ export const IntentRouterEditor = () => {
                 name="max_tokens"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Max Tokens</FormLabel>
+                    <FormLabel>{page_bot('max_tokens')}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -395,37 +531,6 @@ export const IntentRouterEditor = () => {
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="confidence_threshold"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confidence Threshold</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      {...field}
-                      value={typeof field.value === 'number' ? field.value : ''}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="prompt_template"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{page_bot('query_prompt_template')}</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} value={field.value || ''} className="h-40 font-mono text-sm" />
-                  </FormControl>
-                </FormItem>
-                )}
-              />
-
             <FlowCanvasEditor
               title={page_bot('intent_router_flow_canvas_title')}
               description={page_bot('intent_router_flow_canvas_description')}
@@ -434,12 +539,20 @@ export const IntentRouterEditor = () => {
               skillOptions={skillOptions.map((skill) => ({ id: skill.id, label: skill.name }))}
             />
 
-            <FlowJsonEditor
-              title={page_bot('intent_router_flow_title')}
-              description={page_bot('intent_router_flow_description')}
-              value={flowDraft}
-              onChange={setFlowDraft}
-            />
+            <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b">
+              <summary className="select-none font-medium">
+                {page_bot('intent_router_flow_title')}
+                <span className="transition-transform group-open:rotate-90">▶</span>
+              </summary>
+              <div className="p-4">
+                <FlowJsonEditor
+                  title={page_bot('intent_router_flow_title')}
+                  description={page_bot('intent_router_flow_description')}
+                  value={flowDraft}
+                  onChange={setFlowDraft}
+                />
+              </div>
+            </details>
 
             <div className="flex gap-3">
               <Button variant="outline" asChild>
