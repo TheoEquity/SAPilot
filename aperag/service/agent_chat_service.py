@@ -563,6 +563,8 @@ class AgentChatService:
 
             # NEW: Intent routing (bypass old _should_search_knowledge_base)
             target_skill_id = None
+            history_messages = await history.messages
+            recent_messages = history_messages[-4:] if len(history_messages) > 4 else history_messages
 
             # Step 1: Hard rules matching
             if intent_router.mode == 'rules+llm' and intent_router.rules:
@@ -583,8 +585,6 @@ class AgentChatService:
                 
                 # Intent router only needs the last 1-2 turns for coreference resolution
                 # Take the most recent 4 messages (2 user + 2 assistant) max
-                history_messages = await history.messages
-                recent_messages = history_messages[-4:] if len(history_messages) > 4 else history_messages
                 import re as _re
                 intent_memory = SimpleMemory()
                 for msg in recent_messages:
