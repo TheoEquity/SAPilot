@@ -71,6 +71,11 @@ type OrchestrationIntentRouter = {
   meta?: Record<string, unknown>;
 };
 
+export type MCPToolInfo = {
+  name: string;
+  description: string;
+};
+
 export type SkillToolBinding = {
   tool_id: string;
   enabled?: boolean;

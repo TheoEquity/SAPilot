@@ -217,3 +217,37 @@ async def delete_provider_model_view(
 
     is_admin = user.role == Role.ADMIN
     return await delete_llm_provider_model(provider_name, api, model, str(user.id), is_admin)
+
+@router.get("/mcp_tools", tags=["mcp_tools"])
+async def list_mcp_tools(
+    request: Request, user: User = Depends(required_user)
+) -> list[view_models.MCPToolInfo]:
+    """
+    List all registered MCP tools dynamically.
+    Useful for the Skills configuration page to provide an available tool selection.
+    """
+    from aperag.mcp.server import mcp_server
+    tools = []
+    try:
+        # FastMCP exposes tools via its manager or internal list.
+        # We attempt to iterate over the function registry.
+        if hasattr(mcp_server, '_tool_manager') and hasattr(mcp_server._tool_manager, '_tools'):
+            for name, tool in mcp_server._tool_manager._tools.items():
+                tools.append(view_models.MCPToolInfo(name=name, description=tool.description or ""))
+        elif hasattr(mcp_server, 'tools'):
+             # Fallback if structure changes
+             for name, tool in mcp_server.tools.items():
+                 tools.append(view_models.MCPToolInfo(name=name, description=getattr(tool, 'description', '')))
+    except Exception as e:
+        logger.warning(f"Failed to list MCP tools dynamically: {e}")
+        # Return known defaults as fallback if dynamic discovery fails
+        known = [
+            view_models.MCPToolInfo(name="list_collections", description="List all collections available to the user."),
+            view_models.MCPToolInfo(name="search_collection", description="Search a persistent collection for knowledge."),
+            view_models.MCPToolInfo(name="search_chat_files", description="Search files uploaded in the current chat session."),
+            view_models.MCPToolInfo(name="web_search", description="Perform a web search."),
+            view_models.MCPToolInfo(name="web_read", description="Fetch content from a URL."),
+        ]
+        tools = known
+
+    return tools

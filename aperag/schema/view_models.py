@@ -548,6 +548,10 @@ class SkillToolBinding(BaseModel):
     timeout_ms: Optional[int] = None
     retry_count: Optional[int] = 0
 
+class MCPToolInfo(BaseModel):
+    name: str
+    description: str
+
 
 class SkillPrompts(BaseModel):
     skill_prompt: Optional[str] = None

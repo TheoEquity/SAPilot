@@ -29,6 +29,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import * as z from 'zod';
 import { normalizeOrchestration, updateBotOrchestration } from '../bot-config-updater';
+import { MCPToolInfo } from '../orchestration-types';
 import { FlowCanvasEditor } from '../flow-canvas-editor';
 import { FlowJsonEditor } from '../flow-json-editor';
 import { normalizeFlowSchema } from '../flow-utils';
@@ -48,6 +49,7 @@ const skillSchema = z.object({
   max_tokens: z.coerce.number().min(1),
   skill_prompt: z.string(),
   collections: z.array(z.object({ id: z.string() })).optional(),
+  tools: z.array(z.object({ tool_id: z.string(), enabled: z.boolean() })).optional(),
 });
 
 type SkillEditorFormValues = z.output<typeof skillSchema>;
@@ -67,10 +69,23 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
   const [collections, setCollections] = useState<
     { id?: string; title?: string }[]
   >([]);
+  const [availableTools, setAvailableTools] = useState<MCPToolInfo[]>([]);
 
   const loadCollections = useCallback(async () => {
     const res = await apiClient.defaultApi.collectionsGet();
     setCollections(res.data.items || []);
+  }, []);
+
+  const loadTools = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/mcp_tools');
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableTools(data);
+      }
+    } catch (e) {
+      console.error('Failed to load MCP tools', e);
+    }
   }, []);
 
   const defaultValues = useMemo(
@@ -87,6 +102,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
       max_tokens: existingSkill?.runtime?.max_tokens ?? 2048,
       skill_prompt: existingSkill?.prompts?.skill_prompt || '',
       collections: existingSkill?.collections || [],
+      tools: existingSkill?.tools?.filter((t) => t.tool_id) || [],
     }),
     [existingSkill],
   );
@@ -96,7 +112,8 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
 
   useEffect(() => {
     loadCollections();
-  }, [loadCollections]);
+    loadTools();
+  }, [loadCollections, loadTools]);
 
   const [completionModels, setCompletionModels] = useState<LlmProviderModel[]>([]);
   const [selectedProvider, setSelectedProvider] = useState('');
@@ -164,7 +181,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
     if (values.is_fallback) {
       const existingFallback = orchestration.intent_router?.fallback_skill_id;
       if (existingFallback && existingFallback !== skillId) {
-        toast.error(page_bot('error'), page_bot('only_one_fallback_skill_error'));
+        toast.error(page_bot('only_one_fallback_skill_error'));
         return;
       }
     }
@@ -185,7 +202,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
         skill_prompt: values.skill_prompt,
       },
       is_fallback: values.is_fallback,
-      tools: existingSkill?.tools || [],
+      tools: values.tools || [],
       io: existingSkill?.io || {
         input_schema: {},
         output_schema: {},
@@ -522,6 +539,47 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                   </FormItem>
                 )}
               />
+
+              <div className="flex flex-col gap-3">
+                <div className="text-sm font-medium">{page_bot('skill_tools_available')}</div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {availableTools.map((tool) => {
+                    const currentTools = form.getValues('tools') || [];
+                    const toolConfig = currentTools.find((t) => t.tool_id === tool.name) || { tool_id: tool.name, enabled: true };
+                    const isEnabled = currentTools.some((t) => t.tool_id === tool.name && t.enabled);
+                    const hasConfig = currentTools.some((t) => t.tool_id === tool.name);
+
+                    return (
+                      <div key={tool.name} className="flex items-start justify-between rounded-md border p-3">
+                        <div className="pr-4">
+                          <div className="text-sm font-medium">{tool.name}</div>
+                          <p className="text-xs text-muted-foreground">{tool.description}</p>
+                        </div>
+                        <Switch
+                          checked={isEnabled}
+                          onCheckedChange={(checked) => {
+                            let nextTools = [...currentTools];
+                            if (checked) {
+                              if (!hasConfig) {
+                                nextTools.push({ tool_id: tool.name, enabled: true });
+                              } else {
+                                nextTools = nextTools.map((t) => t.tool_id === tool.name ? { ...t, enabled: true } : t);
+                              }
+                            } else {
+                              if (hasConfig) {
+                                nextTools = nextTools.map((t) => t.tool_id === tool.name ? { ...t, enabled: false } : t);
+                              } else {
+                                nextTools.push({ tool_id: tool.name, enabled: false });
+                              }
+                            }
+                            form.setValue('tools', nextTools);
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
             <FlowCanvasEditor
               title={page_bot('skill_flow_canvas_title')}

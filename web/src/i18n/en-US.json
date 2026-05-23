@@ -311,6 +311,7 @@
     "skill_default": "Set as Default Skill",
     "skill_default_desc": "Route to this skill when intent matching fails.",
     "only_one_fallback_skill_error": "Another default skill already exists. Please disable it first.",
+    "skill_tools_available": "Available Tools",
     "llm_provider": "LLM Provider",
     "llm_model": "LLM Model",
     "skill_prompt_label": "Skill Prompt",
