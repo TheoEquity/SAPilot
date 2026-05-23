@@ -312,6 +312,7 @@
     "skill_default_desc": "意图匹配失败时，自动进入此技能。",
     "only_one_fallback_skill_error": "已有一个默认技能，请先将其取消才能设置。",
     "skill_tools_available": "可用工具",
+    "flow_enabled_tools": "节点启用的工具",
     "llm_provider": "LLM 供应商",
     "llm_model": "LLM 模型",
     "skill_prompt_label": "技能提示",

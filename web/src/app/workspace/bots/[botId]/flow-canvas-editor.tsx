@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from 'next-intl';
 import type { ReactFlowEdge, ReactFlowNode, ReactFlowSchema } from './orchestration-types';
@@ -148,12 +149,14 @@ export const FlowCanvasEditor = ({
   value,
   onChange,
   skillOptions = [],
+  skillTools = [],
 }: {
   title: string;
   description: string;
   value: ReactFlowSchema;
   onChange: (value: ReactFlowSchema) => void;
   skillOptions?: Array<{ id: string; label: string }>;
+  skillTools?: Array<{ id: string; name: string; description?: string }>;
 }) => {
   const page_bot = useTranslations('page_bot');
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -890,6 +893,52 @@ export const FlowCanvasEditor = ({
                     placeholder={page_bot('flow_node_note_placeholder')}
                     rows={4}
                   />
+
+                  {skillTools.length > 0 ? (
+                    <div className="flex flex-col gap-3 pt-4 border-t">
+                      <div className="text-sm font-medium">{page_bot('flow_enabled_tools')}</div>
+                      <div className="grid gap-2">
+                        {skillTools.map((tool) => {
+                          const currentTools = (selectedNode.data?.enabled_tools || []) as string[];
+                          const isChecked = currentTools.includes(tool.id);
+                          return (
+                            <div key={tool.id} className="flex items-center gap-2">
+                              <Checkbox
+                                id={`tool-${tool.id}`}
+                                checked={isChecked}
+                                onCheckedChange={(checked) => {
+                                  const nextEnabledTools = checked
+                                    ? [...currentTools, tool.id]
+                                    : currentTools.filter((id: string) => id !== tool.id);
+
+                                  onChange({
+                                    ...value,
+                                    nodes: nodes.map((node) =>
+                                      node.id === selectedNode.id
+                                        ? {
+                                            ...node,
+                                            data: { ...node.data, enabled_tools: nextEnabledTools },
+                                          }
+                                        : node,
+                                    ),
+                                  });
+                                }}
+                              />
+                              <label
+                                htmlFor={`tool-${tool.id}`}
+                                className="flex flex-col"
+                              >
+                                <span className="text-sm font-medium leading-none">{tool.name}</span>
+                                {tool.description && (
+                                  <span className="text-muted-foreground text-xs">{tool.description}</span>
+                                )}
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
                   {selectedNode.type === 'intent' ? (
                     <Input
                       value={String(selectedNode.data?.intent_key || '')}
