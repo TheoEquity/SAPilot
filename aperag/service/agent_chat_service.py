@@ -626,8 +626,11 @@ class AgentChatService:
                 # Same skill: continue accumulating context (will be appended after processing)
                 pass
 
-            # Step 3: Execute skill (placeholder for now)
-            result = await self._execute_skill(target_skill_id, merged_agent_message, user, chat_id, message_id, message_queue, resolved_query_prompt)
+            # Step 3: Execute skill with orchestration config and tool filtering
+            result = await self._execute_skill(
+                target_skill_id, merged_agent_message, user, chat_id, message_id, message_queue,
+                resolved_query_prompt, orchestration=orchestration,
+            )
             return result
 
             # Knowledge base search mode: full MCP agent with search tools
@@ -991,47 +994,183 @@ class AgentChatService:
         message_id: str,
         message_queue: AgentMessageQueue,
         resolved_query_prompt: str,
+        orchestration: Optional[view_models.OrchestrationConfig] = None,
     ) -> Dict[str, Any]:
         """Execute a skill based on intent routing result.
         
-        This is a placeholder implementation. In the future, this should:
-        1. Look up the skill configuration from orchestration.skills
-        2. Execute the skill's flow or direct action
-        3. Return the skill execution result
+        Looks up the skill from orchestration config, extracts enabled tools
+        from canvas flow nodes, and runs the LLM with tool filtering.
         """
+        skill_config = None
+        if orchestration:
+            for skill in orchestration.skills:
+                if skill.id == skill_id:
+                    skill_config = skill
+                    break
+
+        if not skill_config:
+            fallback_msg = f"Skill `{skill_id}` not found in orchestration configuration."
+            await message_queue.put(format_stream_content(message_id, fallback_msg))
+            await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+            return {"query": agent_message.query, "content": fallback_msg, "references": []}
+
+        # Collect enabled tools from canvas flow action nodes and skill-level bindings
+        enabled_tools: set[str] = set()
+        if skill_config.flow:
+            for node in skill_config.flow.nodes:
+                if node.type == "action":
+                    node_tools = node.data.get("tools", [])
+                    if isinstance(node_tools, list):
+                        enabled_tools.update(node_tools)
+
+        if not enabled_tools and skill_config.tools:
+            for binding in skill_config.tools:
+                if binding.enabled and binding.tool_id:
+                    enabled_tools.add(binding.tool_id)
+
+        logger.info(
+            "Skill %s execution: %d tools enabled (%s)",
+            skill_id, len(enabled_tools), ", ".join(sorted(enabled_tools)) if enabled_tools else "none"
+        )
+
         # Build skill-scoped memory from the isolated context buffer
         skill_buffer = self.skill_context_buffers.get(chat_id, {})
         skill_memory = SimpleMemory()
-        
-        # Convert buffered messages to OpenAI format, including tool results
         for msg in skill_buffer.get("messages", []):
             for openai_msg in msg.to_openai_format(include_tool_results=True):
                 skill_memory.append(openai_msg)
-                
+
         logger.info("Skill %s using isolated context with %d messages", skill_id, len(skill_memory.history))
-        
-        # For now, return a placeholder response
-        # TODO: Implement actual skill execution logic
-        skill_response = (
-            f"[Skill Execution]\n"
-            f"**Target Skill**: {skill_id}\n"
-            f"**Query**: {agent_message.query}\n\n"
-            f"Skill execution logic is under development. "
-            f"The intent router has successfully classified your query to skill: `{skill_id}`.\n\n"
-            f"Next steps:\n"
-            f"1. Configure the skill's execution flow in the bot orchestration settings\n"
-            f"2. Implement skill-specific handlers in the backend\n"
+
+        # Build skill-specific system prompt
+        skill_prompt_text = ""
+        if skill_config.prompts and skill_config.prompts.skill_prompt:
+            skill_prompt_text = skill_config.prompts.skill_prompt
+
+        base_system_prompt = await prompt_template_service.resolve_agent_system_prompt(user_id=user)
+        if skill_prompt_text:
+            effective_system_prompt = f"{base_system_prompt}\n\n{skill_prompt_text}"
+        else:
+            effective_system_prompt = base_system_prompt
+
+        # Resolve query prompt for building the user prompt
+        query_prompt = resolved_query_prompt or (
+            "回答用户的问题。如果问题涉及专业领域，请基于你的知识和工具调用能力给出准确回答。"
         )
-        
-        await asyncio.sleep(0.1)
-        await message_queue.put(format_stream_content(message_id, skill_response))
-        tool_references = []
-        await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[]))
-        return {
-            "query": agent_message.query,
-            "content": skill_response,
-            "references": tool_references,
-        }
+
+        # Use skill runtime config if available, otherwise fall back to agent_message settings
+        runtime = skill_config.runtime
+        model_name = runtime.model if runtime and runtime.model else agent_message.completion.model
+        provider_name = runtime.provider if runtime and runtime.provider else agent_message.completion.model_service_provider
+        temperature = runtime.temperature if runtime and runtime.temperature is not None else 0.7
+        max_tokens = runtime.max_tokens if runtime and runtime.max_tokens else 8192
+
+        # Query provider details and API key
+        provider_info = await self.db_ops.query_llm_provider_by_name(provider_name)
+        if not provider_info:
+            error_msg = f"Provider '{provider_name}' not found in database"
+            await message_queue.put(format_stream_content(message_id, error_msg))
+            await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+            return {"query": agent_message.query, "content": error_msg, "references": []}
+
+        api_key = await self.db_ops.query_provider_api_key(provider_name, user_id=user, need_public=True)
+        if not api_key:
+            error_msg = f"No API key available for provider '{provider_name}'"
+            await message_queue.put(format_stream_content(message_id, error_msg))
+            await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+            return {"query": agent_message.query, "content": error_msg, "references": []}
+
+        # Get aperag API key for MCP connection
+        aperag_api_key = None
+        aperag_api_keys = await self.db_ops.query_api_keys(user, is_system=True)
+        if aperag_api_keys:
+            aperag_api_key = aperag_api_keys[0].key
+        if not aperag_api_key:
+            try:
+                api_key_result = await self.db_ops.create_api_key(user=user, description="aperag", is_system=True)
+                aperag_api_key = api_key_result.key
+            except Exception as e:
+                error_msg = f"Failed to create aperag API key: {str(e)}"
+                await message_queue.put(format_stream_content(message_id, error_msg))
+                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                return {"query": agent_message.query, "content": error_msg, "references": []}
+
+        # Build the comprehensive prompt for the user query
+        comprehensive_prompt = build_agent_query_prompt(
+            chat_id, agent_message=agent_message, user=user, template=query_prompt, is_search_confirmed=False
+        )
+
+        # Build tool_filter for RequestParams
+        tool_filter = None
+        if enabled_tools:
+            tool_filter = {"aperag": enabled_tools}
+
+        # Build the LLM request params
+        request_params = RequestParams(
+            maxTokens=max_tokens,
+            model=model_name,
+            use_history=True,
+            max_iterations=10,
+            parallel_tool_calls=True,
+            temperature=temperature,
+            user=user,
+            tool_filter=tool_filter,
+        )
+
+        try:
+            # Get agent session with the skill-specific system prompt
+            session_config = AgentConfig(
+                user_id=user,
+                chat_id=chat_id,
+                provider_name=provider_name,
+                api_key=api_key,
+                base_url=provider_info.base_url,
+                default_model=model_name,
+                language=agent_message.language if agent_message.language else "en-US",
+                instruction=effective_system_prompt,
+                server_names=["aperag"],
+                aperag_api_key=aperag_api_key,
+                aperag_mcp_url=os.getenv("APERAG_MCP_URL", "http://localhost:8000/mcp/"),
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            session = await agent_session_manager.get_or_create_session(session_config)
+            llm = await session.get_llm(model_name)
+            llm.history = skill_memory
+
+            # Execute LLM and stream the response
+            response = await llm.generate_str(comprehensive_prompt, request_params)
+            full_content = response if response else "No response generated"
+
+            # Extract FAQ choice if present
+            faq_choice = self._extract_faq_choice(full_content)
+            if faq_choice:
+                full_content = faq_choice["content"]
+
+            await asyncio.sleep(0.1)
+            await message_queue.put(format_stream_content(message_id, full_content))
+
+            tool_references = extract_tool_call_references(llm.history)
+            await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[]))
+
+            # Update the skill context buffer with the new messages
+            if chat_id in self.skill_context_buffers:
+                buffer = self.skill_context_buffers[chat_id]
+                if buffer.get("skill_id") == skill_id:
+                    buffer["messages"].extend(skill_memory.history[len(skill_buffer.get("messages", [])):])
+
+            return {
+                "query": agent_message.query,
+                "content": full_content,
+                "references": tool_references,
+            }
+
+        except Exception as e:
+            logger.error("Skill %s execution failed: %s", skill_id, e, exc_info=True)
+            error_msg = f"Skill execution failed: {str(e)}"
+            await message_queue.put(format_stream_content(message_id, error_msg))
+            await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+            return {"query": agent_message.query, "content": error_msg, "references": []}
 
     def _build_faq_choice_end_response(self, language: Optional[str]) -> str:
         if language == "zh-CN":

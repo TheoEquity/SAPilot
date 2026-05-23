@@ -29,7 +29,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import * as z from 'zod';
 import { normalizeOrchestration, updateBotOrchestration } from '../bot-config-updater';
-import { MCPToolInfo } from '../orchestration-types';
+import { MCPToolInfo, OrchestrationSkill } from '../orchestration-types';
 import { FlowCanvasEditor } from '../flow-canvas-editor';
 import { FlowJsonEditor } from '../flow-json-editor';
 import { normalizeFlowSchema } from '../flow-utils';
@@ -81,7 +81,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
       const res = await fetch('/api/v1/mcp_tools');
       if (res.ok) {
         const data = await res.json();
-        setAvailableTools(data);
+        setAvailableTools(Array.isArray(data) ? data : []);
       }
     } catch (e) {
       console.error('Failed to load MCP tools', e);
@@ -137,12 +137,20 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
       });
       const items = res.data.items || [];
       const models = items.flatMap((item) =>
-        (item.completion || []).map((model) => ({
-          ...model,
-          provider_name: item.name,
-          api: 'completion' as const,
-        })),
-      );
+        (item.completion || []).map((model): LlmProviderModel | null => {
+          if (!item.name || !model.model || !model.custom_llm_provider) {
+            return null;
+          }
+
+          return {
+            ...model,
+            provider_name: item.name,
+            model: model.model,
+            custom_llm_provider: model.custom_llm_provider,
+            api: 'completion',
+          };
+        }),
+      ).filter((model): model is LlmProviderModel => model !== null);
       setCompletionModels(models);
     } catch (error) {
       console.error('Failed to fetch available models', error);
@@ -186,7 +194,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
       }
     }
 
-    const nextSkill = {
+    const nextSkill: OrchestrationSkill = {
       id: values.id,
       name: values.name,
       description: values.description,
@@ -201,7 +209,6 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
       prompts: {
         skill_prompt: values.skill_prompt,
       },
-      is_fallback: values.is_fallback,
       tools: values.tools || [],
       io: existingSkill?.io || {
         input_schema: {},
@@ -540,65 +547,96 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 )}
               />
 
-              <div className="flex flex-col gap-3">
-                <div className="text-sm font-medium">{page_bot('skill_tools_available')}</div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {availableTools.map((tool) => {
-                    const currentTools = form.getValues('tools') || [];
-                    const toolConfig = currentTools.find((t) => t.tool_id === tool.name) || { tool_id: tool.name, enabled: true };
-                    const isEnabled = currentTools.some((t) => t.tool_id === tool.name && t.enabled);
-                    const hasConfig = currentTools.some((t) => t.tool_id === tool.name);
-
-                    return (
-                      <div key={tool.name} className="flex items-start justify-between rounded-md border p-3">
-                        <div className="pr-4">
-                          <div className="text-sm font-medium">{tool.name}</div>
-                          <p className="text-xs text-muted-foreground">{tool.description}</p>
-                        </div>
-                        <Switch
-                          checked={isEnabled}
-                          onCheckedChange={(checked) => {
-                            let nextTools = [...currentTools];
-                            if (checked) {
-                              if (!hasConfig) {
-                                nextTools.push({ tool_id: tool.name, enabled: true });
-                              } else {
-                                nextTools = nextTools.map((t) => t.tool_id === tool.name ? { ...t, enabled: true } : t);
-                              }
-                            } else {
-                              if (hasConfig) {
-                                nextTools = nextTools.map((t) => t.tool_id === tool.name ? { ...t, enabled: false } : t);
-                              } else {
-                                nextTools.push({ tool_id: tool.name, enabled: false });
-                              }
-                            }
-                            form.setValue('tools', nextTools);
-                          }}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
             <FlowCanvasEditor
               title={page_bot('skill_flow_canvas_title')}
               description={page_bot('skill_flow_canvas_description')}
               value={flowDraft}
               onChange={setFlowDraft}
+              onQuickSave={async (nextFlow) => {
+                const currentValues = form.getValues() as SkillEditorFormValues;
+                const nextSkill: OrchestrationSkill = {
+                  id: currentValues.id,
+                  name: currentValues.name,
+                  description: currentValues.description,
+                  enabled: currentValues.enabled,
+                  type: currentValues.type,
+                  runtime: {
+                    provider: currentValues.provider,
+                    model: currentValues.model,
+                    temperature: currentValues.temperature,
+                    max_tokens: currentValues.max_tokens,
+                  },
+                  prompts: {
+                    skill_prompt: currentValues.skill_prompt,
+                  },
+                  tools: currentValues.tools || [],
+                  io: existingSkill?.io || {
+                    input_schema: {},
+                    output_schema: {},
+                  },
+                  flow: nextFlow,
+                  collections: currentValues.collections || [],
+                  meta: {
+                    ...(existingSkill?.meta || {}),
+                    updated_at: new Date().toISOString(),
+                  },
+                };
+
+                const currentSkills = orchestration.skills || [];
+                const nextSkills = existingSkill
+                  ? currentSkills.map((skill) =>
+                      skill.id === existingSkill.id ? nextSkill : skill,
+                    )
+                  : [...currentSkills, nextSkill];
+
+                const nextCandidateSkills = nextSkills
+                  .filter((skill) => skill.id && skill.name)
+                  .map((skill) => {
+                    const existingCandidate = orchestration.intent_router?.candidate_skills?.find(
+                      (candidate) => candidate.skill_id === skill.id,
+                    );
+                    return {
+                      skill_id: skill.id,
+                      label: skill.name,
+                      description: skill.description,
+                      enabled: existingCandidate?.enabled ?? skill.enabled ?? true,
+                      examples: existingCandidate?.examples || [],
+                    };
+                  });
+
+                const currentFallback = orchestration.intent_router?.fallback_skill_id || '';
+                const nextFallbackSkillId = currentValues.is_fallback
+                  ? currentValues.id
+                  : (currentFallback === skillId ? '' : currentFallback);
+
+                await updateBotOrchestration({
+                  bot,
+                  orchestration: {
+                    ...orchestration,
+                    skills: nextSkills,
+                    intent_router: orchestration.intent_router
+                      ? {
+                          ...orchestration.intent_router,
+                          fallback_skill_id: nextFallbackSkillId,
+                          candidate_skills: nextCandidateSkills,
+                        }
+                      : orchestration.intent_router,
+                  },
+                });
+
+                await loadBot();
+                return true;
+              }}
               skillOptions={(orchestration.skills || []).map((skill) => ({
                 id: skill.id,
                 label: skill.name,
               }))}
               skillTools={(() => {
-                const currentTools = form.watch('tools') || [];
-                return currentTools
-                  .filter((t) => t.enabled)
-                  .map((t) => ({
-                    id: t.tool_id,
-                    name: t.tool_id.replace(/_/g, ' '),
-                    description: availableTools.find((at) => at.name === t.tool_id)?.description,
-                  }));
+                return availableTools.map((tool) => ({
+                  id: tool.name,
+                  name: tool.name,
+                  description: tool.description,
+                }));
               })()}
             />
 
