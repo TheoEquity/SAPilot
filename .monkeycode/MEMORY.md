@@ -262,3 +262,14 @@ Agent 在任务执行过程中发现的条目应遵循以下格式：
 
 索引状态流转: `PENDING → CREATING → ACTIVE` (或 `FAILED`)
 文档状态: `PENDING → RUNNING → COMPLETE` (或 `FAILED`)
+
+## 用户行为指令
+
+### Git 推送规则
+- Date: 2026-05-23
+- Context: 用户在开发过程中明确指示
+- Instructions:
+  - 所有代码改动只在本地 `git commit`，**不要自动 `git push`**。
+  - 需要推送到远程仓库时，等用户明确指令后再执行。
+  - 远程仓库作为备份用途，防止本地机器故障或开发问题。
+
