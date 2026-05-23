@@ -14,7 +14,7 @@
 
 """Unified response type definitions for agent chat."""
 
-from typing import Any, Dict, List, Literal, TypedDict, Union
+from typing import Any, Dict, List, Literal, NotRequired, TypedDict, Union
 
 
 class BaseAgentResponse(TypedDict):
@@ -22,6 +22,7 @@ class BaseAgentResponse(TypedDict):
 
     id: str
     timestamp: int
+    skill_id: NotRequired[str]
 
 
 class AgentStartResponse(BaseAgentResponse):

@@ -271,7 +271,7 @@ export const IntentRouterEditor = () => {
                           type="number"
                           step="0.1"
                           {...field}
-                          value={typeof field.value === 'number' ? field.value : ''}
+                          value={field.value === undefined || field.value === null ? '' : String(field.value)}
                         />
                       </FormControl>
                     </FormItem>
@@ -506,7 +506,7 @@ export const IntentRouterEditor = () => {
                         type="number"
                         step="0.1"
                         {...field}
-                        value={typeof field.value === 'number' ? field.value : ''}
+                        value={field.value === undefined || field.value === null ? '' : String(field.value)}
                       />
                     </FormControl>
                   </FormItem>
@@ -523,7 +523,7 @@ export const IntentRouterEditor = () => {
                       <Input
                         type="number"
                         {...field}
-                        value={typeof field.value === 'number' ? field.value : ''}
+                        value={field.value === undefined || field.value === null ? '' : String(field.value)}
                       />
                     </FormControl>
                   </FormItem>
@@ -537,6 +537,7 @@ export const IntentRouterEditor = () => {
               value={flowDraft}
               onChange={setFlowDraft}
               skillOptions={skillOptions.map((skill) => ({ id: skill.id, label: skill.name }))}
+              mode="intent-router"
             />
 
             <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b">

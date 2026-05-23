@@ -482,7 +482,12 @@ class AgentChatService:
         final_collections = agent_message.collections
 
         # Use bot config as fallback for completion and collections
-        if not final_completion and bot_config and bot_config.agent and bot_config.agent.completion:
+        if (
+            (not final_completion or not final_completion.model)
+            and bot_config
+            and bot_config.agent
+            and bot_config.agent.completion
+        ):
             final_completion = bot_config.agent.completion
 
         if not final_collections and default_collections:
@@ -671,7 +676,7 @@ class AgentChatService:
                     )
                     unmatched_response = self._build_unmatched_image_response(agent_message.language)
                     await message_queue.put(format_stream_content(message_id, unmatched_response))
-                    await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                    await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=target_skill_id or ""))
                     return {
                         "query": original_user_query,
                         "content": unmatched_response,
@@ -683,7 +688,7 @@ class AgentChatService:
                 if not faq_title:
                     unmatched_response = self._build_unmatched_image_response(agent_message.language)
                     await message_queue.put(format_stream_content(message_id, unmatched_response))
-                    await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+                    await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=target_skill_id or ""))
                     return {
                         "query": original_user_query,
                         "content": unmatched_response,
@@ -717,7 +722,7 @@ class AgentChatService:
 
             await asyncio.sleep(0.1)  # Allow time for the message to be processed in listener
 
-            await message_queue.put(format_stream_content(message_id, full_content))
+            await message_queue.put(format_stream_content(message_id, full_content, skill_id=skill_id))
 
             tool_references = extract_tool_call_references(llm.history)
 
@@ -1047,11 +1052,23 @@ class AgentChatService:
         if skill_config.prompts and skill_config.prompts.skill_prompt:
             skill_prompt_text = skill_config.prompts.skill_prompt
 
+        node_prompt_blocks: list[str] = []
+        if skill_config.flow:
+            for node in skill_config.flow.nodes:
+                if node.type != "action":
+                    continue
+                node_prompt = node.data.get("prompt")
+                if isinstance(node_prompt, str) and node_prompt.strip():
+                    node_label = node.data.get("label") if isinstance(node.data.get("label"), str) else node.id
+                    node_prompt_blocks.append(f"[Node: {node_label}]\n{node_prompt.strip()}")
+
         base_system_prompt = await prompt_template_service.resolve_agent_system_prompt(user_id=user)
+        prompt_parts = [base_system_prompt]
         if skill_prompt_text:
-            effective_system_prompt = f"{base_system_prompt}\n\n{skill_prompt_text}"
-        else:
-            effective_system_prompt = base_system_prompt
+            prompt_parts.append(skill_prompt_text)
+        if node_prompt_blocks:
+            prompt_parts.append("\n\n".join(node_prompt_blocks))
+        effective_system_prompt = "\n\n".join(part for part in prompt_parts if part)
 
         # Resolve query prompt for building the user prompt
         query_prompt = resolved_query_prompt or (
@@ -1151,7 +1168,7 @@ class AgentChatService:
             await message_queue.put(format_stream_content(message_id, full_content))
 
             tool_references = extract_tool_call_references(llm.history)
-            await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[]))
+            await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[], skill_id=skill_id))
 
             # Update the skill context buffer with the new messages
             if chat_id in self.skill_context_buffers:
@@ -1168,8 +1185,8 @@ class AgentChatService:
         except Exception as e:
             logger.error("Skill %s execution failed: %s", skill_id, e, exc_info=True)
             error_msg = f"Skill execution failed: {str(e)}"
-            await message_queue.put(format_stream_content(message_id, error_msg))
-            await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+            await message_queue.put(format_stream_content(message_id, error_msg, skill_id=skill_id))
+            await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=skill_id))
             return {"query": agent_message.query, "content": error_msg, "references": []}
 
     def _build_faq_choice_end_response(self, language: Optional[str]) -> str:

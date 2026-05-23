@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import _ from 'lodash';
 import { Bot, LoaderCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 import { MessageFeedback } from './message-feedback';
 import { MessagePartAi } from './message-part-ai';
@@ -24,8 +25,13 @@ export const MessagePartsAi = ({
   hanldeMessageFeedback: (part: ChatMessage, feedback: Feedback) => void;
   onFaqChoice: (action: string, label: string) => void;
 }) => {
+  const pageChat = useTranslations('page_chat');
   const references = useMemo(
     () => parts.findLast((part) => part.references)?.references || [],
+    [parts],
+  );
+  const skillId = useMemo(
+    () => parts.find((part) => part.skill_id)?.skill_id || '',
     [parts],
   );
 
@@ -40,6 +46,13 @@ export const MessagePartsAi = ({
         </div>
       </div>
       <div className="flex w-full max-w-sm flex-col gap-1 sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
+        {skillId ? (
+          <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs">
+            <span className="rounded-md border bg-muted px-2 py-0.5 font-mono">
+              {pageChat('current_skill_label')}: {skillId}
+            </span>
+          </div>
+        ) : null}
         <Card className="dark:border-card/0 block gap-0 px-4 py-4 text-sm">
           {pending ? (
             <div className="flex flex-row gap-2 py-2">

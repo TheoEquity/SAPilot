@@ -1,7 +1,6 @@
 import {
   ChatDetails,
   Collection,
-  ModelSpec,
   UploadDocumentResponseStatusEnum,
 } from '@/api';
 import { PageContent } from '@/components/page-container';
@@ -15,15 +14,6 @@ import {
   MentionInput,
   MentionItem,
 } from '@/components/ui/mention';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useSidebar } from '@/components/ui/sidebar';
 import { Textarea } from '@/components/ui/textarea';
 import { Toggle } from '@/components/ui/toggle';
@@ -50,11 +40,11 @@ export type ChatInputSubmitParams = {
   query: string;
   action?: string;
   collections: Collection[];
-  completion: {
+  completion?: {
     model: string;
     model_service_provider: string;
     custom_llm_provider: string;
-  };
+  } | null;
   web_search_enabled: boolean;
   language: string;
   files: {
@@ -104,7 +94,7 @@ export const ChatInput = ({
   const { mention, bot } = useBotContext();
   const [isComposing, setIsComposing] = useState<boolean>(false);
   const { open, isMobile } = useSidebar();
-  const { providerModels, collections } = useBotContext();
+  const { collections } = useBotContext();
   const [mentionOpen, setMentionOpen] = useState<boolean>(false);
   const locale = useLocale();
   const [query, setQuery] = useState<string>('');
@@ -118,12 +108,6 @@ export const ChatInput = ({
     'web-search-enabled',
     {
       defaultValue: false,
-    },
-  );
-  const [modelName, setModelName] = useLocalStorageState<string | undefined>(
-    'local-agent-completion-model',
-    {
-      defaultValue: bot?.config?.agent?.completion?.model,
     },
   );
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -305,34 +289,12 @@ export const ChatInput = ({
       return;
     }
 
-    let model: ModelSpec | undefined;
-    const provider = providerModels?.find((p) =>
-      p.models?.some((m) => m.model === modelName),
-    );
-
-    providerModels?.forEach((provider) => {
-      provider.models?.forEach((m) => {
-        if (m.model === modelName) {
-          model = m;
-        }
-      });
-    });
-
-    if (!modelName || model === undefined) {
-      toast.error(`Please select an LLM model.`);
-      return;
-    }
-
     const data = {
       query: _query,
       collections: collections.filter((c) =>
         selectedCollections.some((id) => c.id === id),
       ),
-      completion: {
-        model: modelName,
-        model_service_provider: provider?.name || '',
-        custom_llm_provider: model.custom_llm_provider || '',
-      },
+      completion: null,
       web_search_enabled: webSearchEnabled,
       language: locale,
       files: attachments
@@ -355,9 +317,7 @@ export const ChatInput = ({
     loading,
     locale,
     mentionOpen,
-    modelName,
     onSubmit,
-    providerModels,
     query,
     selectedCollections,
     webSearchEnabled,
@@ -394,27 +354,6 @@ export const ChatInput = ({
     },
     [addFilesToAttachments, attachments.length],
   );
-
-  useEffect(() => {
-    if (_.isEmpty(providerModels)) {
-      return;
-    }
-    let defaultModel: string | undefined;
-    let includesCurrentModel = false;
-    providerModels?.forEach((provider) => {
-      provider.models?.forEach((m) => {
-        if (m.tags?.some((t) => t === 'default_for_agent_completion')) {
-          defaultModel = m.model;
-        }
-        if (m.model === modelName) {
-          includesCurrentModel = true;
-        }
-      });
-    });
-    if (!includesCurrentModel) {
-      setModelName(defaultModel);
-    }
-  }, [modelName, providerModels, setModelName]);
 
   const enabledCollections = useMemo(() => {
     return collections.filter((c) => !selectedCollections.includes(c.id || ''));
@@ -649,39 +588,6 @@ export const ChatInput = ({
                   <TooltipContent>{page_chat('web_search')}</TooltipContent>
                 </Tooltip>
 
-                <Select
-                  value={modelName}
-                  disabled={disabled}
-                  defaultValue={modelName}
-                  onValueChange={(v) => {
-                    setModelName(v);
-                  }}
-                >
-                  <SelectTrigger className="w-60 cursor-pointer">
-                    <SelectValue placeholder="Select a model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {providerModels
-                      ?.filter((item) => _.size(item.models))
-                      .map((item) => {
-                        return (
-                          <SelectGroup key={item.name}>
-                            <SelectLabel>{item.label}</SelectLabel>
-                            {item.models?.map((model) => {
-                              return (
-                                <SelectItem
-                                  key={model.model}
-                                  value={model.model || ''}
-                                >
-                                  {model.model}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectGroup>
-                        );
-                      })}
-                  </SelectContent>
-                </Select>
                 <Button
                   size="icon"
                   disabled={disabled}

@@ -19,6 +19,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { ReactFlowEdge, ReactFlowSchema } from './orchestration-types';
@@ -30,6 +37,7 @@ export const FlowCanvasEditor = ({
   skillOptions,
   skillTools = [],
   onQuickSave,
+  mode = 'skill',
 }: {
   title: string;
   description: string;
@@ -38,6 +46,7 @@ export const FlowCanvasEditor = ({
   skillOptions?: Array<{ id: string; label: string }>;
   skillTools?: Array<{ id: string; name: string; description?: string }>;
   onQuickSave?: (value: ReactFlowSchema) => Promise<boolean>;
+  mode?: 'skill' | 'intent-router';
 }) => {
   const [nodes, setNodes] = useState<Node[]>(value?.nodes || []);
   const [edges, setEdges] = useState<Edge[]>(value?.edges || []);
@@ -180,8 +189,29 @@ export const FlowCanvasEditor = ({
       
       const id = `${type}-${Date.now()}`;
       let data: any = { label: type.charAt(0).toUpperCase() + type.slice(1) };
-      if (type === 'action') data = { ...data, label: page_bot('flow_canvas_default_action_label'), tools: [] };
-      if (type === 'condition') data = { ...data, label: page_bot('flow_canvas_default_condition_label') };
+      if (mode === 'skill') {
+        if (type === 'action') data = { ...data, label: page_bot('flow_canvas_default_action_label'), tools: [], prompt: '' };
+        if (type === 'condition') data = { ...data, label: page_bot('flow_canvas_default_condition_label'), prompt: '' };
+      }
+      if (mode === 'intent-router') {
+        if (type === 'action') {
+          data = {
+            ...data,
+            label: page_bot('intent_router_default_route_label'),
+            prompt: '',
+            target_skill_id: skillOptions?.[0]?.id || '',
+            examples_text: '',
+          };
+        }
+        if (type === 'condition') {
+          data = {
+            ...data,
+            label: page_bot('intent_router_default_condition_label'),
+            prompt: '',
+            examples_text: '',
+          };
+        }
+      }
       
       const newNodeTypeMap: Record<string, string> = {
           'start': 'startEnd',
@@ -199,7 +229,7 @@ export const FlowCanvasEditor = ({
       
       setNodes((prev) => [...prev, newNode]);
       setSaveState('idle');
-  }, [page_bot]);
+  }, [mode, page_bot, skillOptions]);
 
   const updateSelectedNodeData = useCallback((updates: Record<string, any>) => {
       setNodes((nds) => nds.map((node) => {
@@ -308,7 +338,20 @@ export const FlowCanvasEditor = ({
                             />
                         </div>
 
-                        {(selectedNode.type !== 'startEnd' && selectedNode.data.type !== 'start' && selectedNode.data.type !== 'end') && (
+                        {selectedNode.type !== 'startEnd' && (
+                            <div>
+                                <label className="mb-1 block text-xs font-medium">{page_bot('flow_canvas_prompt')}</label>
+                                <Textarea 
+                                    value={(selectedNode.data as any).prompt || ''} 
+                                    onChange={e => updateSelectedNodeData({ prompt: e.target.value })}
+                                    rows={6}
+                                    className="text-sm"
+                                    placeholder={page_bot('flow_canvas_prompt_placeholder')}
+                                />
+                            </div>
+                        )}
+
+                        {mode === 'skill' && (selectedNode.type !== 'startEnd' && selectedNode.data.type !== 'start' && selectedNode.data.type !== 'end') && (
                             <div>
                                 <label className="mb-1 block text-xs font-medium">{page_bot('flow_configure_tools')}</label>
                                 <ToolConfigPopover 
@@ -319,7 +362,39 @@ export const FlowCanvasEditor = ({
                                 />
                             </div>
                         )}
-                        
+
+                        {mode === 'intent-router' && selectedNode.type !== 'startEnd' && selectedNode.type === 'action' && (
+                            <div>
+                                <label className="mb-1 block text-xs font-medium">{page_bot('target_skill')}</label>
+                                <Select
+                                    value={String((selectedNode.data as any).target_skill_id || '')}
+                                    onValueChange={(value) => updateSelectedNodeData({ target_skill_id: value })}
+                                >
+                                    <SelectTrigger className="h-8 text-sm">
+                                        <SelectValue placeholder={page_bot('target_skill')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(skillOptions || []).map((skill) => (
+                                            <SelectItem key={skill.id} value={skill.id}>{skill.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {mode === 'intent-router' && selectedNode.type !== 'startEnd' && (
+                            <div>
+                                <label className="mb-1 block text-xs font-medium">{page_bot('intent_router_examples')}</label>
+                                <Textarea 
+                                    value={(selectedNode.data as any).examples_text || ''} 
+                                    onChange={e => updateSelectedNodeData({ examples_text: e.target.value })}
+                                    rows={4}
+                                    className="text-sm"
+                                    placeholder={page_bot('intent_router_examples_placeholder')}
+                                />
+                            </div>
+                        )}
+                         
                         {selectedNode.type !== 'startEnd' && (
                             <div>
                                 <label className="mb-1 block text-xs font-medium">{page_bot('flow_canvas_note')}</label>

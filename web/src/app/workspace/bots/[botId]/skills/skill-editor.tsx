@@ -436,14 +436,14 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 name="temperature"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Temperature</FormLabel>
+                    <FormLabel>{page_bot('temperature')}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        {...field}
-                        value={typeof field.value === 'number' ? field.value : ''}
-                      />
+                        <Input
+                          type="number"
+                          step="0.1"
+                          {...field}
+                          value={field.value === undefined || field.value === null ? '' : String(field.value)}
+                        />
                     </FormControl>
                   </FormItem>
                 )}
@@ -453,13 +453,13 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 name="max_tokens"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Max Tokens</FormLabel>
+                    <FormLabel>{page_bot('max_tokens')}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        value={typeof field.value === 'number' ? field.value : ''}
-                      />
+                        <Input
+                          type="number"
+                          {...field}
+                          value={field.value === undefined || field.value === null ? '' : String(field.value)}
+                        />
                     </FormControl>
                   </FormItem>
                 )}
@@ -640,12 +640,20 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
               })()}
             />
 
-            <FlowJsonEditor
-              title={page_bot('skill_flow_title')}
-              description={page_bot('skill_flow_description')}
-              value={flowDraft}
-              onChange={setFlowDraft}
-            />
+            <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b">
+              <summary className="select-none font-medium">
+                {page_bot('skill_flow_title')}
+                <span className="transition-transform group-open:rotate-90">▶</span>
+              </summary>
+              <div className="p-4">
+                <FlowJsonEditor
+                  title={page_bot('skill_flow_title')}
+                  description={page_bot('skill_flow_description')}
+                  value={flowDraft}
+                  onChange={setFlowDraft}
+                />
+              </div>
+            </details>
 
             <div className="flex gap-3">
               <Button variant="outline" asChild>

@@ -55,6 +55,12 @@ export interface ChatMessage {
      * @type {string}
      * @memberof ChatMessage
      */
+    'skill_id'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ChatMessage
+     */
     'role'?: ChatMessageRoleEnum;
     /**
      * 
@@ -113,4 +119,3 @@ export const ChatMessageRoleEnum = {
 } as const;
 
 export type ChatMessageRoleEnum = typeof ChatMessageRoleEnum[keyof typeof ChatMessageRoleEnum];
-
