@@ -313,6 +313,7 @@
     "only_one_fallback_skill_error": "Another default skill already exists. Please disable it first.",
     "skill_tools_available": "Available Tools",
     "flow_enabled_tools": "Enabled Tools for Node",
+    "flow_configure_tools": "Configure Tools",
     "llm_provider": "LLM Provider",
     "llm_model": "LLM Model",
     "skill_prompt_label": "Skill Prompt",

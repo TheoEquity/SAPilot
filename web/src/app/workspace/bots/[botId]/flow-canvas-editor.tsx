@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from 'next-intl';
 import type { ReactFlowEdge, ReactFlowNode, ReactFlowSchema } from './orchestration-types';
@@ -895,48 +896,81 @@ export const FlowCanvasEditor = ({
                   />
 
                   {skillTools.length > 0 ? (
-                    <div className="flex flex-col gap-3 pt-4 border-t">
-                      <div className="text-sm font-medium">{page_bot('flow_enabled_tools')}</div>
-                      <div className="grid gap-2">
-                        {skillTools.map((tool) => {
-                          const currentTools = (selectedNode.data?.enabled_tools || []) as string[];
-                          const isChecked = currentTools.includes(tool.id);
-                          return (
-                            <div key={tool.id} className="flex items-center gap-2">
-                              <Checkbox
-                                id={`tool-${tool.id}`}
-                                checked={isChecked}
-                                onCheckedChange={(checked) => {
-                                  const nextEnabledTools = checked
-                                    ? [...currentTools, tool.id]
-                                    : currentTools.filter((id: string) => id !== tool.id);
-
-                                  onChange({
-                                    ...value,
-                                    nodes: nodes.map((node) =>
-                                      node.id === selectedNode.id
-                                        ? {
-                                            ...node,
-                                            data: { ...node.data, enabled_tools: nextEnabledTools },
-                                          }
-                                        : node,
-                                    ),
-                                  });
-                                }}
-                              />
-                              <label
-                                htmlFor={`tool-${tool.id}`}
-                                className="flex flex-col"
-                              >
-                                <span className="text-sm font-medium leading-none">{tool.name}</span>
-                                {tool.description && (
-                                  <span className="text-muted-foreground text-xs">{tool.description}</span>
-                                )}
-                              </label>
+                    <div className="pt-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between font-normal"
+                            size="sm"
+                          >
+                            {page_bot('flow_configure_tools')}
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="ml-2 h-4 w-4 shrink-0 opacity-50"
+                            >
+                              <path d="M6 9l6 6 6-6" />
+                            </svg>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <div className="p-2">
+                            <div className="mb-2 text-xs font-medium text-muted-foreground">
+                              {page_bot('flow_enabled_tools')}
                             </div>
-                          );
-                        })}
-                      </div>
+                            <div className="flex max-h-60 flex-col gap-2 overflow-y-auto">
+                              {skillTools.map((tool) => {
+                                const currentTools = (selectedNode.data?.enabled_tools || []) as string[];
+                                const isChecked = currentTools.includes(tool.id);
+                                return (
+                                  <label
+                                    key={tool.id}
+                                    className="flex cursor-pointer items-center gap-2 rounded-md p-2 hover:bg-accent/50"
+                                  >
+                                    <Checkbox
+                                      checked={isChecked}
+                                      onCheckedChange={(checked) => {
+                                        const nextEnabledTools = checked
+                                          ? [...currentTools, tool.id]
+                                          : currentTools.filter((id: string) => id !== tool.id);
+
+                                        onChange({
+                                          ...value,
+                                          nodes: nodes.map((node) =>
+                                            node.id === selectedNode.id
+                                              ? {
+                                                  ...node,
+                                                  data: { ...node.data, enabled_tools: nextEnabledTools },
+                                                }
+                                              : node,
+                                          ),
+                                        });
+                                      }}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium">{tool.name}</span>
+                                      {tool.description && (
+                                        <span className="text-muted-foreground text-[10px]">
+                                          {tool.description}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   ) : null}
                   {selectedNode.type === 'intent' ? (

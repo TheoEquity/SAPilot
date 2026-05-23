@@ -590,13 +590,16 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 id: skill.id,
                 label: skill.name,
               }))}
-              skillTools={(form.watch('tools') || [])
-                .filter((t) => t.enabled)
-                .map((t) => ({
-                  id: t.tool_id,
-                  name: t.tool_id,
-                  description: availableTools.find((at) => at.name === t.tool_id)?.description,
-                }))}
+              skillTools={(() => {
+                const currentTools = form.watch('tools') || [];
+                return currentTools
+                  .filter((t) => t.enabled)
+                  .map((t) => ({
+                    id: t.tool_id,
+                    name: t.tool_id.replace(/_/g, ' '),
+                    description: availableTools.find((at) => at.name === t.tool_id)?.description,
+                  }));
+              })()}
             />
 
             <FlowJsonEditor
