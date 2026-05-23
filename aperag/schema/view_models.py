@@ -550,8 +550,6 @@ class SkillToolBinding(BaseModel):
 
 
 class SkillPrompts(BaseModel):
-    system_prompt: Optional[str] = None
-    query_prompt: Optional[str] = None
     skill_prompt: Optional[str] = None
 
 

@@ -77,11 +77,12 @@ class StoredChatMessage(BaseModel):
             frontend_messages.append(chatMessage)
         return frontend_messages
 
-    def to_openai_format(self) -> List[Dict[str, Any]]:
+    def to_openai_format(self, include_tool_results: bool = False) -> List[Dict[str, Any]]:
         """Convert to OpenAI ChatML format for LLM consumption (only conversation parts)"""
         openai_messages = []
         for part in self.parts:
-            if part.type == "message":  # Only include actual conversation content
+            # If include_tool_results is True, also include tool_call_result and thinking parts
+            if part.type == "message" or (include_tool_results and part.type in ["tool_call_result", "thinking"]):
                 # Map roles for OpenAI compatibility
                 openai_role = part.role
                 if part.role == "ai":

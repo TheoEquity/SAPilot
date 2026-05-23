@@ -45,8 +45,6 @@ const skillSchema = z.object({
   model: z.string(),
   temperature: z.coerce.number().min(0).max(2),
   max_tokens: z.coerce.number().min(1),
-  system_prompt: z.string(),
-  query_prompt: z.string(),
   skill_prompt: z.string(),
   collections: z.array(z.object({ id: z.string() })).optional(),
 });
@@ -85,8 +83,6 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
       model: existingSkill?.runtime?.model || '',
       temperature: existingSkill?.runtime?.temperature ?? 0.7,
       max_tokens: existingSkill?.runtime?.max_tokens ?? 2048,
-      system_prompt: existingSkill?.prompts?.system_prompt || '',
-      query_prompt: existingSkill?.prompts?.query_prompt || '',
       skill_prompt: existingSkill?.prompts?.skill_prompt || '',
       collections: existingSkill?.collections || [],
     }),
@@ -175,8 +171,6 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
         max_tokens: values.max_tokens,
       },
       prompts: {
-        system_prompt: values.system_prompt,
-        query_prompt: values.query_prompt,
         skill_prompt: values.skill_prompt,
       },
       tools: existingSkill?.tools || [],
@@ -491,32 +485,6 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 </FormItem>
               )}
             />
-
-              <FormField
-                control={form.control}
-                name="system_prompt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{page_bot('system_prompt_label')}</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value || ''} className="h-32 font-mono text-sm" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="query_prompt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{page_bot('query_prompt_label')}</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value || ''} className="h-24 font-mono text-sm" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
 
               <FormField
                 control={form.control}

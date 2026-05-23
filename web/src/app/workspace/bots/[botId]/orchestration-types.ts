@@ -89,8 +89,6 @@ export type SkillRuntimeConfig = {
 };
 
 export type SkillPrompts = {
-  system_prompt?: string;
-  query_prompt?: string;
   skill_prompt?: string;
 };
 

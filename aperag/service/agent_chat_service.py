@@ -41,6 +41,7 @@ from aperag.agent import (
     format_stream_end,
     format_stream_start,
 )
+from mcp_agent.workflows.llm.augmented_llm import SimpleMemory
 from aperag.agent.agent_config import AgentConfig
 from aperag.agent.agent_event_listener import agent_event_listener
 from aperag.agent.exceptions import (
@@ -103,6 +104,9 @@ class AgentChatService:
         # Initialize memory and history managers
         self.memory_manager = AgentMemoryManager()
         self.history_manager = AgentHistoryManager()
+        
+        # Skill-scoped context buffers: {chat_id: {"skill_id": "...", "messages": [...]}}
+        self.skill_context_buffers: Dict[str, dict] = {}
 
     async def _convert_db_collections_to_pydantic(self, db_collections) -> List[view_models.Collection]:
         """Convert SQLAlchemy Collection models to Pydantic Collection models"""
@@ -570,7 +574,17 @@ class AgentChatService:
             if not target_skill_id:
                 session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
                 llm = await session.get_llm(intent_router.llm.model)
-                llm.history = memory
+                
+                # Intent router only needs the last 1-2 turns for coreference resolution
+                # Take the most recent 4 messages (2 user + 2 assistant) max
+                recent_messages = history.messages[-4:] if len(history.messages) > 4 else history.messages
+                import re as _re
+                intent_memory = SimpleMemory()
+                for msg in recent_messages:
+                    for openai_msg in msg.to_openai_format(include_tool_results=True):
+                        intent_memory.append(openai_msg)
+                
+                llm.history = intent_memory
 
                 candidate_skills = intent_router.candidate_skills
                 skills_desc = "\n".join([
@@ -598,8 +612,22 @@ class AgentChatService:
 
                 logger.info("Intent classified: %s -> %s", merged_agent_message.query, target_skill_id)
 
+            # Step 2.5: Manage skill-scoped context isolation
+            # If switching skills, initialize a new buffer with recent history for continuity
+            current_buffer = self.skill_context_buffers.get(chat_id, {})
+            if current_buffer.get("skill_id") != target_skill_id:
+                # Skill switched: capture the most recent 4 messages (2 turns) as continuity context
+                self.skill_context_buffers[chat_id] = {
+                    "skill_id": target_skill_id,
+                    "messages": history.messages[-4:] if len(history.messages) > 4 else history.messages,
+                }
+                logger.info("Context switched to skill: %s", target_skill_id)
+            else:
+                # Same skill: continue accumulating context (will be appended after processing)
+                pass
+
             # Step 3: Execute skill (placeholder for now)
-            result = await self._execute_skill(target_skill_id, merged_agent_message, user, chat_id, message_id, message_queue, memory, resolved_query_prompt)
+            result = await self._execute_skill(target_skill_id, merged_agent_message, user, chat_id, message_id, message_queue, resolved_query_prompt)
             return result
 
             # Knowledge base search mode: full MCP agent with search tools
@@ -962,7 +990,6 @@ class AgentChatService:
         chat_id: str,
         message_id: str,
         message_queue: AgentMessageQueue,
-        memory,
         resolved_query_prompt: str,
     ) -> Dict[str, Any]:
         """Execute a skill based on intent routing result.
@@ -972,6 +999,17 @@ class AgentChatService:
         2. Execute the skill's flow or direct action
         3. Return the skill execution result
         """
+        # Build skill-scoped memory from the isolated context buffer
+        skill_buffer = self.skill_context_buffers.get(chat_id, {})
+        skill_memory = SimpleMemory()
+        
+        # Convert buffered messages to OpenAI format, including tool results
+        for msg in skill_buffer.get("messages", []):
+            for openai_msg in msg.to_openai_format(include_tool_results=True):
+                skill_memory.append(openai_msg)
+                
+        logger.info("Skill %s using isolated context with %d messages", skill_id, len(skill_memory.history))
+        
         # For now, return a placeholder response
         # TODO: Implement actual skill execution logic
         skill_response = (
@@ -1381,6 +1419,16 @@ class AgentChatService:
 
             if not history_saved:
                 logger.warning(f"Failed to save conversation history for chat: {chat_id}")
+
+            # Update skill-scoped context buffer with the new conversation turn
+            if chat_id in self.skill_context_buffers:
+                # Append the newly saved messages (user query + AI response + tool results)
+                # The history manager has already appended the new messages to the global history
+                # We just need to pull the latest 2 turns (4 messages) for the current skill buffer
+                current_history = await self.history_manager.get_chat_history(chat_id)
+                skill_buffer = self.skill_context_buffers[chat_id]
+                skill_buffer["messages"] = current_history.messages[-8:] if len(current_history.messages) > 8 else current_history.messages
+                logger.debug("Updated skill context buffer for %s with %d messages", chat_id, len(skill_buffer["messages"]))
 
         except Exception as e:
             # Don't let history saving errors break the flow
