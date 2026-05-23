@@ -128,20 +128,20 @@ endif
 .PHONY: compose-up compose-down compose-logs compose-infra
 # Full application startup
 compose-up:
-	$(_EXTRA_ENVS) docker-compose $(_PROFILES_TO_ACTIVATE) -f docker-compose.yml up -d
+	$(_EXTRA_ENVS) docker compose $(_PROFILES_TO_ACTIVATE) -f docker-compose.yml up -d
 
 # Infrastructure only (databases + supporting services)
 # Optional services like Neo4j and Jaeger will ONLY start if explicitly enabled:
 #   make compose-infra WITH_NEO4J=1    # adds Neo4j
 #   make compose-infra WITH_JAEGER=1   # adds Jaeger
 compose-infra:
-	docker-compose $(_PROFILES_TO_ACTIVATE) -f docker-compose.yml up -d postgres redis qdrant es
+	docker compose $(_PROFILES_TO_ACTIVATE) -f docker-compose.yml up -d postgres redis qdrant es
 
 compose-down:
-	docker-compose --profile docray --profile docray-gpu --profile neo4j --profile jaeger -f docker-compose.yml down $(_COMPOSE_DOWN_FLAGS)
+	docker compose --profile docray --profile docray-gpu --profile neo4j --profile jaeger -f docker-compose.yml down $(_COMPOSE_DOWN_FLAGS)
 
 compose-logs:
-	docker-compose -f docker-compose.yml logs -f
+	docker compose -f docker-compose.yml logs -f
 
 ##################################################
 # Development Services

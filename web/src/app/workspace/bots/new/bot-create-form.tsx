@@ -81,7 +81,6 @@ const botCreateSchema = z.object({
       welcome_subtitle: z.string(),
       system_prompt_template: z.string(),
       query_prompt_template: z.string(),
-      collections: z.array(z.object({ id: z.string() })).optional(),
     }),
   }),
 });
@@ -97,9 +96,6 @@ export type ProviderModel = {
 export const BotCreateForm = () => {
   const router = useRouter();
   const [completionModels, setCompletionModels] = useState<ProviderModel[]>();
-  const [collections, setCollections] = useState<
-    { id?: string; title?: string }[]
-  >([]);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingValues, setPendingValues] = useState<FormValueType | null>(null);
   const [defaultBotName, setDefaultBotName] = useState('');
@@ -124,7 +120,6 @@ export const BotCreateForm = () => {
         welcome_subtitle: DEFAULT_AGENT_WELCOME_SUBTITLE,
         system_prompt_template: DEFAULT_AGENT_SYSTEM_PROMPT,
         query_prompt_template: DEFAULT_AGENT_QUERY_PROMPT,
-        collections: [],
       },
     },
   };
@@ -148,11 +143,6 @@ export const BotCreateForm = () => {
       };
     });
     setCompletionModels(completion || []);
-  }, []);
-
-  const loadCollections = useCallback(async () => {
-    const res = await apiClient.defaultApi.collectionsGet();
-    setCollections(res.data.items || []);
   }, []);
 
   const tempBot = useMemo<Bot>(
@@ -189,10 +179,6 @@ export const BotCreateForm = () => {
 
   const executeCreate = useCallback(
     async (values: FormValueType, clearOldDefault: boolean) => {
-      const selectedCollections = collections.filter((c) =>
-        values.config.agent.collections?.some((sc) => sc.id === c.id),
-      );
-
       const botCreate = {
         title: values.title,
         description: values.description,
@@ -205,7 +191,6 @@ export const BotCreateForm = () => {
             welcome_subtitle: values.config.agent.welcome_subtitle,
             system_prompt_template: values.config.agent.system_prompt_template,
             query_prompt_template: values.config.agent.query_prompt_template,
-            collections: selectedCollections,
           },
         },
       };
@@ -238,7 +223,7 @@ export const BotCreateForm = () => {
         router.push(`/workspace/bots/${res.data.id}/edit`);
       }
     },
-    [collections, common_tips, router],
+    [common_tips, router],
   );
 
   const handleConfirm = useCallback(async () => {
@@ -292,8 +277,7 @@ export const BotCreateForm = () => {
 
   useEffect(() => {
     loadModels();
-    loadCollections();
-  }, [loadModels, loadCollections]);
+  }, [loadModels]);
 
   return (
     <Form {...form}>
@@ -450,86 +434,6 @@ export const BotCreateForm = () => {
                       </SelectContent>
                     </Select>
                   </FormControl>
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{page_bot('collection')}</CardTitle>
-            <CardDescription>
-              {page_bot('collection_description')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6 pt-6">
-            <FormField
-              control={form.control}
-              name="config.agent.collections"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{page_bot('collection')}</FormLabel>
-                  <FormControl>
-                    <Select
-                      onValueChange={(val) => {
-                        const current = field.value || [];
-                        if (val === '__clear__') {
-                          form.setValue('config.agent.collections', []);
-                        } else if (!current.some((c) => c.id === val)) {
-                          form.setValue('config.agent.collections', [
-                            ...current,
-                            { id: val },
-                          ]);
-                        }
-                      }}
-                      value=""
-                    >
-                      <SelectTrigger className="w-full cursor-pointer md:w-6/12">
-                        <SelectValue
-                          placeholder={page_bot('collection_placeholder')}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {collections.map((collection) => (
-                          <SelectItem key={collection.id} value={collection.id || ''}>
-                            {collection.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  {field.value && field.value.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {field.value.map((c) => {
-                        const col = collections.find(
-                          (col) => col.id === c.id,
-                        );
-                        return (
-                          <span
-                            key={c.id}
-                            className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-sm"
-                          >
-                            {col?.title || c.id}
-                            <button
-                              type="button"
-                              className="ml-1 rounded-full hover:bg-accent"
-                              onClick={() => {
-                                form.setValue(
-                                  'config.agent.collections',
-                                  field.value?.filter(
-                                    (item) => item.id !== c.id,
-                                  ) || [],
-                                );
-                              }}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
                 </FormItem>
               )}
             />

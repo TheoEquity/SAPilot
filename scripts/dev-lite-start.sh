@@ -44,7 +44,13 @@ printf '%s\n' "准备启动 SAPilot 低资源开发环境"
 REGISTRY_VALUE="${REGISTRY:-apecloud-registry.cn-zhangjiakou.cr.aliyuncs.com}"
 
 check_command docker "请先安装 Docker Desktop，并确认 docker 命令可用。"
-check_command docker-compose "请先安装 Docker Compose v1，或为当前环境提供 docker-compose 命令。"
+# Check for docker compose v2 (preferred) or docker-compose v1
+if ! docker compose version >/dev/null 2>&1; then
+  if ! command -v docker-compose >/dev/null 2>&1; then
+    printf '%s\n' "缺少 Docker Compose: 请先安装 Docker Compose v2 或 v1。"
+    exit 1
+  fi
+fi
 check_command bash "请先安装 bash。"
 check_command git "请先安装 git。"
 check_command yarn "请先安装 Node.js 20+ 和 yarn。"

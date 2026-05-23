@@ -23,7 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -32,6 +32,8 @@ import { normalizeOrchestration, updateBotOrchestration } from '../bot-config-up
 import { FlowCanvasEditor } from '../flow-canvas-editor';
 import { FlowJsonEditor } from '../flow-json-editor';
 import { normalizeFlowSchema } from '../flow-utils';
+import { apiClient } from '@/lib/api/client';
+import { LlmProviderModel } from '@/api';
 
 const skillSchema = z.object({
   id: z.string().min(1),
@@ -46,6 +48,7 @@ const skillSchema = z.object({
   system_prompt: z.string(),
   query_prompt: z.string(),
   skill_prompt: z.string(),
+  collections: z.array(z.object({ id: z.string() })).optional(),
 });
 
 type SkillEditorFormValues = z.output<typeof skillSchema>;
@@ -62,6 +65,15 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
     [orchestration.skills, skillId],
   );
 
+  const [collections, setCollections] = useState<
+    { id?: string; title?: string }[]
+  >([]);
+
+  const loadCollections = useCallback(async () => {
+    const res = await apiClient.defaultApi.collectionsGet();
+    setCollections(res.data.items || []);
+  }, []);
+
   const defaultValues = useMemo(
     () => ({
       id: existingSkill?.id || '',
@@ -76,12 +88,61 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
       system_prompt: existingSkill?.prompts?.system_prompt || '',
       query_prompt: existingSkill?.prompts?.query_prompt || '',
       skill_prompt: existingSkill?.prompts?.skill_prompt || '',
+      collections: existingSkill?.collections || [],
     }),
     [existingSkill],
   );
   const [flowDraft, setFlowDraft] = useState(() =>
     normalizeFlowSchema(existingSkill?.flow),
   );
+
+  useEffect(() => {
+    loadCollections();
+  }, [loadCollections]);
+
+  const [completionModels, setCompletionModels] = useState<LlmProviderModel[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
+
+  const uniqueProviders = useMemo(
+    () => [...new Set(completionModels.map((m) => m.provider_name))],
+    [completionModels],
+  );
+
+  const availableModels = useMemo(
+    () => completionModels.filter((m) => m.provider_name === selectedProvider),
+    [completionModels, selectedProvider],
+  );
+
+  const fetchCompletionModels = useCallback(async () => {
+    try {
+      const res = await apiClient.defaultApi.availableModelsPost({
+        tagFilterRequest: {
+          tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
+        },
+      });
+      const items = res.data.items || [];
+      const models = items.flatMap((item) =>
+        (item.completion || []).map((model) => ({
+          ...model,
+          provider_name: item.name,
+          api: 'completion' as const,
+        })),
+      );
+      setCompletionModels(models);
+    } catch (error) {
+      console.error('Failed to fetch available models', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCompletionModels();
+  }, [fetchCompletionModels]);
+
+  useEffect(() => {
+    if (existingSkill?.runtime?.provider) {
+      setSelectedProvider(existingSkill.runtime.provider);
+    }
+  }, [existingSkill?.runtime?.provider]);
 
   const form = useForm<
     z.input<typeof skillSchema>,
@@ -124,6 +185,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
         output_schema: {},
                   },
       flow: flowDraft,
+      collections: values.collections || [],
       meta: {
         ...(existingSkill?.meta || {}),
         updated_at: new Date().toISOString(),
@@ -197,7 +259,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 name="id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>ID</FormLabel>
+                    <FormLabel>{page_bot('skill_id')}</FormLabel>
                     <FormControl>
                       <Input {...field} value={field.value || ''} />
                     </FormControl>
@@ -238,7 +300,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Type</FormLabel>
+                    <FormLabel>{page_bot('skill_type')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -246,10 +308,10 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="workflow">Workflow</SelectItem>
-                        <SelectItem value="hybrid">Hybrid</SelectItem>
-                        <SelectItem value="llm">LLM</SelectItem>
-                        <SelectItem value="tool">Tool</SelectItem>
+                        <SelectItem value="workflow">{page_bot('skill_type_workflow')}</SelectItem>
+                        <SelectItem value="hybrid">{page_bot('skill_type_hybrid')}</SelectItem>
+                        <SelectItem value="llm">{page_bot('skill_type_llm')}</SelectItem>
+                        <SelectItem value="tool">{page_bot('skill_type_tool')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
@@ -261,7 +323,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 name="enabled"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <FormLabel>{page_bot('orchestration_configured')}</FormLabel>
+                    <FormLabel>{page_bot('skill_enabled')}</FormLabel>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
@@ -276,10 +338,26 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 name="provider"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>LLM Provider</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value || ''} />
-                    </FormControl>
+                    <FormLabel>{page_bot('llm_provider')}</FormLabel>
+                    <Select
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        setSelectedProvider(val);
+                      }}
+                      value={field.value || ''}
+                      disabled={uniqueProviders.length === 0}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={page_bot('select_provider')} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {uniqueProviders.map((p) => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormItem>
                 )}
               />
@@ -288,10 +366,23 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 name="model"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>LLM Model</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value || ''} />
-                    </FormControl>
+                    <FormLabel>{page_bot('llm_model')}</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || ''}
+                      disabled={availableModels.length === 0}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={page_bot('select_model')} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableModels.map((m) => (
+                          <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormItem>
                 )}
               />
@@ -335,40 +426,108 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
 
             <FormField
               control={form.control}
-              name="system_prompt"
+              name="collections"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{page_bot('system_prompt_template')}</FormLabel>
+                  <FormLabel>{page_bot('collection')}</FormLabel>
                   <FormControl>
-                    <Textarea {...field} value={field.value || ''} className="h-32 font-mono text-sm" />
+                    <Select
+                      onValueChange={(val) => {
+                        const current = field.value || [];
+                        if (val === '__clear__') {
+                          form.setValue('collections', []);
+                        } else if (!current.some((c) => c.id === val)) {
+                          form.setValue('collections', [
+                            ...current,
+                            { id: val },
+                          ]);
+                        }
+                      }}
+                      value=""
+                    >
+                      <SelectTrigger className="w-full md:w-6/12">
+                        <SelectValue placeholder={page_bot('collection_placeholder')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {collections.map((collection) => (
+                          <SelectItem key={collection.id} value={collection.id || ''}>
+                            {collection.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormControl>
+                  {field.value && field.value.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {field.value.map((c) => {
+                        const col = collections.find(
+                          (col) => col.id === c.id,
+                        );
+                        return (
+                          <span
+                            key={c.id}
+                            className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-sm"
+                          >
+                            {col?.title || c.id}
+                            <button
+                              type="button"
+                              className="ml-1 rounded-full hover:bg-accent"
+                              onClick={() => {
+                                form.setValue(
+                                  'collections',
+                                  field.value?.filter(
+                                    (item) => item.id !== c.id,
+                                  ) || [],
+                                );
+                              }}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                 </FormItem>
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="query_prompt"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{page_bot('query_prompt_template')}</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} value={field.value || ''} className="h-24 font-mono text-sm" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="system_prompt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{page_bot('system_prompt_label')}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value || ''} className="h-32 font-mono text-sm" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="skill_prompt"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{page_bot('skills_title')}</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} value={field.value || ''} className="h-24 font-mono text-sm" />
-                  </FormControl>
-                </FormItem>
+              <FormField
+                control={form.control}
+                name="query_prompt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{page_bot('query_prompt_label')}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value || ''} className="h-24 font-mono text-sm" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="skill_prompt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{page_bot('skill_prompt_label')}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value || ''} className="h-24 font-mono text-sm" />
+                    </FormControl>
+                  </FormItem>
                 )}
               />
 

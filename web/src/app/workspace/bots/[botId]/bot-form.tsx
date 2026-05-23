@@ -22,14 +22,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
   Form,
   FormControl,
   FormDescription,
@@ -38,11 +30,6 @@ import {
   FormLabel,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -58,7 +45,6 @@ import { apiClient } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import _ from 'lodash';
-import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -94,7 +80,6 @@ const botConfigSchema = z.object({
       welcome_subtitle: z.string(),
       system_prompt_template: z.string(),
       query_prompt_template: z.string(),
-      collections: z.array(z.object({ id: z.string() })).optional(),
     }),
   }),
 });
@@ -109,7 +94,7 @@ export type ProviderModel = {
 
 export const BotForm = () => {
   const router = useRouter();
-  const { bot, collections, loadBot } = useBotConfigContext();
+  const { bot, loadBot } = useBotConfigContext();
   const [completionModels, setCompletionModels] = useState<ProviderModel[]>();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingValues, setPendingValues] = useState<FormValueType | null>(
@@ -123,8 +108,6 @@ export const BotForm = () => {
   const botConfig = (bot.config || {}) as BotConfigWithOrchestration;
 
   const agentConfig = botConfig.agent;
-  const selectedCollectionIds =
-    agentConfig?.collections?.map((c) => c.id).filter(Boolean) || [];
   const completion = agentConfig?.completion;
 
   const defaultValues: FormValueType = {
@@ -151,11 +134,6 @@ export const BotForm = () => {
           agentConfig?.system_prompt_template || DEFAULT_AGENT_SYSTEM_PROMPT,
         query_prompt_template:
           agentConfig?.query_prompt_template || DEFAULT_AGENT_QUERY_PROMPT,
-        collections:
-          agentConfig?.collections
-            ?.map((collection) => collection.id)
-            .filter((id): id is string => Boolean(id))
-            .map((id) => ({ id })) || [],
       },
     },
   };
@@ -185,10 +163,6 @@ export const BotForm = () => {
     async (values: FormValueType, clearOldDefault: boolean) => {
       if (!bot?.id) return;
 
-      const selectedCollections = collections.filter((c) =>
-        values.config.agent.collections?.some((sc) => sc.id === c.id),
-      );
-
       const botUpdate = {
         title: values.title,
         description: values.description,
@@ -200,7 +174,6 @@ export const BotForm = () => {
             welcome_subtitle: values.config.agent.welcome_subtitle,
             system_prompt_template: values.config.agent.system_prompt_template,
             query_prompt_template: values.config.agent.query_prompt_template,
-            collections: selectedCollections,
           },
           flow: botConfig.flow,
           orchestration: botConfig.orchestration,
@@ -232,7 +205,7 @@ export const BotForm = () => {
       toast.success(common_tips('update_success'));
       loadBot();
     },
-    [bot?.id, botConfig.flow, botConfig.orchestration, collections, common_tips, loadBot],
+    [bot?.id, botConfig.flow, botConfig.orchestration, common_tips, loadBot],
   );
 
   const handleSubmit = useCallback(
@@ -479,129 +452,6 @@ export const BotForm = () => {
                   </FormControl>
                 </FormItem>
               )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{page_bot('collection')}</CardTitle>
-            <CardDescription>
-              {page_bot('collection_description')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6 pt-6">
-            <FormField
-              control={form.control}
-              name="config.agent.collections"
-              render={({ field }) => {
-                const selectedIds = field.value?.map((c) => c.id) || [];
-                const selectedItems = collections.filter((c) =>
-                  c.id ? selectedIds.includes(c.id) : false,
-                );
-
-                return (
-                  <FormItem>
-                    <FormLabel>{page_bot('collection')}</FormLabel>
-                    <FormControl>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            className="w-full justify-between md:w-6/12"
-                          >
-                            {selectedItems.length > 0
-                              ? page_bot('collection_selected', {
-                                  count: String(selectedItems.length),
-                                })
-                              : page_bot('collection_placeholder')}
-                            <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0 md:w-6/12">
-                          <Command>
-                            <CommandInput
-                              placeholder={page_bot('collection_search')}
-                            />
-                            <CommandList>
-                              <CommandEmpty>
-                                {page_bot('no_collection_found')}
-                              </CommandEmpty>
-                              <CommandGroup>
-                                {collections.map((collection) => {
-                                  const isSelected = selectedIds.includes(
-                                    collection.id || '',
-                                  );
-                                  return (
-                                    <CommandItem
-                                      key={collection.id}
-                                      value={collection.id || ''}
-                                      onSelect={() => {
-                                        const current = field.value || [];
-                                        if (isSelected) {
-                                          form.setValue(
-                                            'config.agent.collections',
-                                            current.filter(
-                                              (c) => c.id !== collection.id,
-                                            ),
-                                          );
-                                        } else {
-                                          if (!collection.id) return;
-                                          form.setValue(
-                                            'config.agent.collections',
-                                            [...current, { id: collection.id }],
-                                          );
-                                        }
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          'mr-2 size-4',
-                                          isSelected
-                                            ? 'opacity-100'
-                                            : 'opacity-0',
-                                        )}
-                                      />
-                                      {collection.title}
-                                    </CommandItem>
-                                  );
-                                })}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </FormControl>
-                    {selectedItems.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {selectedItems.map((c) => (
-                          <Badge
-                            key={c.id}
-                            variant="secondary"
-                            className="gap-1 pr-1"
-                          >
-                            {c.title}
-                            <button
-                              type="button"
-                              className="hover:bg-accent ml-1 rounded-full"
-                              onClick={() => {
-                                const current = field.value || [];
-                                form.setValue(
-                                  'config.agent.collections',
-                                  current.filter((item) => item.id !== c.id),
-                                );
-                              }}
-                            >
-                              <X className="size-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </FormItem>
-                );
-              }}
             />
           </CardContent>
         </Card>

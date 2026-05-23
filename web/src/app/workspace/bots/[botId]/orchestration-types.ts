@@ -99,6 +99,10 @@ export type SkillIOConfig = {
   output_schema?: Record<string, unknown>;
 };
 
+export type SkillCollection = {
+  id: string;
+};
+
 export type OrchestrationSkill = {
   id: string;
   name: string;
@@ -111,6 +115,7 @@ export type OrchestrationSkill = {
   tools?: SkillToolBinding[];
   io?: SkillIOConfig;
   flow?: ReactFlowSchema;
+  collections?: SkillCollection[];
   meta?: Record<string, unknown>;
 };
 
