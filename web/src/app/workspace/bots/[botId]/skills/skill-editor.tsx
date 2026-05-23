@@ -160,6 +160,15 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
   }, [existingSkill?.flow]);
 
   const handleSave = form.handleSubmit(async (values) => {
+    // Check for unique default skill constraint
+    if (values.is_fallback) {
+      const existingFallback = orchestration.intent_router?.fallback_skill_id;
+      if (existingFallback && existingFallback !== skillId) {
+        toast.error(page_bot('error'), page_bot('only_one_fallback_skill_error'));
+        return;
+      }
+    }
+
     const nextSkill = {
       id: values.id,
       name: values.name,

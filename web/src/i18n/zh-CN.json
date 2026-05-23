@@ -310,6 +310,7 @@
     "skill_enabled": "已启用",
     "skill_default": "设为默认技能",
     "skill_default_desc": "意图匹配失败时，自动进入此技能。",
+    "only_one_fallback_skill_error": "已有一个默认技能，请先将其取消才能设置。",
     "llm_provider": "LLM 供应商",
     "llm_model": "LLM 模型",
     "skill_prompt_label": "技能提示",
