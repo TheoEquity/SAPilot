@@ -308,6 +308,8 @@
     "skill_type_llm": "LLM",
     "skill_type_tool": "Tool",
     "skill_enabled": "Enabled",
+    "skill_default": "Set as Default Skill",
+    "skill_default_desc": "Route to this skill when intent matching fails.",
     "llm_provider": "LLM Provider",
     "llm_model": "LLM Model",
     "skill_prompt_label": "Skill Prompt",

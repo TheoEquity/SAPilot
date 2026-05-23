@@ -40,6 +40,7 @@ const skillSchema = z.object({
   name: z.string().min(1),
   description: z.string(),
   enabled: z.boolean(),
+  is_fallback: z.boolean(),
   type: z.enum(['llm', 'tool', 'workflow', 'hybrid']),
   provider: z.string(),
   model: z.string(),
@@ -78,6 +79,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
       name: existingSkill?.name || '',
       description: existingSkill?.description || '',
       enabled: existingSkill?.enabled ?? true,
+      is_fallback: orchestration.intent_router?.fallback_skill_id === skillId,
       type: existingSkill?.type || 'workflow',
       provider: existingSkill?.runtime?.provider || '',
       model: existingSkill?.runtime?.model || '',
@@ -173,6 +175,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
       prompts: {
         skill_prompt: values.skill_prompt,
       },
+      is_fallback: values.is_fallback,
       tools: existingSkill?.tools || [],
       io: existingSkill?.io || {
         input_schema: {},
@@ -209,13 +212,10 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
         };
       });
 
-    const nextFallbackSkillId =
-      orchestration.intent_router?.fallback_skill_id &&
-      nextSkills.some(
-        (skill) => skill.id === orchestration.intent_router?.fallback_skill_id,
-      )
-        ? orchestration.intent_router.fallback_skill_id
-        : nextSkills[0]?.id || '';
+      const currentFallback = orchestration.intent_router?.fallback_skill_id || '';
+      const nextFallbackSkillId = values.is_fallback
+        ? values.id
+        : (currentFallback === skillId ? '' : currentFallback);
 
     await updateBotOrchestration({
       bot,
@@ -318,6 +318,21 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <FormLabel>{page_bot('skill_enabled')}</FormLabel>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="is_fallback"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <FormLabel>{page_bot('skill_default')}</FormLabel>
+                      <p className="text-xs text-muted-foreground">{page_bot('skill_default_desc')}</p>
+                    </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
