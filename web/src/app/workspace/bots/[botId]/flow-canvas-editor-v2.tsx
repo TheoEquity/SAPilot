@@ -22,17 +22,12 @@ import { DialogTitle } from '@/components/ui/dialog';
 import type { ReactFlowSchema, ReactFlowNode, ReactFlowEdge } from './orchestration-types';
 
 export const FlowCanvasEditor = ({
-  title, description,
   value,
   onChange,
-  skillOptions, // Keep for compatibility but unused in new UI
   skillTools = [],
 }: {
-  title: string;
-  description: string;
   value: ReactFlowSchema;
   onChange: (value: ReactFlowSchema) => void;
-  skillOptions?: Array<{ id: string; label: string }>;
   skillTools?: Array<{ id: string; name: string; description?: string }>;
 }) => {
   const page_bot = useTranslations('page_bot');
