@@ -78,6 +78,7 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
                   : [],
                 data: '',
                 role: 'ai',
+                skill_id: fragment.skill_id,
               });
             }
             if (fragment.type === 'start') {

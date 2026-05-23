@@ -94,7 +94,7 @@ class AgentEventListener(EventListener):
         # This is a critical assumption for this pattern to work.
         trace_id = event.trace_id
         if not trace_id:
-            logger.warning("Received event without a trace_id. Cannot dispatch.")
+            logger.debug("Received event without a trace_id. Skipping dispatch.")
             return
 
         # async with self._lock:
@@ -107,7 +107,7 @@ class AgentEventListener(EventListener):
             # Dispatch the event only to the correct listener
             await listener.handle_event(event)
         else:
-            logger.warning(f"Received event for trace_id {trace_id} but no listener was registered.")
+            logger.debug(f"Received event for trace_id {trace_id} but no listener was registered.")
 
 
 # Create a single instance for the application to use

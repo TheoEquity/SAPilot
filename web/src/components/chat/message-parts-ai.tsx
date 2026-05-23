@@ -1,5 +1,6 @@
 import { ChatMessage, Feedback } from '@/api';
 import { CopyToClipboard } from '@/components/copy-to-clipboard';
+import { useBotContext } from '@/components/providers/bot-provider';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -26,6 +27,7 @@ export const MessagePartsAi = ({
   onFaqChoice: (action: string, label: string) => void;
 }) => {
   const pageChat = useTranslations('page_chat');
+  const { bot } = useBotContext();
   const references = useMemo(
     () => parts.findLast((part) => part.references)?.references || [],
     [parts],
@@ -34,6 +36,14 @@ export const MessagePartsAi = ({
     () => parts.find((part) => part.skill_id)?.skill_id || '',
     [parts],
   );
+  const skillLabel = useMemo(() => {
+    if (!skillId) return '';
+    const skills =
+      ((bot?.config as { orchestration?: { skills?: { id?: string; name?: string; label?: string }[] } })
+        ?.orchestration?.skills || []);
+    const matchedSkill = skills.find((skill) => skill.id === skillId);
+    return matchedSkill?.name || matchedSkill?.label || matchedSkill?.id || skillId;
+  }, [bot?.config, skillId]);
 
   return (
     <div className="flex w-full flex-row gap-4">
@@ -46,10 +56,10 @@ export const MessagePartsAi = ({
         </div>
       </div>
       <div className="flex w-full max-w-sm flex-col gap-1 sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
-        {skillId ? (
+        {skillLabel ? (
           <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs">
             <span className="rounded-md border bg-muted px-2 py-0.5 font-mono">
-              {pageChat('current_skill_label')}: {skillId}
+              {pageChat('current_skill_label')}: {skillLabel}
             </span>
           </div>
         ) : null}

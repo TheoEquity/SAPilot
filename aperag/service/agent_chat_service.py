@@ -315,8 +315,9 @@ class AgentChatService:
 
         trace_id, _ = get_current_trace_info()
         if not trace_id:
-            logger.error("Could not get trace_id from current span, event dispatching will fail.")
+            logger.info("No active trace_id found; skipping event listener registration for this request.")
         else:
+            await agent_event_listener.initialize()
             # Register a listener for this request with the global proxy.
             await agent_event_listener.register_listener(
                 trace_id=str(trace_id),
@@ -582,7 +583,8 @@ class AgentChatService:
                 
                 # Intent router only needs the last 1-2 turns for coreference resolution
                 # Take the most recent 4 messages (2 user + 2 assistant) max
-                recent_messages = history.messages[-4:] if len(history.messages) > 4 else history.messages
+                history_messages = await history.messages
+                recent_messages = history_messages[-4:] if len(history_messages) > 4 else history_messages
                 import re as _re
                 intent_memory = SimpleMemory()
                 for msg in recent_messages:
@@ -624,7 +626,7 @@ class AgentChatService:
                 # Skill switched: capture the most recent 4 messages (2 turns) as continuity context
                 self.skill_context_buffers[chat_id] = {
                     "skill_id": target_skill_id,
-                    "messages": history.messages[-4:] if len(history.messages) > 4 else history.messages,
+                    "messages": recent_messages,
                 }
                 logger.info("Context switched to skill: %s", target_skill_id)
             else:
@@ -634,7 +636,7 @@ class AgentChatService:
             # Step 3: Execute skill with orchestration config and tool filtering
             result = await self._execute_skill(
                 target_skill_id, merged_agent_message, user, chat_id, message_id, message_queue,
-                resolved_query_prompt, orchestration=orchestration,
+                resolved_query_prompt, resolved_system_prompt=resolved_system_prompt, orchestration=orchestration,
             )
             return result
 
@@ -740,7 +742,9 @@ class AgentChatService:
             }
 
         finally:
-            await message_queue.close()
+            queue_close = getattr(message_queue, "close", None)
+            if callable(queue_close):
+                await queue_close()
 
     def _format_exception_to_error_response(self, exception: Exception, language: str) -> AgentErrorResponse:
         """
@@ -999,6 +1003,7 @@ class AgentChatService:
         message_id: str,
         message_queue: AgentMessageQueue,
         resolved_query_prompt: str,
+        resolved_system_prompt: str | None = None,
         orchestration: Optional[view_models.OrchestrationConfig] = None,
     ) -> Dict[str, Any]:
         """Execute a skill based on intent routing result.
@@ -1042,8 +1047,13 @@ class AgentChatService:
         skill_buffer = self.skill_context_buffers.get(chat_id, {})
         skill_memory = SimpleMemory()
         for msg in skill_buffer.get("messages", []):
-            for openai_msg in msg.to_openai_format(include_tool_results=True):
-                skill_memory.append(openai_msg)
+            if hasattr(msg, "to_openai_format"):
+                for openai_msg in msg.to_openai_format(include_tool_results=True):
+                    skill_memory.append(openai_msg)
+                continue
+
+            if isinstance(msg, dict) and msg.get("role") and "content" in msg:
+                skill_memory.append(msg)
 
         logger.info("Skill %s using isolated context with %d messages", skill_id, len(skill_memory.history))
 
@@ -1062,7 +1072,7 @@ class AgentChatService:
                     node_label = node.data.get("label") if isinstance(node.data.get("label"), str) else node.id
                     node_prompt_blocks.append(f"[Node: {node_label}]\n{node_prompt.strip()}")
 
-        base_system_prompt = await prompt_template_service.resolve_agent_system_prompt(user_id=user)
+        base_system_prompt = resolved_system_prompt or ""
         prompt_parts = [base_system_prompt]
         if skill_prompt_text:
             prompt_parts.append(skill_prompt_text)
@@ -1169,12 +1179,6 @@ class AgentChatService:
 
             tool_references = extract_tool_call_references(llm.history)
             await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[], skill_id=skill_id))
-
-            # Update the skill context buffer with the new messages
-            if chat_id in self.skill_context_buffers:
-                buffer = self.skill_context_buffers[chat_id]
-                if buffer.get("skill_id") == skill_id:
-                    buffer["messages"].extend(skill_memory.history[len(skill_buffer.get("messages", [])):])
 
             return {
                 "query": agent_message.query,
@@ -1582,8 +1586,11 @@ class AgentChatService:
                 # The history manager has already appended the new messages to the global history
                 # We just need to pull the latest 2 turns (4 messages) for the current skill buffer
                 current_history = await self.history_manager.get_chat_history(chat_id)
+                current_history_messages = await current_history.messages
                 skill_buffer = self.skill_context_buffers[chat_id]
-                skill_buffer["messages"] = current_history.messages[-8:] if len(current_history.messages) > 8 else current_history.messages
+                skill_buffer["messages"] = (
+                    current_history_messages[-8:] if len(current_history_messages) > 8 else current_history_messages
+                )
                 logger.debug("Updated skill context buffer for %s with %d messages", chat_id, len(skill_buffer["messages"]))
 
         except Exception as e:

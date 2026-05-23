@@ -30,6 +30,12 @@ from .exceptions import agent_config_invalid, mcp_init_failed
 logger = logging.getLogger(__name__)
 
 
+def _quiet_known_noisy_loggers() -> None:
+    """Reduce known third-party cleanup log noise without touching runtime behavior."""
+    logging.getLogger("opentelemetry.context").setLevel(logging.CRITICAL)
+    logging.getLogger("mcp_agent.tracing.token_counter").setLevel(logging.ERROR)
+
+
 class MCPAppFactory:
     """Factory class for creating MCP applications."""
 
@@ -61,6 +67,8 @@ class MCPAppFactory:
                 raise agent_config_invalid(param_name, f"{param_name} is required")
 
         try:
+            _quiet_known_noisy_loggers()
+
             # mcp-agent's OpenAI-compatible client reads these env vars in some versions.
             os.environ["OPENAI_API_KEY"] = api_key
             os.environ["OPENAI_BASE_URL"] = base_url
