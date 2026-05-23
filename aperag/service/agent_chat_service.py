@@ -599,8 +599,23 @@ class AgentChatService:
                     for s in candidate_skills if s.enabled
                 ])
 
-                prompt = intent_router.prompt_template or (
-                    f"Classify into one skill:\n{skills_desc}\n\nQuery: {merged_agent_message.query}\nReply with skill_id only."
+                prompt_template = intent_router.prompt_template or ""
+                prompt = prompt_template.replace("{{query}}", merged_agent_message.query)
+                prompt = prompt.replace("{{skills}}", skills_desc)
+                if not prompt.strip():
+                    prompt = (
+                        f"Classify into one skill:\n{skills_desc}\n\n"
+                        f"Query: {merged_agent_message.query}\nReply with skill_id only."
+                    )
+
+                # Always append the authoritative candidate skill list and exact-output rule.
+                # This keeps routing correct even if the saved prompt uses legacy aliases.
+                prompt = (
+                    f"{prompt.strip()}\n\n"
+                    f"Authoritative candidate skills (you must choose one exact skill_id from this list):\n"
+                    f"{skills_desc}\n\n"
+                    f"Current user input:\n{merged_agent_message.query}\n\n"
+                    f"Output exactly one skill_id from the authoritative candidate list above."
                 )
 
                 params = RequestParams(
@@ -830,6 +845,16 @@ class AgentChatService:
         rules: list,
     ) -> Optional[str]:
         """Try to match hard rules against the query. Returns target_skill_id or None."""
+        def normalize_keyword_text(text: str) -> str:
+            normalized = (text or "").lower()
+            normalized = re.sub(r"[\s\t\r\n]+", "", normalized)
+            normalized = re.sub(r"[!！?？。,.，；;:：~～]", "", normalized)
+            normalized = re.sub(r"(查|看|搜|问)一下", r"\1", normalized)
+            normalized = re.sub(r"(查|看|搜|问)下", r"\1", normalized)
+            return normalized
+
+        normalized_query = normalize_keyword_text(query)
+
         for rule in rules:
             if not rule.get('enabled', True):
                 continue
@@ -843,7 +868,12 @@ class AgentChatService:
 
             matched = False
             if rule_type == 'keyword':
-                matched = value in query or value.lower() in query.lower()
+                normalized_value = normalize_keyword_text(value)
+                matched = (
+                    value in query
+                    or value.lower() in query.lower()
+                    or (normalized_value and normalized_value in normalized_query)
+                )
             elif rule_type == 'regex':
                 try:
                     matched = bool(re.search(value, query, re.IGNORECASE | re.UNICODE))

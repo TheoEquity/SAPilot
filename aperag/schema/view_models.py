@@ -571,6 +571,10 @@ class SkillIOConfig(BaseModel):
     output_schema: Optional[dict[str, Any]] = None
 
 
+class SkillCollection(BaseModel):
+    id: str
+
+
 class SkillConfig(BaseModel):
     id: str
     name: str
@@ -583,6 +587,7 @@ class SkillConfig(BaseModel):
     tools: list[SkillToolBinding] = Field(default_factory=list)
     io: Optional[SkillIOConfig] = None
     flow: Optional[ReactFlowSchema] = None
+    collections: list[SkillCollection] = Field(default_factory=list)
     meta: Optional[dict[str, Any]] = None
 
 

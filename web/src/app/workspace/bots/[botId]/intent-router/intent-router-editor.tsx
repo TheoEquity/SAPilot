@@ -127,6 +127,48 @@ export const IntentRouterEditor = () => {
     normalizeFlowSchema(intentRouter?.flow),
   );
 
+  const getCandidateSkillsFromFlow = useCallback(() => {
+    const examplesBySkillId = new Map<string, string[]>();
+
+    (flowDraft.nodes || []).forEach((node) => {
+      if (node.type !== 'condition') {
+        return;
+      }
+
+      const nodeData = node.data as {
+        target_skill_id?: string;
+        examples_text?: string;
+      };
+      const targetSkillId = nodeData.target_skill_id;
+      if (!targetSkillId) {
+        return;
+      }
+
+      const examples = (nodeData.examples_text || '')
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      if (examples.length > 0) {
+        examplesBySkillId.set(targetSkillId, examples);
+      }
+    });
+
+    return skillOptions.map((skill) => {
+      const existingCandidate = intentRouter?.candidate_skills?.find(
+        (candidate) => candidate.skill_id === skill.id,
+      );
+
+      return {
+        skill_id: skill.id,
+        label: skill.name,
+        description: skill.description,
+        enabled: existingCandidate?.enabled ?? skill.enabled ?? true,
+        examples: examplesBySkillId.get(skill.id) || existingCandidate?.examples || [],
+      };
+    });
+  }, [flowDraft.nodes, intentRouter?.candidate_skills, skillOptions]);
+
   const [rules, setRules] = useState<IntentRouterRule[]>(
     () => intentRouter?.rules || [],
   );
@@ -182,6 +224,7 @@ export const IntentRouterEditor = () => {
   }, [intentRouter?.flow]);
 
   const handleSave = form.handleSubmit(async (values) => {
+    const nextCandidateSkills = getCandidateSkillsFromFlow();
     const nextOrchestration = {
       ...orchestration,
       intent_router: {
@@ -199,7 +242,7 @@ export const IntentRouterEditor = () => {
           max_tokens: values.max_tokens,
         },
         prompt_template: values.prompt_template,
-        candidate_skills: candidateSkills,
+        candidate_skills: nextCandidateSkills,
         rules,
         flow: flowDraft,
         meta: {
