@@ -60,7 +60,8 @@ class BotService:
                 system_prompt_template=self.DEFAULT_AGENT_SYSTEM_PROMPT,
                 query_prompt_template=self.DEFAULT_AGENT_QUERY_PROMPT,
                 collections=[],
-            )
+            ),
+            orchestration=view_models.OrchestrationConfig(),
         )
 
     def build_default_agent_bot_create(self) -> view_models.BotCreate:

@@ -199,6 +199,7 @@
     "chats": "Chats",
     "orchestration_title": "Orchestration",
     "orchestration_description": "Configure the intent router and skill capabilities for this Agent.",
+    "orchestration_disabled_hint": "Configure orchestration after saving the Agent",
     "intent_router_title": "Intent Router",
     "intent_router_description": "Configure how requests are routed to different skills.",
     "skills_title": "Skills",
@@ -300,7 +301,19 @@
     "max_tokens": "Max Tokens",
     "llm_only": "LLM",
     "rules_and_llm": "Rules + LLM",
-    "failed_to_fetch_llm_config": "Failed to fetch LLM configuration"
+    "failed_to_fetch_llm_config": "Failed to fetch LLM configuration",
+    "skill_type": "Skill Type",
+    "skill_type_workflow": "Workflow",
+    "skill_type_hybrid": "Hybrid",
+    "skill_type_llm": "LLM",
+    "skill_type_tool": "Tool",
+    "skill_enabled": "Enabled",
+    "llm_provider": "LLM Provider",
+    "llm_model": "LLM Model",
+    "skill_prompt_label": "Skill Prompt",
+    "system_prompt_label": "System Prompt",
+    "query_prompt_label": "Query Prompt",
+    "skill_id": "Skill ID"
   },
   "page_chat": {
     "metadata": {

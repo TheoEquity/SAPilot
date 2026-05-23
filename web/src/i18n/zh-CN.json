@@ -199,6 +199,7 @@
     "chats": "会话",
     "orchestration_title": "能力编排",
     "orchestration_description": "配置该 Agent 的意图识别器与技能能力。",
+    "orchestration_disabled_hint": "保存 Agent 后可配置能力编排",
     "intent_router_title": "意图识别器",
     "intent_router_description": "配置请求如何路由到不同技能。",
     "skills_title": "技能配置",
@@ -300,7 +301,19 @@
     "max_tokens": "Max Tokens",
     "llm_only": "LLM",
     "rules_and_llm": "规则 + LLM",
-    "failed_to_fetch_llm_config": "获取 LLM 配置失败"
+    "failed_to_fetch_llm_config": "获取 LLM 配置失败",
+    "skill_type": "技能类型",
+    "skill_type_workflow": "工作流",
+    "skill_type_hybrid": "混合",
+    "skill_type_llm": "LLM",
+    "skill_type_tool": "工具",
+    "skill_enabled": "已启用",
+    "llm_provider": "LLM 供应商",
+    "llm_model": "LLM 模型",
+    "skill_prompt_label": "技能提示",
+    "system_prompt_label": "系统提示",
+    "query_prompt_label": "查询提示",
+    "skill_id": "技能 ID"
   },
   "page_chat": {
     "metadata": {

@@ -483,8 +483,6 @@ export const BotForm = () => {
           </CardContent>
         </Card>
 
-        <BotOrchestrationCard />
-
         <Card>
           <CardHeader>
             <CardTitle>{page_bot('collection')}</CardTitle>
@@ -685,6 +683,8 @@ export const BotForm = () => {
             />
           </CardContent>
         </Card>
+
+        <BotOrchestrationCard />
 
         <div className="flex justify-end gap-4">
           <Button variant="outline" asChild>

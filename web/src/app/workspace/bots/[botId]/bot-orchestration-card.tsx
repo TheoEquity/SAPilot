@@ -19,6 +19,8 @@ export const BotOrchestrationCard = () => {
   const page_bot = useTranslations('page_bot');
   const botConfig = (bot.config || {}) as BotConfigWithOrchestration;
 
+  const isNewBot = !bot.id;
+
   const intentRouter = botConfig.orchestration?.intent_router;
   const skills = botConfig.orchestration?.skills || [];
   const skillsCount = skills.length;
@@ -76,18 +78,28 @@ export const BotOrchestrationCard = () => {
                 ? page_bot('orchestration_configured')
                 : page_bot('orchestration_not_configured')}
             </div>
-            <div className="text-muted-foreground text-xs">
-              {routerSummaryItems.join(' · ')}
-            </div>
-            <div className="text-muted-foreground text-xs">
-              {routerHealthItems.join(' · ')}
-            </div>
+            {routerSummaryItems.length > 0 && (
+              <>
+                <div className="text-muted-foreground text-xs">
+                  {routerSummaryItems.join(' · ')}
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  {routerHealthItems.join(' · ')}
+                </div>
+              </>
+            )}
           </div>
-          <Button asChild variant="outline">
-            <Link href={`/workspace/bots/${bot.id}/intent-router`}>
-              {page_bot('orchestration_open')}
-            </Link>
-          </Button>
+          {isNewBot ? (
+            <Button variant="outline" disabled>
+              {page_bot('orchestration_disabled_hint')}
+            </Button>
+          ) : (
+            <Button asChild variant="outline">
+              <Link href={`/workspace/bots/${bot.id}/intent-router`}>
+                {page_bot('orchestration_open')}
+              </Link>
+            </Button>
+          )}
         </div>
 
         <div className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
@@ -101,13 +113,23 @@ export const BotOrchestrationCard = () => {
                 ? page_bot('skills_configured', { count: String(skillsCount) })
                 : page_bot('orchestration_not_configured')}
             </div>
-            <div className="text-muted-foreground text-xs">{summaryItems.join(' · ')}</div>
+            {skills.length > 0 && (
+              <div className="text-muted-foreground text-xs">
+                {summaryItems.join(' · ')}
+              </div>
+            )}
           </div>
-          <Button asChild variant="outline">
-            <Link href={`/workspace/bots/${bot.id}/skills`}>
-              {page_bot('orchestration_open')}
-            </Link>
-          </Button>
+          {isNewBot ? (
+            <Button variant="outline" disabled>
+              {page_bot('orchestration_disabled_hint')}
+            </Button>
+          ) : (
+            <Button asChild variant="outline">
+              <Link href={`/workspace/bots/${bot.id}/skills`}>
+                {page_bot('orchestration_open')}
+              </Link>
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

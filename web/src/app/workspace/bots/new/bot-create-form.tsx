@@ -1,6 +1,7 @@
 'use client';
 
 import { ModelSpec } from '@/api';
+import { BotConfigProvider } from '@/components/providers/bot-config-provider';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -28,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+
 import { Switch } from '@/components/ui/switch';
 import {
   AlertDialog,
@@ -46,13 +48,16 @@ import {
   DEFAULT_AGENT_WELCOME_SUBTITLE,
   DEFAULT_AGENT_WELCOME_TITLE,
 } from '../agent-defaults';
+import { BotOrchestrationCard } from '../[botId]/bot-orchestration-card';
 import { zodResolver } from '@hookform/resolvers/zod';
 import _ from 'lodash';
+import { type Bot } from '@/api';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
+
 import { toast } from 'sonner';
 import * as z from 'zod';
 
@@ -150,6 +155,16 @@ export const BotCreateForm = () => {
     setCollections(res.data.items || []);
   }, []);
 
+  const tempBot = useMemo<Bot>(
+    () =>
+      ({
+        config: {
+          orchestration: {},
+        },
+      }) as Bot,
+    [],
+  );
+
   const handleSubmit = useCallback(
     async (values: FormValueType) => {
       if (values.is_default) {
@@ -220,7 +235,7 @@ export const BotCreateForm = () => {
 
       if (res.data.id) {
         toast.success(common_tips('create_success'));
-        router.push(`/workspace/bots/${res.data.id}/settings`);
+        router.push(`/workspace/bots/${res.data.id}/edit`);
       }
     },
     [collections, common_tips, router],
@@ -578,6 +593,10 @@ export const BotCreateForm = () => {
             />
           </CardContent>
         </Card>
+
+        <BotConfigProvider bot={tempBot}>
+          <BotOrchestrationCard />
+        </BotConfigProvider>
 
         <div className="flex justify-end gap-4">
           <Button variant="outline" asChild>
