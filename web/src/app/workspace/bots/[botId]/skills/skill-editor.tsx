@@ -25,7 +25,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useTranslations } from 'next-intl';
+import { useMessages, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import * as z from 'zod';
 import { normalizeOrchestration, updateBotOrchestration } from '../bot-config-updater';
@@ -57,8 +57,23 @@ type SkillEditorFormValues = z.output<typeof skillSchema>;
 export const SkillEditor = ({ skillId }: { skillId?: string }) => {
   const { bot, loadBot } = useBotConfigContext();
   const page_bot = useTranslations('page_bot');
+  const messages = useMessages() as Record<string, any>;
   const common_tips = useTranslations('common.tips');
   const router = useRouter();
+
+  const getLocalizedToolDescription = useCallback(
+    (toolName: string, fallback?: string) => {
+      const descriptionKey = `tool_desc_${toolName}`;
+      const pageBotMessages = messages?.page_bot as Record<string, string> | undefined;
+
+      if (pageBotMessages && descriptionKey in pageBotMessages) {
+        return page_bot(descriptionKey as any);
+      }
+
+      return fallback || '';
+    },
+    [messages, page_bot],
+  );
 
   const orchestration = normalizeOrchestration(bot);
   const existingSkill = useMemo(
@@ -635,7 +650,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 return availableTools.map((tool) => ({
                   id: tool.name,
                   name: tool.name,
-                  description: tool.description,
+                  description: getLocalizedToolDescription(tool.name, tool.description),
                 }));
               })()}
             />

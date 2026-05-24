@@ -1,5 +1,18 @@
 import type { ReactFlowEdge, ReactFlowNode, ReactFlowSchema } from './orchestration-types';
 
+export const buildEdgeId = (edge: {
+  source?: string | null;
+  target?: string | null;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
+}) => {
+  const source = edge.source || 'unknown-source';
+  const target = edge.target || 'unknown-target';
+  const sourceHandle = edge.sourceHandle || 'default';
+  const targetHandle = edge.targetHandle || 'default';
+  return `e-${source}-${sourceHandle}-${target}-${targetHandle}`;
+};
+
 export type FlowValidationIssue =
   | { code: 'parse_error' }
   | { code: 'duplicate_node_id'; nodeId: string }
@@ -21,12 +34,34 @@ export const EMPTY_FLOW: ReactFlowSchema = {
   edges: [],
 };
 
-export const normalizeFlowSchema = (flow?: ReactFlowSchema): ReactFlowSchema => ({
-  version: flow?.version || EMPTY_FLOW.version,
-  viewport: flow?.viewport || EMPTY_FLOW.viewport,
-  nodes: flow?.nodes || [],
-  edges: flow?.edges || [],
-});
+export const normalizeFlowSchema = (flow?: ReactFlowSchema): ReactFlowSchema => {
+  const rawEdges = flow?.edges || [];
+  const seenEdgeIds = new Set<string>();
+
+  const normalizedEdges = rawEdges.map((edge) => {
+    const normalizedId = buildEdgeId(edge);
+    let nextId = normalizedId;
+    let suffix = 1;
+
+    while (seenEdgeIds.has(nextId)) {
+      suffix += 1;
+      nextId = `${normalizedId}-${suffix}`;
+    }
+
+    seenEdgeIds.add(nextId);
+    return {
+      ...edge,
+      id: nextId,
+    };
+  });
+
+  return {
+    version: flow?.version || EMPTY_FLOW.version,
+    viewport: flow?.viewport || EMPTY_FLOW.viewport,
+    nodes: flow?.nodes || [],
+    edges: normalizedEdges,
+  };
+};
 
 export const getStartNodeIds = (nodes: ReactFlowNode[], edges: ReactFlowEdge[]) => {
   const indegree = new Map(nodes.map((node) => [node.id, 0]));

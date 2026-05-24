@@ -240,6 +240,14 @@ async def list_mcp_tools(
             view_models.MCPToolInfo(name="list_collections", description="List all collections available to the user."),
             view_models.MCPToolInfo(name="search_collection", description="Search a persistent collection for knowledge."),
             view_models.MCPToolInfo(name="search_chat_files", description="Search files uploaded in the current chat session."),
+            view_models.MCPToolInfo(
+                name="search_faq_by_chat_image",
+                description="Search FAQ-like knowledge base entries by an uploaded chat image.",
+            ),
+            view_models.MCPToolInfo(
+                name="search_sap_help",
+                description="Search only within help.sap.com using the web search pipeline.",
+            ),
             view_models.MCPToolInfo(name="web_search", description="Perform a web search."),
             view_models.MCPToolInfo(name="web_read", description="Fetch content from a URL."),
         ]

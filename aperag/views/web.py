@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from aperag.db.models import User
 from aperag.db.ops import async_db_ops
+from aperag.config import settings
 from aperag.schema.view_models import (
     WebReadRequest,
     WebReadResponse,
@@ -404,18 +405,36 @@ async def _read_with_trafilatura_only(request: WebReadRequest) -> WebReadRespons
 
 async def _search_with_jina_fallback(request: WebSearchRequest, user: User) -> WebSearchResponse:
     """
-    Search with JINA priority and DuckDuckGo fallback.
+    Search with Firecrawl priority, JINA fallback, and DuckDuckGo fallback.
 
     Args:
         request: Web search request
         user: Current user for API key lookup
 
     Returns:
-        Search results from JINA if successful, otherwise from DuckDuckGo
+        Search results from Firecrawl, JINA, or DuckDuckGo
 
     Raises:
-        WebSearchError: If both JINA and DuckDuckGo fail
+        WebSearchError: If Firecrawl, JINA, and DuckDuckGo all fail
     """
+    firecrawl_api_key = settings.firecrawl_api_key or ""
+    firecrawl_api_url = settings.firecrawl_api_url or "https://api.firecrawl.dev/v1"
+
+    if firecrawl_api_key:
+        try:
+            logger.info("Attempting to search with Firecrawl")
+            async with SearchService(
+                provider_name="firecrawl",
+                provider_config={"api_key": firecrawl_api_key, "api_url": firecrawl_api_url},
+            ) as firecrawl_service:
+                firecrawl_result = await firecrawl_service.search(request)
+                if firecrawl_result and hasattr(firecrawl_result, "results") and firecrawl_result.results:
+                    logger.info("Firecrawl search succeeded: %s results", len(firecrawl_result.results))
+                    return firecrawl_result
+                logger.info("Firecrawl search completed but no results returned")
+        except Exception as e:
+            logger.info("Firecrawl search failed: %s", e)
+
     # Try to get JINA API key for current user
     jina_api_key = await _get_user_jina_api_key(user)
 
@@ -442,4 +461,4 @@ async def _search_with_jina_fallback(request: WebSearchRequest, user: User) -> W
         async with SearchService(provider_name="duckduckgo") as duckduckgo_service:
             return await duckduckgo_service.search(request)
     except Exception as e:
-        raise WebSearchError(f"Both JINA and DuckDuckGo search failed. Last error: {str(e)}") from e
+        raise WebSearchError(f"Firecrawl, JINA, and DuckDuckGo search all failed. Last error: {str(e)}") from e

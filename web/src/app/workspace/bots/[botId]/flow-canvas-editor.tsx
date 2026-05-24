@@ -29,6 +29,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { ReactFlowEdge, ReactFlowSchema } from './orchestration-types';
+import { buildEdgeId, normalizeFlowSchema } from './flow-utils';
 
 export const FlowCanvasEditor = ({
   title, description,
@@ -48,8 +49,9 @@ export const FlowCanvasEditor = ({
   onQuickSave?: (value: ReactFlowSchema) => Promise<boolean>;
   mode?: 'skill' | 'intent-router';
 }) => {
-  const [nodes, setNodes] = useState<Node[]>(value?.nodes || []);
-  const [edges, setEdges] = useState<Edge[]>(value?.edges || []);
+  const normalizedValue = useMemo(() => normalizeFlowSchema(value), [value]);
+  const [nodes, setNodes] = useState<Node[]>(normalizedValue?.nodes || []);
+  const [edges, setEdges] = useState<Edge[]>(normalizedValue?.edges || []);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -59,11 +61,11 @@ export const FlowCanvasEditor = ({
   const page_bot = useTranslations('page_bot');
 
   useEffect(() => {
-    if (value?.nodes?.length !== nodes.length || value?.edges?.length !== edges.length) {
-       setNodes(value.nodes || []);
-       setEdges(value.edges || []);
+    if (normalizedValue?.nodes?.length !== nodes.length || normalizedValue?.edges?.length !== edges.length) {
+       setNodes(normalizedValue.nodes || []);
+       setEdges(normalizedValue.edges || []);
     }
-  }, [value]);
+  }, [normalizedValue, nodes.length, edges.length]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -85,7 +87,7 @@ export const FlowCanvasEditor = ({
     (connection: Connection) => {
       const newEdge = {
           ...connection,
-          id: `e-${connection.source}-${connection.target}`,
+          id: buildEdgeId(connection),
           markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15, color: '#94a3b8' },
           style: { strokeWidth: 2 },
       };
@@ -100,7 +102,7 @@ export const FlowCanvasEditor = ({
   );
 
   const buildSchema = useCallback((currNodes: Node[], currEdges: Edge[]): ReactFlowSchema => ({
-    version: value?.version || 'v2',
+    version: normalizedValue?.version || 'v2',
     nodes: currNodes.map((n) => ({
       id: n.id,
       type: n.type || 'action',
@@ -115,7 +117,7 @@ export const FlowCanvasEditor = ({
       targetHandle: e.targetHandle ?? undefined,
       data: e.data,
     })),
-  }), [value?.version]);
+  }), [normalizedValue?.version]);
 
   const syncChanges = useCallback((currNodes: Node[], currEdges: Edge[]) => {
     clearTimeout(saveToParent.current);
@@ -191,7 +193,7 @@ export const FlowCanvasEditor = ({
       let data: any = { label: type.charAt(0).toUpperCase() + type.slice(1) };
       if (mode === 'skill') {
         if (type === 'action') data = { ...data, label: page_bot('flow_canvas_default_action_label'), tools: [], prompt: '' };
-        if (type === 'condition') data = { ...data, label: page_bot('flow_canvas_default_condition_label'), prompt: '' };
+        if (type === 'condition') data = { ...data, label: page_bot('flow_canvas_default_condition_label'), prompt: '', source_node_id: '', field: '', operator: 'equals', expected_value: 'true' };
       }
       if (mode === 'intent-router') {
         if (type === 'action') {
@@ -248,6 +250,10 @@ export const FlowCanvasEditor = ({
   }), []);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
+  const selectableActionNodes = useMemo(
+    () => nodes.filter((node) => node.type === 'action'),
+    [nodes],
+  );
 
   return (
     <div className="flex h-[600px] w-full flex-col overflow-hidden rounded-lg border bg-muted/5" ref={reactFlowWrapper}>
@@ -346,7 +352,7 @@ export const FlowCanvasEditor = ({
                                     onChange={e => updateSelectedNodeData({ prompt: e.target.value })}
                                     rows={6}
                                     className="text-sm"
-                                    placeholder={page_bot('flow_canvas_prompt_placeholder')}
+                                    placeholder={selectedNode.type === 'condition' ? page_bot('flow_canvas_condition_prompt_placeholder') : page_bot('flow_canvas_prompt_placeholder')}
                                 />
                             </div>
                         )}
@@ -361,6 +367,66 @@ export const FlowCanvasEditor = ({
                                     onChange={(newTools: string[]) => updateSelectedNodeData({ tools: newTools })} 
                                 />
                             </div>
+                        )}
+
+                        {mode === 'skill' && selectedNode.type === 'condition' && (
+                            <>
+                                <div>
+                                    <label className="mb-1 block text-xs font-medium">{page_bot('flow_canvas_condition_source_node')}</label>
+                                    <Select
+                                        value={String((selectedNode.data as any).source_node_id || '')}
+                                        onValueChange={(value) => updateSelectedNodeData({ source_node_id: value })}
+                                    >
+                                        <SelectTrigger className="h-8 text-sm">
+                                            <SelectValue placeholder={page_bot('flow_canvas_condition_source_node_placeholder')} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {selectableActionNodes.map((node) => (
+                                                <SelectItem key={node.id} value={node.id}>{String((node.data as any).label || node.id)}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-xs font-medium">{page_bot('flow_canvas_condition_field')}</label>
+                                    <Input
+                                        value={String((selectedNode.data as any).field || '')}
+                                        onChange={e => updateSelectedNodeData({ field: e.target.value })}
+                                        className="h-8 text-sm"
+                                        placeholder={page_bot('flow_canvas_condition_field_placeholder')}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-xs font-medium">{page_bot('flow_canvas_condition_operator')}</label>
+                                    <Select
+                                        value={String((selectedNode.data as any).operator || 'equals')}
+                                        onValueChange={(value) => updateSelectedNodeData({ operator: value })}
+                                    >
+                                        <SelectTrigger className="h-8 text-sm">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="equals">{page_bot('flow_canvas_condition_operator_equals')}</SelectItem>
+                                            <SelectItem value="not_equals">{page_bot('flow_canvas_condition_operator_not_equals')}</SelectItem>
+                                            <SelectItem value="exists">{page_bot('flow_canvas_condition_operator_exists')}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {(String((selectedNode.data as any).operator || 'equals') !== 'exists') && (
+                                    <div>
+                                        <label className="mb-1 block text-xs font-medium">{page_bot('flow_canvas_condition_expected_value')}</label>
+                                        <Input
+                                            value={String((selectedNode.data as any).expected_value || '')}
+                                            onChange={e => updateSelectedNodeData({ expected_value: e.target.value })}
+                                            className="h-8 text-sm"
+                                            placeholder={page_bot('flow_canvas_condition_expected_value_placeholder')}
+                                        />
+                                    </div>
+                                )}
+                            </>
                         )}
 
                         {mode === 'intent-router' && selectedNode.type !== 'startEnd' && selectedNode.type === 'action' && (
@@ -453,19 +519,24 @@ const ToolConfigPopover = ({ nodeId, tools, currentValue, onChange }: any) => {
                      </div>
                     {tools.length === 0 ? <p className="p-2 text-xs text-muted-foreground">{page_bot('flow_canvas_no_tools')}</p> : (
                         <div className="space-y-0.5">
-                            {tools.map((t: any) => {
-                                const isChecked = currentValue.includes(t.id);
-                                return (
-                                    <label key={t.id} className="flex cursor-pointer items-center gap-2 rounded-md p-1.5 hover:bg-accent text-xs">
-                                        <Checkbox checked={isChecked} onCheckedChange={() => {
-                                            onChange(isChecked ? currentValue.filter((x: string) => x !== t.id) : [...currentValue, t.id]);
-                                        }} />
-                                        <span className="font-medium">{t.name}</span>
-                                    </label>
-                                )
-                            })}
-                        </div>
-                    )}
+                             {tools.map((t: any) => {
+                                 const isChecked = currentValue.includes(t.id);
+                                 return (
+                                     <label key={t.id} className="flex cursor-pointer items-start gap-2 rounded-md p-1.5 hover:bg-accent text-xs">
+                                         <Checkbox checked={isChecked} onCheckedChange={() => {
+                                             onChange(isChecked ? currentValue.filter((x: string) => x !== t.id) : [...currentValue, t.id]);
+                                         }} />
+                                         <div className="min-w-0 flex-1">
+                                             <div className="font-medium break-all">{t.name}</div>
+                                             {t.description ? (
+                                                 <div className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{t.description}</div>
+                                             ) : null}
+                                         </div>
+                                     </label>
+                                 )
+                             })}
+                         </div>
+                     )}
                 </div>
             </PopoverContent>
         </Popover>

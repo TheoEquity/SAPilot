@@ -150,6 +150,10 @@ class Config(BaseSettings):
     qianfan_api_key: str = Field("", alias="QIANFAN_API_KEY")
     qianfan_secret_key: str = Field("", alias="QIANFAN_SECRET_KEY")
 
+    # Firecrawl
+    firecrawl_api_key: str = Field("", alias="FIRECRAWL_API_KEY")
+    firecrawl_api_url: str = Field("https://api.firecrawl.dev/v1", alias="FIRECRAWL_API_URL")
+
     # OCR/ASR
     whisper_host: str = Field("", alias="WHISPER_HOST")
     paddleocr_host: str = Field("", alias="PADDLEOCR_HOST")

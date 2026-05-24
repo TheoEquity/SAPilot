@@ -31,6 +31,7 @@ from aperag.agent import (
     AgentMessageQueue,
     agent_session_manager,
     extract_tool_call_references,
+    extract_tool_call_references_from_messages,
     format_agent_setup_error,
     format_invalid_json_error,
     format_invalid_model_spec_error,
@@ -1118,6 +1119,8 @@ class AgentChatService:
         query_prompt: str,
         node_results: dict[str, dict[str, Any]],
     ) -> dict[str, Any]:
+        history_before = llm.history.get() if hasattr(llm.history, "get") else []
+        history_before_len = len(history_before)
         node_prompt = node.data.get("prompt") if isinstance(node.data.get("prompt"), str) else ""
         node_label = node.data.get("label") if isinstance(node.data.get("label"), str) else node.id
         context_blocks: list[str] = []
@@ -1140,7 +1143,9 @@ class AgentChatService:
         )
         response = await llm.generate_str(comprehensive_prompt, request_params)
         text = response if response else "No response generated"
-        references = extract_tool_call_references(llm.history)
+        history_after = llm.history.get() if hasattr(llm.history, "get") else []
+        current_turn_messages = history_after[history_before_len:]
+        references = extract_tool_call_references_from_messages(current_turn_messages)
         outputs = self._build_node_output_from_references(references)
         return {
             "text": text,

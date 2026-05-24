@@ -29,21 +29,9 @@ from .exceptions import (
 logger = logging.getLogger(__name__)
 
 
-@handle_agent_error("tool_call_reference_extraction", default_return=[], reraise=False)
-def extract_tool_call_references(memory) -> List[Dict[str, Any]]:
-    """
-    Extract tool call results from MCP agent history and format as references.
-
-    Args:
-        memory: SimpleMemory instance containing agent history
-
-    Returns:
-        List of reference dictionaries in the format expected by llm.py
-    """
+def _extract_tool_call_references_from_messages(history_messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     references = []
 
-    # Get history from memory
-    history_messages = memory.get() if hasattr(memory, "get") else []
     if not history_messages:
         logger.debug("No history messages found in memory")
         return references
@@ -137,6 +125,27 @@ def extract_tool_call_references(memory) -> List[Dict[str, Any]]:
                     continue
 
     return references
+
+
+@handle_agent_error("tool_call_reference_extraction", default_return=[], reraise=False)
+def extract_tool_call_references(memory) -> List[Dict[str, Any]]:
+    """
+    Extract tool call results from MCP agent history and format as references.
+
+    Args:
+        memory: SimpleMemory instance containing agent history
+
+    Returns:
+        List of reference dictionaries in the format expected by llm.py
+    """
+    history_messages = memory.get() if hasattr(memory, "get") else []
+    return _extract_tool_call_references_from_messages(history_messages)
+
+
+@handle_agent_error("tool_call_reference_extraction", default_return=[], reraise=False)
+def extract_tool_call_references_from_messages(history_messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Extract tool call references from a specific history message slice."""
+    return _extract_tool_call_references_from_messages(history_messages)
 
 
 def _extract_answer_faq_ids(messages) -> List[str]:

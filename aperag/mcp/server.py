@@ -20,8 +20,10 @@ import httpx
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_headers
 
+from aperag.db.ops import async_db_ops
+from aperag.service.image_search_service import image_search_service
 # Import view models for type safety
-from aperag.schema.view_models import CollectionViewList, SearchResult, WebReadResponse, WebSearchResponse
+from aperag.schema.view_models import Collection, CollectionViewList, SearchResult, SearchResultItem, WebReadResponse, WebSearchResponse
 
 logger = logging.getLogger(__name__)
 
@@ -311,6 +313,95 @@ async def search_chat_files(
 
 
 @mcp_server.tool
+async def search_faq_by_chat_image(
+    chat_id: str,
+    file_id: str,
+    collection_ids: list[str],
+    topk: int = 3,
+    similarity_threshold: float = 0.7,
+) -> Dict[str, Any]:
+    """Search FAQ-like knowledge base entries by an uploaded chat image.
+
+    Args:
+        chat_id: Chat ID that owns the uploaded image file.
+        file_id: Uploaded chat file/document ID of the image.
+        collection_ids: Collection IDs to search in.
+        topk: Maximum number of matched FAQ/image results to return.
+        similarity_threshold: Vision similarity threshold between 0 and 1.
+
+    Returns:
+        SearchResult-style payload with enriched FAQ text and metadata.
+    """
+    try:
+        api_key = get_api_key()
+        api_key_record = await async_db_ops.get_api_key_by_key(api_key)
+        if not api_key_record:
+            return {"error": "Unauthorized API key"}
+
+        user_id = api_key_record.user
+        if not chat_id or not file_id:
+            return {"error": "chat_id and file_id are required"}
+        if not collection_ids:
+            return {"error": "collection_ids must contain at least one collection ID"}
+
+        collections: list[Collection] = []
+        for collection_id in collection_ids:
+            collection = await async_db_ops.query_collection(user_id, collection_id)
+            if not collection:
+                continue
+            collections.append(
+                Collection(
+                    id=collection.id,
+                    title=collection.title,
+                    description=collection.description,
+                    type=collection.type,
+                )
+            )
+
+        if not collections:
+            return {"error": "No accessible collections found"}
+
+        data_uri = await image_search_service._load_chat_image_as_data_uri(user_id, chat_id, file_id)
+        if not data_uri:
+            return {"error": "Image file not found or is not a valid uploaded chat image"}
+
+        results = await image_search_service.search_similar_images(
+            user_id=user_id,
+            collections=collections,
+            image_data_uri=data_uri,
+            top_k=topk,
+            similarity_threshold=similarity_threshold,
+        )
+        enriched_results = await image_search_service._enrich_results_with_faq_chunks(user_id, results)
+
+        items = []
+        for index, item in enumerate(enriched_results[:topk], start=1):
+            metadata = item.metadata or {}
+            items.append(
+                SearchResultItem(
+                    rank=index,
+                    score=item.score,
+                    content=item.text,
+                    source=metadata.get("source") or metadata.get("name"),
+                    recall_type="vision_search",
+                    metadata=metadata,
+                )
+            )
+
+        search_result = SearchResult(
+            query=f"chat_image:{chat_id}/{file_id}",
+            items=items,
+            vision_search={"topk": topk, "similarity": similarity_threshold},
+        )
+        return search_result.model_dump()
+    except ValueError as e:
+        return {"error": str(e)}
+    except Exception as e:
+        logger.exception("FAQ image search MCP tool failed")
+        return {"error": "FAQ image search failed", "details": str(e)}
+
+
+@mcp_server.tool
 async def web_search(
     query: str = "",
     max_results: int = 5,
@@ -376,6 +467,70 @@ async def web_search(
                     return {"error": "Failed to parse web search response", "details": str(e)}
             else:
                 return {"error": f"Web search failed: {response.status_code}", "details": response.text}
+    except ValueError as e:
+        return {"error": str(e)}
+
+
+@mcp_server.tool
+async def search_sap_help(
+    query: str,
+    max_results: int = 5,
+    timeout: int = 30,
+    locale: str = "en-US",
+) -> Dict[str, Any]:
+    """Search only within help.sap.com using the web search pipeline.
+
+    Args:
+        query: Search query for SAP official help content.
+        max_results: Maximum number of results to return.
+        timeout: Request timeout in seconds.
+        locale: Browser locale.
+
+    Returns:
+        Web search results restricted to help.sap.com.
+    """
+    try:
+        api_key = get_api_key()
+        if not query or not query.strip():
+            return {"error": "query is required"}
+
+        search_query = f"site:help.sap.com {query.strip()}"
+        search_data = {
+            "query": search_query,
+            "max_results": max_results,
+            "timeout": timeout,
+            "locale": locale,
+        }
+
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            response = await client.post(
+                f"{API_BASE_URL}/api/v1/web/search",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=search_data,
+            )
+            if response.status_code != 200:
+                return {"error": f"SAP Help search failed: {response.status_code}", "details": response.text}
+
+            try:
+                search_response = WebSearchResponse.model_validate(response.json())
+            except Exception as e:
+                logger.error(f"Failed to parse SAP Help search response: {e}")
+                return {"error": "Failed to parse SAP Help search response", "details": str(e)}
+
+            filtered_results = []
+            for item in search_response.results:
+                if item.domain and "help.sap.com" in item.domain.lower():
+                    filtered_results.append(item)
+
+            for index, item in enumerate(filtered_results, start=1):
+                item.rank = index
+
+            return WebSearchResponse(
+                query=query.strip(),
+                results=filtered_results,
+                total_results=len(filtered_results),
+                search_time=search_response.search_time,
+            ).model_dump()
     except ValueError as e:
         return {"error": str(e)}
 

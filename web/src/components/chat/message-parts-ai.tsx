@@ -28,10 +28,13 @@ export const MessagePartsAi = ({
 }) => {
   const pageChat = useTranslations('page_chat');
   const { bot } = useBotContext();
-  const references = useMemo(
-    () => parts.findLast((part) => part.references)?.references || [],
-    [parts],
-  );
+  const references = useMemo(() => {
+    const rawReferences = parts.findLast((part) => part.references)?.references || [];
+    return rawReferences.filter((reference) => {
+      const referenceType = reference.metadata?.type;
+      return referenceType !== 'list_collections' && referenceType !== 'search_chat_files';
+    });
+  }, [parts]);
   const skillId = useMemo(
     () => parts.find((part) => part.skill_id)?.skill_id || '',
     [parts],

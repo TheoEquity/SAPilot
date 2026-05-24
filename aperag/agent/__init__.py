@@ -77,7 +77,7 @@ from .stream_formatters import (
     format_stream_start,
     format_thinking,
 )
-from .tool_reference_extractor import extract_tool_call_references
+from .tool_reference_extractor import extract_tool_call_references, extract_tool_call_references_from_messages
 
 __all__ = [
     # Event listener
@@ -103,6 +103,7 @@ __all__ = [
     # Tool formatters
     # Tool reference extractor
     "extract_tool_call_references",
+    "extract_tool_call_references_from_messages",
     # Exception classes
     "AgentError",
     "MCPConnectionError",

@@ -88,7 +88,9 @@ export const MessageReference = ({
 }) => {
   const page_chat = useTranslations('page_chat');
   const primaryReferences = references.filter(
-    (reference) => reference.metadata?.type !== 'list_collections',
+    (reference) =>
+      reference.metadata?.type !== 'list_collections' &&
+      reference.metadata?.type !== 'search_chat_files',
   );
   const visibleReferences = _.isEmpty(primaryReferences)
     ? references.slice(0, 1)
