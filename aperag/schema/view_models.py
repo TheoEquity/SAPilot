@@ -1170,6 +1170,8 @@ class Settings(BaseModel):
     use_markitdown: Optional[bool] = Field(
         None, description='Whether to use MarkItDown'
     )
+    firecrawl_api_key: Optional[str] = Field(None, description='API key for Firecrawl')
+    firecrawl_api_url: Optional[str] = Field(None, description='Base API URL for Firecrawl')
     dingtalk_enabled: Optional[bool] = Field(None, description='Whether to enable DingTalk integration')
     dingtalk_webhook_secret: Optional[str] = Field(None, description='DingTalk callback signature secret')
     dingtalk_outgoing_webhook_url: Optional[str] = Field(None, description='DingTalk outgoing robot webhook URL')

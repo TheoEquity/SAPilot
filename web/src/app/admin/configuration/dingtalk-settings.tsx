@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { apiClient } from '@/lib/api/client';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -49,6 +50,9 @@ export const DingTalkSettings = ({
     ...initData,
   });
   const [saving, setSaving] = useState(false);
+  const admin_config = useTranslations('admin_config');
+  const common_action = useTranslations('common.action');
+  const common_tips = useTranslations('common.tips');
 
   const agentBots = useMemo(
     () => initBots.filter((bot) => bot.type === 'agent'),
@@ -64,18 +68,18 @@ export const DingTalkSettings = ({
 
   const handleSave = useCallback(async () => {
     if (data.dingtalk_enabled && !data.dingtalk_bot_id) {
-      toast.error('启用钉钉接口前，请先绑定一个 Agent');
+      toast.error(admin_config('dingtalk_bind_agent_required'));
       return;
     }
 
     setSaving(true);
     try {
       await apiClient.defaultApi.settingsPut({ settings: data });
-      toast.success('钉钉接口配置已保存');
+      toast.success(common_tips('save_success'));
     } finally {
       setSaving(false);
     }
-  }, [data]);
+  }, [admin_config, common_tips, data]);
 
   useEffect(() => {
     setData({
@@ -89,9 +93,9 @@ export const DingTalkSettings = ({
       <CardHeader>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <CardTitle>钉钉接口配置</CardTitle>
+            <CardTitle>{admin_config('dingtalk_title')}</CardTitle>
             <CardDescription>
-              绑定管理员创建的钉钉现场问诊 Agent，并配置钉钉 App 与机器人参数。
+              {admin_config('dingtalk_description')}
             </CardDescription>
           </div>
           <Switch
@@ -105,13 +109,15 @@ export const DingTalkSettings = ({
 
       <CardContent className="grid gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <Label>绑定 SAPilot Agent</Label>
+          <Label>{admin_config('dingtalk_agent_label')}</Label>
           <Select
             value={data.dingtalk_bot_id || ''}
             onValueChange={(value) => updateField('dingtalk_bot_id', value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="选择钉钉现场问诊 Agent" />
+              <SelectValue
+                placeholder={admin_config('dingtalk_agent_placeholder')}
+              />
             </SelectTrigger>
             <SelectContent>
               {agentBots.map((bot) => (
@@ -122,12 +128,12 @@ export const DingTalkSettings = ({
             </SelectContent>
           </Select>
           <div className="text-muted-foreground text-sm">
-            启用后该 Agent 会进入删除保护。需要新建时请先到 Agent 页面创建。
+            {admin_config('dingtalk_agent_hint')}
           </div>
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label>回复模式</Label>
+          <Label>{admin_config('dingtalk_response_mode')}</Label>
           <Select
             value={data.dingtalk_response_mode || 'sync'}
             onValueChange={(value) =>
@@ -135,17 +141,23 @@ export const DingTalkSettings = ({
             }
           >
             <SelectTrigger>
-              <SelectValue placeholder="选择回复模式" />
+              <SelectValue
+                placeholder={admin_config('dingtalk_response_mode_placeholder')}
+              />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="sync">同步响应</SelectItem>
-              <SelectItem value="webhook">Webhook 异步响应</SelectItem>
+              <SelectItem value="sync">
+                {admin_config('dingtalk_response_mode_sync')}
+              </SelectItem>
+              <SelectItem value="webhook">
+                {admin_config('dingtalk_response_mode_webhook')}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label>钉钉 AppKey</Label>
+          <Label>{admin_config('dingtalk_app_key')}</Label>
           <Input
             value={data.dingtalk_app_key || ''}
             onChange={(e) => updateField('dingtalk_app_key', e.target.value)}
@@ -153,7 +165,7 @@ export const DingTalkSettings = ({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label>钉钉 AppSecret</Label>
+          <Label>{admin_config('dingtalk_app_secret')}</Label>
           <Input
             type="password"
             value={data.dingtalk_app_secret || ''}
@@ -162,7 +174,7 @@ export const DingTalkSettings = ({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label>回调验签 Secret</Label>
+          <Label>{admin_config('dingtalk_webhook_secret')}</Label>
           <Input
             type="password"
             value={data.dingtalk_webhook_secret || ''}
@@ -173,7 +185,7 @@ export const DingTalkSettings = ({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label>RobotCode</Label>
+          <Label>{admin_config('dingtalk_robot_code')}</Label>
           <Input
             value={data.dingtalk_robot_code || ''}
             onChange={(e) => updateField('dingtalk_robot_code', e.target.value)}
@@ -181,7 +193,7 @@ export const DingTalkSettings = ({
         </div>
 
         <div className="flex flex-col gap-2 md:col-span-2">
-          <Label>Outgoing Webhook URL</Label>
+          <Label>{admin_config('dingtalk_outgoing_webhook_url')}</Label>
           <Input
             value={data.dingtalk_outgoing_webhook_url || ''}
             onChange={(e) =>
@@ -191,7 +203,7 @@ export const DingTalkSettings = ({
         </div>
 
         <div className="flex flex-col gap-2 md:col-span-2">
-          <Label>Outgoing Webhook Secret</Label>
+          <Label>{admin_config('dingtalk_outgoing_webhook_secret')}</Label>
           <Input
             type="password"
             value={data.dingtalk_outgoing_webhook_secret || ''}
@@ -204,10 +216,12 @@ export const DingTalkSettings = ({
 
       <CardFooter className="justify-between gap-4">
         <Button variant="outline" asChild>
-          <Link href="/workspace/bots/new">新建 Agent</Link>
+          <Link href="/workspace/bots/new">
+            {admin_config('dingtalk_create_agent')}
+          </Link>
         </Button>
         <Button disabled={saving} onClick={handleSave}>
-          保存钉钉配置
+          {common_action('save')}
         </Button>
       </CardFooter>
     </Card>

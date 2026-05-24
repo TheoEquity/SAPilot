@@ -45,6 +45,18 @@ export interface Settings {
      */
     'use_markitdown'?: boolean;
     /**
+     * API key for Firecrawl
+     * @type {string}
+     * @memberof Settings
+     */
+    'firecrawl_api_key'?: string;
+    /**
+     * Base API URL for Firecrawl
+     * @type {string}
+     * @memberof Settings
+     */
+    'firecrawl_api_url'?: string;
+    /**
      * Whether to enable DingTalk integration
      * @type {boolean}
      * @memberof Settings

@@ -62,6 +62,7 @@ export const ProviderTable = ({
 }) => {
   const { user } = useAppContext();
   const page_models = useTranslations('page_models');
+  const common_table = useTranslations('common.table');
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({
@@ -100,7 +101,7 @@ export const ProviderTable = ({
               onCheckedChange={(value) =>
                 table.toggleAllPageRowsSelected(!!value)
               }
-              aria-label="Select all"
+              aria-label={common_table('select_all')}
             />
           </div>
         ),
@@ -109,7 +110,7 @@ export const ProviderTable = ({
             <Checkbox
               checked={row.getIsSelected()}
               onCheckedChange={(value) => row.toggleSelected(!!value)}
-              aria-label="Select row"
+              aria-label={common_table('select_row')}
             />
           </div>
         ),
@@ -185,7 +186,7 @@ export const ProviderTable = ({
                 size="icon"
               >
                 <EllipsisVertical />
-                <span className="sr-only">Open menu</span>
+                <span className="sr-only">{common_table('open_menu')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-32">
@@ -220,7 +221,7 @@ export const ProviderTable = ({
       },
     ];
     return cols;
-  }, [models, page_models, urlPrefix]);
+  }, [common_table, models, page_models, urlPrefix]);
 
   const table = useReactTable({
     data,

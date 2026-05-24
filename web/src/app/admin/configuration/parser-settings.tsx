@@ -45,8 +45,8 @@ export const ParserSettings = ({
     await apiClient.defaultApi.settingsPut({
       settings: data,
     });
-    toast.success('Saved successfully');
-  }, [data]);
+    toast.success(common_tips('save_success'));
+  }, [common_tips, data]);
 
   const handleSwitchChange = useCallback(
     async (key: keyof Settings, checked: boolean) => {
@@ -111,7 +111,7 @@ export const ParserSettings = ({
           <div className="flex flex-row gap-4">
             <Input
               placeholder={admin_config('mineru_api_token')}
-              value={data.mineru_api_token}
+              value={data.mineru_api_token || ''}
               onChange={(e) => {
                 setData({ ...data, mineru_api_token: e.currentTarget.value });
               }}

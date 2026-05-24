@@ -55,6 +55,7 @@ export function AuditLogTable({
   );
   const [apiNameValue, setApiNameValue] = React.useState<string>('');
   const page_audit_logs = useTranslations('page_audit_logs');
+  const common_table = useTranslations('common.table');
 
   const format = useFormatter();
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -108,7 +109,7 @@ export function AuditLogTable({
               onCheckedChange={(value) =>
                 table.toggleAllPageRowsSelected(!!value)
               }
-              aria-label="Select all"
+              aria-label={common_table('select_all')}
             />
           </div>
         ),
@@ -117,7 +118,7 @@ export function AuditLogTable({
             <Checkbox
               checked={row.getIsSelected()}
               onCheckedChange={(value) => row.toggleSelected(!!value)}
-              aria-label="Select row"
+              aria-label={common_table('select_row')}
             />
           </div>
         ),
@@ -174,7 +175,7 @@ export function AuditLogTable({
       },
     ];
     return cols;
-  }, [format, page_audit_logs]);
+  }, [common_table, format, page_audit_logs]);
 
   const table = useReactTable({
     data,

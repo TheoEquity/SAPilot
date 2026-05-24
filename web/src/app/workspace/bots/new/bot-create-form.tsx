@@ -1,6 +1,6 @@
 'use client';
 
-import { ModelSpec } from '@/api';
+import { Bot, ModelSpec } from '@/api';
 import { BotConfigProvider } from '@/components/providers/bot-config-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,7 +30,6 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
-import { Switch } from '@/components/ui/switch';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,22 +40,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Switch } from '@/components/ui/switch';
 import { apiClient } from '@/lib/api/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import _ from 'lodash';
+import { useTranslations } from 'next-intl';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import { BotOrchestrationCard } from '../[botId]/bot-orchestration-card';
+import type { BotConfigWithOrchestration } from '../[botId]/orchestration-types';
 import {
   DEFAULT_AGENT_QUERY_PROMPT,
   DEFAULT_AGENT_SYSTEM_PROMPT,
   DEFAULT_AGENT_WELCOME_SUBTITLE,
   DEFAULT_AGENT_WELCOME_TITLE,
 } from '../agent-defaults';
-import { BotOrchestrationCard } from '../[botId]/bot-orchestration-card';
-import { zodResolver } from '@hookform/resolvers/zod';
-import _ from 'lodash';
-import { type Bot } from '@/api';
-import { useTranslations } from 'next-intl';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
 
 import { toast } from 'sonner';
 import * as z from 'zod';
@@ -93,36 +93,59 @@ export type ProviderModel = {
   models?: ModelSpec[];
 };
 
-export const BotCreateForm = () => {
+export const BotCreateForm = ({ sourceBot }: { sourceBot?: Bot | null }) => {
   const router = useRouter();
   const [completionModels, setCompletionModels] = useState<ProviderModel[]>();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [pendingValues, setPendingValues] = useState<FormValueType | null>(null);
+  const [pendingValues, setPendingValues] = useState<FormValueType | null>(
+    null,
+  );
   const [defaultBotName, setDefaultBotName] = useState('');
 
   const page_bot = useTranslations('page_bot');
   const common_tips = useTranslations('common.tips');
   const common_action = useTranslations('common.action');
+  const sourceBotConfig = (sourceBot?.config ||
+    {}) as BotConfigWithOrchestration;
+  const sourceAgentConfig = sourceBotConfig.agent;
 
-  const defaultValues: FormValueType = {
-    title: '',
-    description: '',
-    is_default: false,
-    type: 'agent',
-    config: {
-      agent: {
-        completion: {
-          custom_llm_provider: '',
-          model: '',
-          model_service_provider: '',
+  const defaultValues = useMemo<FormValueType>(
+    () => ({
+      title: '',
+      description: '',
+      is_default: false,
+      type: sourceBot?.type || 'agent',
+      config: {
+        agent: {
+          completion: sourceAgentConfig?.completion
+            ? {
+                custom_llm_provider:
+                  sourceAgentConfig.completion.custom_llm_provider || '',
+                model: sourceAgentConfig.completion.model || '',
+                model_service_provider:
+                  sourceAgentConfig.completion.model_service_provider || '',
+              }
+            : {
+                custom_llm_provider: '',
+                model: '',
+                model_service_provider: '',
+              },
+          welcome_title:
+            sourceAgentConfig?.welcome_title || DEFAULT_AGENT_WELCOME_TITLE,
+          welcome_subtitle:
+            sourceAgentConfig?.welcome_subtitle ||
+            DEFAULT_AGENT_WELCOME_SUBTITLE,
+          system_prompt_template:
+            sourceAgentConfig?.system_prompt_template ||
+            DEFAULT_AGENT_SYSTEM_PROMPT,
+          query_prompt_template:
+            sourceAgentConfig?.query_prompt_template ||
+            DEFAULT_AGENT_QUERY_PROMPT,
         },
-        welcome_title: DEFAULT_AGENT_WELCOME_TITLE,
-        welcome_subtitle: DEFAULT_AGENT_WELCOME_SUBTITLE,
-        system_prompt_template: DEFAULT_AGENT_SYSTEM_PROMPT,
-        query_prompt_template: DEFAULT_AGENT_QUERY_PROMPT,
       },
-    },
-  };
+    }),
+    [sourceAgentConfig, sourceBot?.type],
+  );
 
   const form = useForm<FormValueType>({
     resolver: zodResolver(botCreateSchema),
@@ -149,10 +172,11 @@ export const BotCreateForm = () => {
     () =>
       ({
         config: {
-          orchestration: {},
+          flow: sourceBotConfig.flow,
+          orchestration: sourceBotConfig.orchestration || {},
         },
       }) as Bot,
-    [],
+    [sourceBotConfig.flow, sourceBotConfig.orchestration],
   );
 
   const handleSubmit = useCallback(
@@ -192,6 +216,8 @@ export const BotCreateForm = () => {
             system_prompt_template: values.config.agent.system_prompt_template,
             query_prompt_template: values.config.agent.query_prompt_template,
           },
+          flow: sourceBotConfig.flow,
+          orchestration: sourceBotConfig.orchestration,
         },
       };
 
@@ -223,7 +249,7 @@ export const BotCreateForm = () => {
         router.push(`/workspace/bots/${res.data.id}/edit`);
       }
     },
-    [common_tips, router],
+    [common_tips, router, sourceBotConfig.flow, sourceBotConfig.orchestration],
   );
 
   const handleConfirm = useCallback(async () => {
@@ -278,6 +304,10 @@ export const BotCreateForm = () => {
   useEffect(() => {
     loadModels();
   }, [loadModels]);
+
+  useEffect(() => {
+    form.reset(defaultValues);
+  }, [defaultValues, form]);
 
   return (
     <Form {...form}>
@@ -389,9 +419,7 @@ export const BotCreateForm = () => {
         <Card>
           <CardHeader>
             <CardTitle>{page_bot('model_config')}</CardTitle>
-            <CardDescription>
-              {page_bot('model_description')}
-            </CardDescription>
+            <CardDescription>{page_bot('model_description')}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6 pt-6">
             <FormField
@@ -511,10 +539,15 @@ export const BotCreateForm = () => {
           </Button>
         </div>
 
-        <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialog
+          open={confirmDialogOpen}
+          onOpenChange={setConfirmDialogOpen}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{page_bot('default_conflict_title')}</AlertDialogTitle>
+              <AlertDialogTitle>
+                {page_bot('default_conflict_title')}
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 {page_bot('default_conflict_message', { name: defaultBotName })}
               </AlertDialogDescription>

@@ -57,6 +57,7 @@ import { UserQuotaAction } from './user-quota-action';
 
 export function UsersDataTable({ data }: { data: User[] }) {
   const admin_users = useTranslations('admin_users');
+  const common_table = useTranslations('common.table');
   const { user } = useAppContext();
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
@@ -86,7 +87,7 @@ export function UsersDataTable({ data }: { data: User[] }) {
               onCheckedChange={(value) =>
                 table.toggleAllPageRowsSelected(!!value)
               }
-              aria-label="Select all"
+              aria-label={common_table('select_all')}
             />
           </div>
         ),
@@ -95,7 +96,7 @@ export function UsersDataTable({ data }: { data: User[] }) {
             <Checkbox
               checked={row.getIsSelected()}
               onCheckedChange={(value) => row.toggleSelected(!!value)}
-              aria-label="Select row"
+              aria-label={common_table('select_row')}
             />
           </div>
         ),
@@ -109,7 +110,9 @@ export function UsersDataTable({ data }: { data: User[] }) {
               <div>
                 {row.original.username}{' '}
                 {user?.id === row.original.id && (
-                  <Badge variant="destructive">Me</Badge>
+                  <Badge variant="destructive">
+                    {admin_users('current_user')}
+                  </Badge>
                 )}
               </div>
               <div className="text-muted-foreground">{row.original.email}</div>
@@ -194,7 +197,7 @@ export function UsersDataTable({ data }: { data: User[] }) {
                 size="icon"
               >
                 <EllipsisVertical />
-                <span className="sr-only">Open menu</span>
+                <span className="sr-only">{common_table('open_menu')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-32">
@@ -219,7 +222,7 @@ export function UsersDataTable({ data }: { data: User[] }) {
       },
     ];
     return cols;
-  }, [admin_users, format, user?.id]);
+  }, [admin_users, common_table, format, user?.id]);
 
   const table = useReactTable({
     data,

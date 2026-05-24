@@ -265,6 +265,7 @@ class AgentChatService:
                     chat_id,
                     message_id,
                     message_queue,
+                    associated_files=files,
                     bot_config=bot_config,
                     default_collections=default_collections,
                     resolved_system_prompt=resolved_system_prompt,
@@ -473,6 +474,7 @@ class AgentChatService:
         chat_id: str,
         message_id: str,
         message_queue: AgentMessageQueue,
+        associated_files: Optional[List[Dict[str, Any]]] = None,
         bot_config=None,
         default_collections=None,
         resolved_system_prompt: str = None,
@@ -502,14 +504,24 @@ class AgentChatService:
             )
 
         # Create a new agent message with merged configuration
+        effective_files = associated_files if associated_files is not None else agent_message.files
         merged_agent_message = view_models.AgentMessage(
             query=agent_message.query,
             collections=final_collections,
             completion=final_completion,
             web_search_enabled=agent_message.web_search_enabled,
             language=agent_message.language,
-            files=agent_message.files,
+            files=effective_files,
             action=agent_message.action,
+        )
+
+        logger.info(
+            "Processing agent message chat=%s message=%s raw_files=%s associated_files=%s effective_files=%s",
+            chat_id,
+            message_id,
+            len(agent_message.files or []),
+            len(associated_files or []),
+            len(merged_agent_message.files or []),
         )
 
         try:
@@ -1224,8 +1236,61 @@ class AgentChatService:
                     len(pydantic_collections),
                 )
 
+        effective_query_prompt = resolved_query_prompt
+        if skill_id == "Skill-002" and self._has_image_files(effective_agent_message.files):
+            logger.info(
+                "FAQ image presearch chat=%s message=%s files=%s collections=%s",
+                chat_id,
+                message_id,
+                [getattr(file, "id", None) for file in (effective_agent_message.files or [])],
+                [getattr(collection, "id", None) for collection in (effective_agent_message.collections or [])],
+            )
+            image_search_results = await self._execute_image_search(
+                user=user,
+                chat_id=chat_id,
+                files=effective_agent_message.files,
+                collections=effective_agent_message.collections or [],
+            )
+            top_chunk = image_search_results[0] if image_search_results else None
+            if not top_chunk or not self._is_confirmed_faq_image_search_hit(top_chunk):
+                logger.info(
+                    "FAQ image search did not find a confirmed hit: score=%s threshold=%s",
+                    top_chunk.score if top_chunk else None,
+                    self._get_faq_image_confirmed_similarity(),
+                )
+                unmatched_response = self._build_unmatched_image_response(agent_message.language)
+                await message_queue.put(format_stream_content(message_id, unmatched_response, skill_id=skill_id))
+                await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=skill_id))
+                return {
+                    "query": agent_message.query,
+                    "content": unmatched_response,
+                    "references": [],
+                }
+
+            chunk_text = (top_chunk.text or "").strip()
+            faq_title = self._extract_faq_title(top_chunk.metadata, chunk_text)
+            if not faq_title:
+                unmatched_response = self._build_unmatched_image_response(agent_message.language)
+                await message_queue.put(format_stream_content(message_id, unmatched_response, skill_id=skill_id))
+                await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=skill_id))
+                return {
+                    "query": agent_message.query,
+                    "content": unmatched_response,
+                    "references": [],
+                }
+
+            effective_agent_message = effective_agent_message.model_copy(
+                update={
+                    "query": self._build_image_search_text_query(
+                        agent_message.query,
+                        faq_title,
+                        agent_message.language,
+                    )
+                }
+            )
+
         # Resolve query prompt for building the user prompt
-        query_prompt = resolved_query_prompt or (
+        query_prompt = effective_query_prompt or (
             "回答用户的问题。如果问题涉及专业领域，请基于你的知识和工具调用能力给出准确回答。"
         )
 
@@ -1469,6 +1534,13 @@ class AgentChatService:
     def _is_confirmed_image_search_hit(self, result: DocumentWithScore) -> bool:
         score = result.score if result else None
         return isinstance(score, (int, float)) and score >= settings.dingtalk_image_search_confirmed_similarity
+
+    def _get_faq_image_confirmed_similarity(self) -> float:
+        return 0.7
+
+    def _is_confirmed_faq_image_search_hit(self, result: DocumentWithScore) -> bool:
+        score = result.score if result else None
+        return isinstance(score, (int, float)) and score >= self._get_faq_image_confirmed_similarity()
 
     def _extract_faq_title(self, metadata: Optional[dict], chunk_text: str) -> str:
         """Extract FAQ title from metadata first, then fallback to parsing chunk text."""

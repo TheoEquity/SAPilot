@@ -67,7 +67,7 @@ export const QuotaSettings = ({
             <Label>{page_quota('bot_count.title')}</Label>
             <Input
               type="number"
-              value={data.max_bot_count}
+              value={data.max_bot_count ?? 0}
               onChange={(e) => {
                 setData({
                   ...data,
@@ -81,7 +81,7 @@ export const QuotaSettings = ({
             <Label>{page_quota('collection_count.title')}</Label>
             <Input
               type="number"
-              value={data.max_collection_count}
+              value={data.max_collection_count ?? 0}
               onChange={(e) => {
                 setData({
                   ...data,
@@ -95,7 +95,7 @@ export const QuotaSettings = ({
             <Label>{page_quota('document_count.title')}</Label>
             <Input
               type="number"
-              value={data.max_document_count}
+              value={data.max_document_count ?? 0}
               onChange={(e) => {
                 setData({
                   ...data,
@@ -109,7 +109,7 @@ export const QuotaSettings = ({
             <Label>{page_quota('documents_per_collection.title')}</Label>
             <Input
               type="number"
-              value={data.max_document_count_per_collection}
+              value={data.max_document_count_per_collection ?? 0}
               onChange={(e) => {
                 setData({
                   ...data,

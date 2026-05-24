@@ -21,21 +21,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api/client';
 import {
   Calendar,
-  EllipsisVertical,
+  Copy,
   MessageSquare,
   Pencil,
   Plus,
-  Settings,
   Trash2,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -190,38 +183,18 @@ export const BotList = ({ bots }: { bots: Bot[] }) => {
                   </Card>
 
                   <div className="absolute top-2 right-2 z-10">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="size-8 opacity-0 transition-opacity group-hover:opacity-100"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <EllipsisVertical className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link
-                            href={`/workspace/bots/${bot.id}/settings`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Settings className="size-4" />
-                            {page_bot('bot_settings')}
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link
-                            href={`/workspace/bots/${bot.id}/chats`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MessageSquare className="size-4" />
-                            {page_bot('view_chats')}
-                          </Link>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+                      asChild
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Link href={`/workspace/bots/new?copyFrom=${bot.id}`}>
+                        <Copy className="size-4" />
+                        {page_bot('duplicate_bot')}
+                      </Link>
+                    </Button>
                   </div>
                 </div>
               );

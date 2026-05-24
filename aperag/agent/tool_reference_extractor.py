@@ -101,6 +101,10 @@ def _extract_tool_call_references_from_messages(history_messages: List[Dict[str,
                                 ref = _format_search_reference(tool_result, args_dict, target_faq_ids)
                             elif tool_name == "aperag_search_chat_files":
                                 ref = _format_search_chat_files_reference(tool_result, args_dict, target_faq_ids)
+                            elif tool_name == "aperag_search_faq_by_chat_image":
+                                ref = _format_search_faq_by_chat_image_reference(
+                                    tool_result, args_dict, target_faq_ids
+                                )
                             elif tool_name == "aperag_list_collections":
                                 ref = _format_list_reference(tool_result, args_dict)
                             elif tool_name == "aperag_web_search":
@@ -303,6 +307,63 @@ def _format_search_chat_files_reference(
 
     except Exception as e:
         logger.error(f"Error formatting search chat files reference: {e}")
+        return None
+
+
+def _format_search_faq_by_chat_image_reference(
+    tool_result: str, args: Dict[str, Any], target_faq_ids: Optional[List[str]] = None
+) -> Optional[List[Dict[str, Any]]]:
+    """Format search_faq_by_chat_image tool result as reference."""
+    try:
+        if isinstance(tool_result, str):
+            try:
+                result_data = json.loads(tool_result)
+            except json.JSONDecodeError:
+                result_data = {"raw_result": tool_result}
+        else:
+            result_data = tool_result
+
+        logger.debug(f"FAQ image reference result_data: {result_data}")
+
+        if isinstance(result_data, list) and len(result_data) > 0:
+            first_item = result_data[0]
+            if isinstance(first_item, dict) and "text" in first_item:
+                try:
+                    result_data = json.loads(first_item["text"])
+                except json.JSONDecodeError:
+                    logger.error(f"Failed to parse text field as JSON: {first_item['text']}")
+                    return None
+
+        items = result_data.get("items") if isinstance(result_data, dict) else None
+        if not items:
+            return None
+
+        item, index = _select_primary_reference_item(items, target_faq_ids)
+        content = item.get("content", "")
+        metadata = item.get("metadata", {}) or {}
+        reference_metadata = {
+            **metadata,
+            "type": "search_faq_by_chat_image",
+            "chat_id": args.get("chat_id", "unknown"),
+            "query": result_data.get("query") or args.get("chat_id", ""),
+            "result_count": len(items),
+            "rank": item.get("rank") or index + 1,
+            "recall_type": item.get("recall_type") or metadata.get("recall_type") or "vision_search",
+            "document_source": item.get("source") or metadata.get("source"),
+            "document_id": metadata.get("document_id") or metadata.get("doc_id"),
+            "collection_id": metadata.get("collection_id"),
+        }
+
+        return [
+            {
+                "text": _format_reference_content(content, reference_metadata),
+                "metadata": reference_metadata,
+                "score": item.get("score") or 1.0,
+            }
+        ]
+
+    except Exception as e:
+        logger.error(f"Error formatting FAQ image reference: {e}")
         return None
 
 

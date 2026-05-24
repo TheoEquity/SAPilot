@@ -80,6 +80,7 @@ export function ModelTable({
   pathnamePrefix: string;
 }) {
   const page_models = useTranslations('page_models');
+  const common_table = useTranslations('common.table');
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({
@@ -127,7 +128,7 @@ export function ModelTable({
               onCheckedChange={(value) =>
                 table.toggleAllPageRowsSelected(!!value)
               }
-              aria-label="Select all"
+              aria-label={common_table('select_all')}
             />
           </div>
         ),
@@ -136,7 +137,7 @@ export function ModelTable({
             <Checkbox
               checked={row.getIsSelected()}
               onCheckedChange={(value) => row.toggleSelected(!!value)}
-              aria-label="Select row"
+              aria-label={common_table('select_row')}
             />
           </div>
         ),
@@ -166,19 +167,25 @@ export function ModelTable({
           return (
             <div className="flex items-center gap-6">
               <div className="text-center">
-                <div className="text-muted-foreground text-sm">Context</div>
+                <div className="text-muted-foreground text-sm">
+                  {page_models('model.context_window')}
+                </div>
                 <div className="w-25 truncate">
                   {row.original.context_window || '-'}
                 </div>
               </div>
               <div className="text-center">
-                <div className="text-muted-foreground text-sm">Max Input</div>
+                <div className="text-muted-foreground text-sm">
+                  {page_models('model.max_input_tokens')}
+                </div>
                 <div className="w-25 truncate">
                   {row.original.max_input_tokens || '-'}
                 </div>
               </div>
               <div className="text-center">
-                <div className="text-muted-foreground text-sm">Max Output</div>
+                <div className="text-muted-foreground text-sm">
+                  {page_models('model.max_output_tokens')}
+                </div>
                 <div className="w-25 truncate">
                   {row.original.max_output_tokens || '-'}
                 </div>
@@ -261,7 +268,7 @@ export function ModelTable({
                 size="icon"
               >
                 <EllipsisVertical />
-                <span className="sr-only">Open menu</span>
+                <span className="sr-only">{common_table('open_menu')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-32">
@@ -290,7 +297,7 @@ export function ModelTable({
       },
     ];
     return cols;
-  }, [page_models, provider]);
+  }, [common_table, page_models, provider]);
 
   const table = useReactTable({
     data,
@@ -342,10 +349,18 @@ export function ModelTable({
               <SelectValue placeholder={page_models('model.api_type')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="completion">Completion</SelectItem>
-              <SelectItem value="embedding">Embedding</SelectItem>
-              <SelectItem value="rerank">Rerank</SelectItem>
-              <SelectItem value="intent">Intent</SelectItem>
+              <SelectItem value="completion">
+                {page_models('model.api_completion')}
+              </SelectItem>
+              <SelectItem value="embedding">
+                {page_models('model.api_embedding')}
+              </SelectItem>
+              <SelectItem value="rerank">
+                {page_models('model.api_rerank')}
+              </SelectItem>
+              <SelectItem value="intent">
+                {page_models('model.api_intent')}
+              </SelectItem>
             </SelectContent>
           </Select>
           <Input

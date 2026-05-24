@@ -222,7 +222,13 @@ async def query_chat_messages(user: str, chat_id: str):
         conversation_turns = []
         for stored_message in stored_messages:
             # Convert this turn to frontend format (returns array of parts)
-            chat_message_list = stored_message.to_frontend_format()
+            chat_message_list = [
+                part
+                for part in stored_message.to_frontend_format()
+                if part.type in {"message", "references", "faq_choice"}
+            ]
+            if not chat_message_list:
+                continue
 
             # Add feedback data if available
             for chat_msg in chat_message_list:

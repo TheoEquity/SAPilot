@@ -14,6 +14,7 @@
 
 import logging
 import os
+import json
 from typing import Any, Dict
 
 import httpx
@@ -22,6 +23,7 @@ from fastmcp.server.dependencies import get_http_headers
 
 from aperag.db.ops import async_db_ops
 from aperag.service.image_search_service import image_search_service
+from aperag.service.chat_collection_service import chat_collection_service
 # Import view models for type safety
 from aperag.schema.view_models import Collection, CollectionViewList, SearchResult, SearchResultItem, WebReadResponse, WebSearchResponse
 
@@ -32,6 +34,61 @@ mcp_server = FastMCP("ApeRAG")
 
 # Base URL for internal API calls
 API_BASE_URL = "http://localhost:8000"
+
+
+def _is_image_filename(name: str) -> bool:
+    return str(name or "").lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"))
+
+
+async def _resolve_current_chat_image_document_id(user_id: str, chat_id: str, file_id: str) -> str:
+    """Resolve the current chat turn's uploaded image document ID.
+
+    Order:
+    1. Use the explicit persisted document ID when provided.
+    2. Otherwise, scan current chat-upload documents for this chat and pick the latest
+       associated image document. This matches the current turn because document
+       association happens before the MCP tool is invoked.
+    """
+    if file_id:
+        document = await async_db_ops.query_document_by_id(file_id)
+        if document and _is_image_filename(getattr(document, "name", "")):
+            return file_id
+
+    chat_collection = await chat_collection_service.get_user_chat_collection(user_id)
+    if not chat_collection:
+        return ""
+
+    documents = await async_db_ops.query_documents([user_id], chat_collection.id)
+    matched_documents = []
+    for document in documents or []:
+        if not _is_image_filename(getattr(document, "name", "")):
+            continue
+        if not document.doc_metadata:
+            continue
+        try:
+            metadata = json.loads(document.doc_metadata)
+        except json.JSONDecodeError:
+            continue
+        if metadata.get("file_type") != "chat_upload":
+            continue
+        if metadata.get("chat_id") != chat_id:
+            continue
+        if not metadata.get("message_id"):
+            continue
+        matched_documents.append((document, metadata))
+
+    if not matched_documents:
+        return ""
+
+    matched_documents.sort(
+        key=lambda item: (
+            item[1].get("updated_at") or "",
+            item[0].gmt_updated.isoformat() if getattr(item[0], "gmt_updated", None) else "",
+            item[0].gmt_created.isoformat() if getattr(item[0], "gmt_created", None) else "",
+        ),
+        reverse=True,
+    )
+    return matched_documents[0][0].id
 
 
 @mcp_server.tool
@@ -331,6 +388,11 @@ async def search_faq_by_chat_image(
 
     Returns:
         SearchResult-style payload with enriched FAQ text and metadata.
+
+    Note:
+        `file_id` should be the uploaded chat image document ID. For compatibility,
+        this tool also accepts the message/file-style ID when it can be mapped back
+        to the stored chat upload document in the same chat.
     """
     try:
         api_key = get_api_key()
@@ -361,7 +423,11 @@ async def search_faq_by_chat_image(
         if not collections:
             return {"error": "No accessible collections found"}
 
-        data_uri = await image_search_service._load_chat_image_as_data_uri(user_id, chat_id, file_id)
+        resolved_document_id = await _resolve_current_chat_image_document_id(user_id, chat_id, file_id)
+        if not resolved_document_id:
+            return {"error": "Image file not found or is not a valid uploaded chat image"}
+
+        data_uri = await image_search_service._load_chat_image_as_data_uri(user_id, chat_id, resolved_document_id)
         if not data_uri:
             return {"error": "Image file not found or is not a valid uploaded chat image"}
 
@@ -389,7 +455,7 @@ async def search_faq_by_chat_image(
             )
 
         search_result = SearchResult(
-            query=f"chat_image:{chat_id}/{file_id}",
+            query=f"chat_image:{chat_id}/{resolved_document_id}",
             items=items,
             vision_search={"topk": topk, "similarity": similarity_threshold},
         )

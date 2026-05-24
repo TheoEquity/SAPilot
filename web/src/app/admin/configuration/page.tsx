@@ -8,8 +8,8 @@ import {
 import { getServerApi } from '@/lib/api/server';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { ConfigExportImport } from './config-export-import';
 import { DingTalkSettings } from './dingtalk-settings';
+import { FirecrawlSettings } from './firecrawl-settings';
 import { ParserSettings } from './parser-settings';
 import { QuotaSettings } from './quota-settings';
 
@@ -43,7 +43,7 @@ export default async function Page() {
         </PageDescription>
 
         <div className="flex flex-col gap-6">
-          <ConfigExportImport />
+          <FirecrawlSettings data={settings} />
           <DingTalkSettings data={settings} bots={resBots.data.items || []} />
           <ParserSettings data={settings} />
           <QuotaSettings data={resSystemDefaultQuotas.data.quotas} />
