@@ -1012,6 +1012,142 @@ class AgentChatService:
             "label": marker,
         }
 
+    @staticmethod
+    def _get_flow_start_node_id(skill_config: view_models.SkillConfig) -> Optional[str]:
+        if not skill_config.flow or not skill_config.flow.nodes:
+            return None
+
+        nodes = skill_config.flow.nodes
+        incoming_count = {node.id: 0 for node in nodes}
+        for edge in skill_config.flow.edges:
+            if edge.target in incoming_count and edge.source != edge.target:
+                incoming_count[edge.target] += 1
+
+        explicit_start = next(
+            (
+                node.id
+                for node in nodes
+                if node.type == "startEnd"
+                and str(node.data.get("label", "")).strip().lower() in {"start", "开始"}
+            ),
+            None,
+        )
+        if explicit_start:
+            return explicit_start
+
+        zero_incoming = [node.id for node in nodes if incoming_count.get(node.id, 0) == 0]
+        if zero_incoming:
+            return zero_incoming[0]
+
+        return nodes[0].id
+
+    @staticmethod
+    def _normalize_condition_value(value: Any) -> str:
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if value is None:
+            return ""
+        normalized = str(value).strip().lower()
+        if normalized in {"yes", "y", "1"}:
+            return "true"
+        if normalized in {"no", "n", "0"}:
+            return "false"
+        return normalized
+
+    def _evaluate_condition_node(
+        self,
+        node: view_models.ReactFlowNode,
+        node_results: dict[str, dict[str, Any]],
+    ) -> str:
+        source_node_id = str(node.data.get("source_node_id") or "").strip()
+        field = str(node.data.get("field") or "").strip()
+        operator = str(node.data.get("operator") or "equals").strip().lower()
+        expected_value = self._normalize_condition_value(node.data.get("expected_value"))
+
+        source_result = node_results.get(source_node_id, {})
+        outputs = source_result.get("outputs", {}) if isinstance(source_result, dict) else {}
+        actual_value = outputs.get(field) if isinstance(outputs, dict) else None
+        normalized_actual = self._normalize_condition_value(actual_value)
+
+        matched = False
+        if operator == "exists":
+            matched = field in outputs if isinstance(outputs, dict) else False
+        elif operator == "not_equals":
+            matched = normalized_actual != expected_value
+        else:
+            matched = normalized_actual == expected_value
+
+        decision = "yes" if matched else "no"
+        logger.info(
+            "Condition node %s evaluated: source=%s field=%s operator=%s actual=%s expected=%s decision=%s",
+            node.id,
+            source_node_id,
+            field,
+            operator,
+            normalized_actual,
+            expected_value,
+            decision,
+        )
+        return decision
+
+    @staticmethod
+    def _build_node_output_from_references(references: list[dict[str, Any]]) -> dict[str, Any]:
+        has_result = bool(references)
+        summaries: list[str] = []
+        for reference in references:
+            text = str(reference.get("text") or "").strip()
+            if text:
+                summaries.append(text[:200])
+            if len(summaries) >= 3:
+                break
+        return {
+            "has_result": has_result,
+            "kb_summary": "\n\n".join(summaries),
+            "reference_count": len(references),
+        }
+
+    async def _execute_action_node(
+        self,
+        *,
+        node: view_models.ReactFlowNode,
+        llm,
+        chat_id: str,
+        agent_message: view_models.AgentMessage,
+        user: str,
+        request_params: RequestParams,
+        query_prompt: str,
+        node_results: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
+        node_prompt = node.data.get("prompt") if isinstance(node.data.get("prompt"), str) else ""
+        node_label = node.data.get("label") if isinstance(node.data.get("label"), str) else node.id
+        context_blocks: list[str] = []
+        for source_node_id, result in node_results.items():
+            outputs = result.get("outputs", {}) if isinstance(result, dict) else {}
+            if outputs:
+                context_blocks.append(f"[Node Outputs: {source_node_id}]\n{json.dumps(outputs, ensure_ascii=False)}")
+
+        node_query_prompt = query_prompt
+        if node_prompt.strip() or context_blocks:
+            extra_parts = []
+            if node_prompt.strip():
+                extra_parts.append(f"[Current Node: {node_label}]\n{node_prompt.strip()}")
+            if context_blocks:
+                extra_parts.append("\n\n".join(context_blocks))
+            node_query_prompt = "\n\n".join(part for part in [query_prompt, *extra_parts] if part)
+
+        comprehensive_prompt = build_agent_query_prompt(
+            chat_id, agent_message=agent_message, user=user, template=node_query_prompt, is_search_confirmed=False
+        )
+        response = await llm.generate_str(comprehensive_prompt, request_params)
+        text = response if response else "No response generated"
+        references = extract_tool_call_references(llm.history)
+        outputs = self._build_node_output_from_references(references)
+        return {
+            "text": text,
+            "outputs": outputs,
+            "references": references,
+        }
+
     def _format_faq_choice_message(self, message_id: str, label: str) -> Dict[str, Any]:
         return {
             "type": "faq_choice",
@@ -1054,25 +1190,6 @@ class AgentChatService:
             await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
             return {"query": agent_message.query, "content": fallback_msg, "references": []}
 
-        # Collect enabled tools from canvas flow action nodes and skill-level bindings
-        enabled_tools: set[str] = set()
-        if skill_config.flow:
-            for node in skill_config.flow.nodes:
-                if node.type == "action":
-                    node_tools = node.data.get("tools", [])
-                    if isinstance(node_tools, list):
-                        enabled_tools.update(node_tools)
-
-        if not enabled_tools and skill_config.tools:
-            for binding in skill_config.tools:
-                if binding.enabled and binding.tool_id:
-                    enabled_tools.add(binding.tool_id)
-
-        logger.info(
-            "Skill %s execution: %d tools enabled (%s)",
-            skill_id, len(enabled_tools), ", ".join(sorted(enabled_tools)) if enabled_tools else "none"
-        )
-
         # Build skill-scoped memory from the isolated context buffer
         skill_buffer = self.skill_context_buffers.get(chat_id, {})
         skill_memory = SimpleMemory()
@@ -1087,28 +1204,20 @@ class AgentChatService:
 
         logger.info("Skill %s using isolated context with %d messages", skill_id, len(skill_memory.history))
 
-        # Build skill-specific system prompt
-        skill_prompt_text = ""
-        if skill_config.prompts and skill_config.prompts.skill_prompt:
-            skill_prompt_text = skill_config.prompts.skill_prompt
-
-        node_prompt_blocks: list[str] = []
-        if skill_config.flow:
-            for node in skill_config.flow.nodes:
-                if node.type != "action":
-                    continue
-                node_prompt = node.data.get("prompt")
-                if isinstance(node_prompt, str) and node_prompt.strip():
-                    node_label = node.data.get("label") if isinstance(node.data.get("label"), str) else node.id
-                    node_prompt_blocks.append(f"[Node: {node_label}]\n{node_prompt.strip()}")
-
-        base_system_prompt = resolved_system_prompt or ""
-        prompt_parts = [base_system_prompt]
-        if skill_prompt_text:
-            prompt_parts.append(skill_prompt_text)
-        if node_prompt_blocks:
-            prompt_parts.append("\n\n".join(node_prompt_blocks))
-        effective_system_prompt = "\n\n".join(part for part in prompt_parts if part)
+        effective_agent_message = agent_message
+        if not effective_agent_message.collections and skill_config.collections:
+            collection_ids = [collection.id for collection in skill_config.collections if getattr(collection, "id", None)]
+            if collection_ids:
+                db_collections = await self.db_ops.query_collections_by_ids(user, collection_ids)
+                pydantic_collections = await self._convert_db_collections_to_pydantic(db_collections)
+                effective_agent_message = agent_message.model_copy(
+                    update={"collections": pydantic_collections}
+                )
+                logger.info(
+                    "Skill %s injected %d configured collections into agent message",
+                    skill_id,
+                    len(pydantic_collections),
+                )
 
         # Resolve query prompt for building the user prompt
         query_prompt = resolved_query_prompt or (
@@ -1137,6 +1246,17 @@ class AgentChatService:
             await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
             return {"query": agent_message.query, "content": error_msg, "references": []}
 
+        # Build skill-specific system prompt
+        skill_prompt_text = ""
+        if skill_config.prompts and skill_config.prompts.skill_prompt:
+            skill_prompt_text = skill_config.prompts.skill_prompt
+
+        base_system_prompt = resolved_system_prompt or ""
+        prompt_parts = [base_system_prompt]
+        if skill_prompt_text:
+            prompt_parts.append(skill_prompt_text)
+        effective_system_prompt = "\n\n".join(part for part in prompt_parts if part)
+
         # Get aperag API key for MCP connection
         aperag_api_key = None
         aperag_api_keys = await self.db_ops.query_api_keys(user, is_system=True)
@@ -1152,30 +1272,8 @@ class AgentChatService:
                 await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
                 return {"query": agent_message.query, "content": error_msg, "references": []}
 
-        # Build the comprehensive prompt for the user query
-        comprehensive_prompt = build_agent_query_prompt(
-            chat_id, agent_message=agent_message, user=user, template=query_prompt, is_search_confirmed=False
-        )
-
-        # Build tool_filter for RequestParams
-        tool_filter = None
-        if enabled_tools:
-            tool_filter = {"aperag": enabled_tools}
-
-        # Build the LLM request params
-        request_params = RequestParams(
-            maxTokens=max_tokens,
-            model=model_name,
-            use_history=True,
-            max_iterations=10,
-            parallel_tool_calls=True,
-            temperature=temperature,
-            user=user,
-            tool_filter=tool_filter,
-        )
-
         try:
-            # Get agent session with the skill-specific system prompt
+            # Get agent session with the skill base prompt
             session_config = AgentConfig(
                 user_id=user,
                 chat_id=chat_id,
@@ -1194,10 +1292,92 @@ class AgentChatService:
             session = await agent_session_manager.get_or_create_session(session_config)
             llm = await session.get_llm(model_name)
             llm.history = skill_memory
+            nodes_by_id = {node.id: node for node in (skill_config.flow.nodes if skill_config.flow else [])}
+            outgoing_edges: dict[str, list[view_models.ReactFlowEdge]] = {}
+            if skill_config.flow:
+                for edge in skill_config.flow.edges:
+                    outgoing_edges.setdefault(edge.source, []).append(edge)
 
-            # Execute LLM and stream the response
-            response = await llm.generate_str(comprehensive_prompt, request_params)
-            full_content = response if response else "No response generated"
+            enabled_tools_from_skill: set[str] = set()
+            for binding in skill_config.tools or []:
+                if binding.enabled and binding.tool_id:
+                    enabled_tools_from_skill.add(binding.tool_id)
+
+            current_node_id = self._get_flow_start_node_id(skill_config)
+            if not current_node_id and skill_config.flow and skill_config.flow.nodes:
+                current_node_id = skill_config.flow.nodes[0].id
+
+            node_results: dict[str, dict[str, Any]] = {}
+            branch_trace: list[str] = []
+            final_text = ""
+            final_references: list[dict[str, Any]] = []
+            visited_node_ids: set[str] = set()
+            step_guard = 0
+
+            while current_node_id and current_node_id in nodes_by_id and step_guard < 50:
+                step_guard += 1
+                if current_node_id in visited_node_ids:
+                    logger.warning("Detected flow loop at node %s for skill %s", current_node_id, skill_id)
+                    break
+                visited_node_ids.add(current_node_id)
+
+                node = nodes_by_id[current_node_id]
+                outgoing = outgoing_edges.get(current_node_id, [])
+
+                if node.type == "action":
+                    enabled_tools = set(enabled_tools_from_skill)
+                    node_tools = node.data.get("tools", [])
+                    if isinstance(node_tools, list):
+                        enabled_tools.update(str(tool_id) for tool_id in node_tools if tool_id)
+
+                    request_params = RequestParams(
+                        maxTokens=max_tokens,
+                        model=model_name,
+                        use_history=True,
+                        max_iterations=10,
+                        parallel_tool_calls=True,
+                        temperature=temperature,
+                        user=user,
+                        tool_filter={"aperag": enabled_tools} if enabled_tools else None,
+                    )
+
+                    node_result = await self._execute_action_node(
+                        node=node,
+                        llm=llm,
+                        chat_id=chat_id,
+                        agent_message=effective_agent_message,
+                        user=user,
+                        request_params=request_params,
+                        query_prompt=query_prompt,
+                        node_results=node_results,
+                    )
+                    node_results[node.id] = node_result
+                    final_text = node_result.get("text", final_text)
+                    final_references = node_result.get("references", final_references)
+                    next_edge = outgoing[0] if outgoing else None
+                elif node.type == "condition":
+                    decision = self._evaluate_condition_node(node, node_results)
+                    branch_trace.append(f"{node.id}:{decision}")
+                    next_edge = next((edge for edge in outgoing if (edge.sourceHandle or "") == decision), None)
+                    if not next_edge:
+                        next_edge = outgoing[0] if outgoing else None
+                elif node.type == "startEnd":
+                    next_edge = outgoing[0] if outgoing else None
+                    if not next_edge:
+                        break
+                else:
+                    next_edge = outgoing[0] if outgoing else None
+
+                current_node_id = next_edge.target if next_edge else None
+
+            logger.info(
+                "Skill %s flow executed: visited=%s branches=(%s)",
+                skill_id,
+                ", ".join(sorted(visited_node_ids)) if visited_node_ids else "none",
+                ", ".join(branch_trace) if branch_trace else "none",
+            )
+
+            full_content = final_text or "No response generated"
 
             # Extract FAQ choice if present
             faq_choice = self._extract_faq_choice(full_content)
@@ -1207,11 +1387,11 @@ class AgentChatService:
             await asyncio.sleep(0.1)
             await message_queue.put(format_stream_content(message_id, full_content))
 
-            tool_references = extract_tool_call_references(llm.history)
+            tool_references = final_references or extract_tool_call_references(llm.history)
             await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[], skill_id=skill_id))
 
             return {
-                "query": agent_message.query,
+                "query": effective_agent_message.query,
                 "content": full_content,
                 "references": tool_references,
             }
@@ -1221,7 +1401,7 @@ class AgentChatService:
             error_msg = f"Skill execution failed: {str(e)}"
             await message_queue.put(format_stream_content(message_id, error_msg, skill_id=skill_id))
             await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=skill_id))
-            return {"query": agent_message.query, "content": error_msg, "references": []}
+            return {"query": effective_agent_message.query, "content": error_msg, "references": []}
 
     def _build_faq_choice_end_response(self, language: Optional[str]) -> str:
         if language == "zh-CN":
