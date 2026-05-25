@@ -1,5 +1,6 @@
 'use client';
 
+import { LlmProviderModel } from '@/api';
 import { useBotConfigContext } from '@/components/providers/bot-config-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,7 +10,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -20,21 +27,34 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { apiClient } from '@/lib/api/client';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMessages, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useMessages, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import * as z from 'zod';
-import { normalizeOrchestration, updateBotOrchestration } from '../bot-config-updater';
-import { MCPToolInfo, OrchestrationSkill } from '../orchestration-types';
+import {
+  normalizeOrchestration,
+  updateBotOrchestration,
+} from '../bot-config-updater';
 import { FlowCanvasEditor } from '../flow-canvas-editor';
 import { FlowJsonEditor } from '../flow-json-editor';
 import { normalizeFlowSchema } from '../flow-utils';
-import { apiClient } from '@/lib/api/client';
-import { LlmProviderModel } from '@/api';
+import { MCPToolInfo, OrchestrationSkill } from '../orchestration-types';
+
+const dedupeSkillsById = <T extends { id?: string }>(skills: T[]) => {
+  const skillMap = new Map<string, T>();
+  for (const skill of skills) {
+    if (!skill.id) {
+      continue;
+    }
+    skillMap.set(skill.id, skill);
+  }
+  return Array.from(skillMap.values());
+};
 
 const skillSchema = z.object({
   id: z.string().min(1),
@@ -49,7 +69,9 @@ const skillSchema = z.object({
   max_tokens: z.coerce.number().min(1),
   skill_prompt: z.string(),
   collections: z.array(z.object({ id: z.string() })).optional(),
-  tools: z.array(z.object({ tool_id: z.string(), enabled: z.boolean() })).optional(),
+  tools: z
+    .array(z.object({ tool_id: z.string(), enabled: z.boolean() }))
+    .optional(),
 });
 
 type SkillEditorFormValues = z.output<typeof skillSchema>;
@@ -64,7 +86,9 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
   const getLocalizedToolDescription = useCallback(
     (toolName: string, fallback?: string) => {
       const descriptionKey = `tool_desc_${toolName}`;
-      const pageBotMessages = messages?.page_bot as Record<string, string> | undefined;
+      const pageBotMessages = messages?.page_bot as
+        | Record<string, string>
+        | undefined;
 
       if (pageBotMessages && descriptionKey in pageBotMessages) {
         return page_bot(descriptionKey as any);
@@ -130,7 +154,9 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
     loadTools();
   }, [loadCollections, loadTools]);
 
-  const [completionModels, setCompletionModels] = useState<LlmProviderModel[]>([]);
+  const [completionModels, setCompletionModels] = useState<LlmProviderModel[]>(
+    [],
+  );
   const [selectedProvider, setSelectedProvider] = useState('');
 
   const uniqueProviders = useMemo(
@@ -151,21 +177,23 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
         },
       });
       const items = res.data.items || [];
-      const models = items.flatMap((item) =>
-        (item.completion || []).map((model): LlmProviderModel | null => {
-          if (!item.name || !model.model || !model.custom_llm_provider) {
-            return null;
-          }
+      const models = items
+        .flatMap((item) =>
+          (item.completion || []).map((model): LlmProviderModel | null => {
+            if (!item.name || !model.model || !model.custom_llm_provider) {
+              return null;
+            }
 
-          return {
-            ...model,
-            provider_name: item.name,
-            model: model.model,
-            custom_llm_provider: model.custom_llm_provider,
-            api: 'completion',
-          };
-        }),
-      ).filter((model): model is LlmProviderModel => model !== null);
+            return {
+              ...model,
+              provider_name: item.name,
+              model: model.model,
+              custom_llm_provider: model.custom_llm_provider,
+              api: 'completion',
+            };
+          }),
+        )
+        .filter((model): model is LlmProviderModel => model !== null);
       setCompletionModels(models);
     } catch (error) {
       console.error('Failed to fetch available models', error);
@@ -228,7 +256,7 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
       io: existingSkill?.io || {
         input_schema: {},
         output_schema: {},
-                  },
+      },
       flow: flowDraft,
       collections: values.collections || [],
       meta: {
@@ -238,18 +266,21 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
     };
 
     const currentSkills = orchestration.skills || [];
-    const nextSkills = existingSkill
-      ? currentSkills.map((skill) =>
-          skill.id === existingSkill.id ? nextSkill : skill,
-        )
-      : [...currentSkills, nextSkill];
+    const nextSkills = dedupeSkillsById(
+      existingSkill
+        ? currentSkills.map((skill) =>
+            skill.id === existingSkill.id ? nextSkill : skill,
+          )
+        : [...currentSkills, nextSkill],
+    );
 
     const nextCandidateSkills = nextSkills
       .filter((skill) => skill.id && skill.name)
       .map((skill) => {
-        const existingCandidate = orchestration.intent_router?.candidate_skills?.find(
-          (candidate) => candidate.skill_id === skill.id,
-        );
+        const existingCandidate =
+          orchestration.intent_router?.candidate_skills?.find(
+            (candidate) => candidate.skill_id === skill.id,
+          );
 
         return {
           skill_id: skill.id,
@@ -260,10 +291,13 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
         };
       });
 
-      const currentFallback = orchestration.intent_router?.fallback_skill_id || '';
-      const nextFallbackSkillId = values.is_fallback
-        ? values.id
-        : (currentFallback === skillId ? '' : currentFallback);
+    const currentFallback =
+      orchestration.intent_router?.fallback_skill_id || '';
+    const nextFallbackSkillId = values.is_fallback
+      ? values.id
+      : currentFallback === skillId
+        ? ''
+        : currentFallback;
 
     await updateBotOrchestration({
       bot,
@@ -289,7 +323,9 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{existingSkill ? existingSkill.name : page_bot('new_skill')}</CardTitle>
+        <CardTitle>
+          {existingSkill ? existingSkill.name : page_bot('new_skill')}
+        </CardTitle>
         <CardDescription>{page_bot('skills_description')}</CardDescription>
       </CardHeader>
       <CardContent>
@@ -330,7 +366,11 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 <FormItem>
                   <FormLabel>{page_bot('description')}</FormLabel>
                   <FormControl>
-                    <Textarea {...field} value={field.value || ''} className="h-24" />
+                    <Textarea
+                      {...field}
+                      value={field.value || ''}
+                      className="h-24"
+                    />
                   </FormControl>
                 </FormItem>
               )}
@@ -350,10 +390,18 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="workflow">{page_bot('skill_type_workflow')}</SelectItem>
-                        <SelectItem value="hybrid">{page_bot('skill_type_hybrid')}</SelectItem>
-                        <SelectItem value="llm">{page_bot('skill_type_llm')}</SelectItem>
-                        <SelectItem value="tool">{page_bot('skill_type_tool')}</SelectItem>
+                        <SelectItem value="workflow">
+                          {page_bot('skill_type_workflow')}
+                        </SelectItem>
+                        <SelectItem value="hybrid">
+                          {page_bot('skill_type_hybrid')}
+                        </SelectItem>
+                        <SelectItem value="llm">
+                          {page_bot('skill_type_llm')}
+                        </SelectItem>
+                        <SelectItem value="tool">
+                          {page_bot('skill_type_tool')}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
@@ -367,7 +415,10 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <FormLabel>{page_bot('skill_enabled')}</FormLabel>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -379,10 +430,15 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div>
                       <FormLabel>{page_bot('skill_default')}</FormLabel>
-                      <p className="text-xs text-muted-foreground">{page_bot('skill_default_desc')}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {page_bot('skill_default_desc')}
+                      </p>
                     </div>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -406,12 +462,16 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={page_bot('select_provider')} />
+                          <SelectValue
+                            placeholder={page_bot('select_provider')}
+                          />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {uniqueProviders.map((p) => (
-                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                          <SelectItem key={p} value={p}>
+                            {p}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -436,7 +496,9 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                       </FormControl>
                       <SelectContent>
                         {availableModels.map((m) => (
-                          <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>
+                          <SelectItem key={m.model} value={m.model}>
+                            {m.model}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -453,12 +515,16 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                   <FormItem>
                     <FormLabel>{page_bot('temperature')}</FormLabel>
                     <FormControl>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          {...field}
-                          value={field.value === undefined || field.value === null ? '' : String(field.value)}
-                        />
+                      <Input
+                        type="number"
+                        step="0.1"
+                        {...field}
+                        value={
+                          field.value === undefined || field.value === null
+                            ? ''
+                            : String(field.value)
+                        }
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -470,11 +536,15 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                   <FormItem>
                     <FormLabel>{page_bot('max_tokens')}</FormLabel>
                     <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          value={field.value === undefined || field.value === null ? '' : String(field.value)}
-                        />
+                      <Input
+                        type="number"
+                        {...field}
+                        value={
+                          field.value === undefined || field.value === null
+                            ? ''
+                            : String(field.value)
+                        }
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -503,11 +573,16 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                       value=""
                     >
                       <SelectTrigger className="w-full md:w-6/12">
-                        <SelectValue placeholder={page_bot('collection_placeholder')} />
+                        <SelectValue
+                          placeholder={page_bot('collection_placeholder')}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {collections.map((collection) => (
-                          <SelectItem key={collection.id} value={collection.id || ''}>
+                          <SelectItem
+                            key={collection.id}
+                            value={collection.id || ''}
+                          >
                             {collection.title}
                           </SelectItem>
                         ))}
@@ -517,18 +592,16 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                   {field.value && field.value.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {field.value.map((c) => {
-                        const col = collections.find(
-                          (col) => col.id === c.id,
-                        );
+                        const col = collections.find((col) => col.id === c.id);
                         return (
                           <span
                             key={c.id}
-                            className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-sm"
+                            className="bg-secondary inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm"
                           >
                             {col?.title || c.id}
                             <button
                               type="button"
-                              className="ml-1 rounded-full hover:bg-accent"
+                              className="hover:bg-accent ml-1 rounded-full"
                               onClick={() => {
                                 form.setValue(
                                   'collections',
@@ -549,18 +622,22 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
               )}
             />
 
-              <FormField
-                control={form.control}
-                name="skill_prompt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{page_bot('skill_prompt_label')}</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value || ''} className="h-24 font-mono text-sm" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="skill_prompt"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{page_bot('skill_prompt_label')}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      value={field.value || ''}
+                      className="h-24 font-mono text-sm"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <FlowCanvasEditor
               title={page_bot('skill_flow_canvas_title')}
@@ -607,22 +684,27 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 const nextCandidateSkills = nextSkills
                   .filter((skill) => skill.id && skill.name)
                   .map((skill) => {
-                    const existingCandidate = orchestration.intent_router?.candidate_skills?.find(
-                      (candidate) => candidate.skill_id === skill.id,
-                    );
+                    const existingCandidate =
+                      orchestration.intent_router?.candidate_skills?.find(
+                        (candidate) => candidate.skill_id === skill.id,
+                      );
                     return {
                       skill_id: skill.id,
                       label: skill.name,
                       description: skill.description,
-                      enabled: existingCandidate?.enabled ?? skill.enabled ?? true,
+                      enabled:
+                        existingCandidate?.enabled ?? skill.enabled ?? true,
                       examples: existingCandidate?.examples || [],
                     };
                   });
 
-                const currentFallback = orchestration.intent_router?.fallback_skill_id || '';
+                const currentFallback =
+                  orchestration.intent_router?.fallback_skill_id || '';
                 const nextFallbackSkillId = currentValues.is_fallback
                   ? currentValues.id
-                  : (currentFallback === skillId ? '' : currentFallback);
+                  : currentFallback === skillId
+                    ? ''
+                    : currentFallback;
 
                 await updateBotOrchestration({
                   bot,
@@ -650,15 +732,20 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
                 return availableTools.map((tool) => ({
                   id: tool.name,
                   name: tool.name,
-                  description: getLocalizedToolDescription(tool.name, tool.description),
+                  description: getLocalizedToolDescription(
+                    tool.name,
+                    tool.description,
+                  ),
                 }));
               })()}
             />
 
-            <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b">
-              <summary className="select-none font-medium">
+            <details className="group rounded-md border [&>summary]:flex [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&>summary::-webkit-details-marker]:hidden [&[open]>summary]:border-b">
+              <summary className="font-medium select-none">
                 {page_bot('skill_flow_title')}
-                <span className="transition-transform group-open:rotate-90">▶</span>
+                <span className="transition-transform group-open:rotate-90">
+                  ▶
+                </span>
               </summary>
               <div className="p-4">
                 <FlowJsonEditor

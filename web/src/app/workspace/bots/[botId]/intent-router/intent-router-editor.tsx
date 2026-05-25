@@ -1,5 +1,6 @@
 'use client';
 
+import { LlmProviderModel } from '@/api';
 import { useBotConfigContext } from '@/components/providers/bot-config-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,7 +10,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -20,17 +27,19 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { apiClient } from '@/lib/api/client';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import * as z from 'zod';
-import { apiClient } from '@/lib/api/client';
-import { LlmProviderModel } from '@/api';
-import { normalizeOrchestration, updateBotOrchestration } from '../bot-config-updater';
+import {
+  normalizeOrchestration,
+  updateBotOrchestration,
+} from '../bot-config-updater';
 import { FlowCanvasEditor } from '../flow-canvas-editor';
 import { FlowJsonEditor } from '../flow-json-editor';
 import { normalizeFlowSchema } from '../flow-utils';
@@ -60,7 +69,12 @@ export const IntentRouterEditor = () => {
 
   const orchestration = normalizeOrchestration(bot);
   const intentRouter = orchestration.intent_router;
-  const skills = orchestration.skills || [];
+  const skills = useMemo(() => {
+    const skillMap = new Map(
+      (orchestration.skills || []).map((skill) => [skill.id, skill]),
+    );
+    return Array.from(skillMap.values());
+  }, [orchestration.skills]);
 
   const skillOptions = useMemo(
     () => skills.filter((skill) => skill.id && skill.name),
@@ -164,7 +178,8 @@ export const IntentRouterEditor = () => {
         label: skill.name,
         description: skill.description,
         enabled: existingCandidate?.enabled ?? skill.enabled ?? true,
-        examples: examplesBySkillId.get(skill.id) || existingCandidate?.examples || [],
+        examples:
+          examplesBySkillId.get(skill.id) || existingCandidate?.examples || [],
       };
     });
   }, [flowDraft.nodes, intentRouter?.candidate_skills, skillOptions]);
@@ -266,7 +281,9 @@ export const IntentRouterEditor = () => {
     <Card>
       <CardHeader>
         <CardTitle>{page_bot('intent_router_title')}</CardTitle>
-        <CardDescription>{page_bot('intent_router_description')}</CardDescription>
+        <CardDescription>
+          {page_bot('intent_router_description')}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -297,12 +314,14 @@ export const IntentRouterEditor = () => {
               )}
             />
 
-            <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b">
-              <summary className="select-none font-medium text-sm">
+            <details className="group rounded-md border [&>summary]:flex [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&>summary::-webkit-details-marker]:hidden [&[open]>summary]:border-b">
+              <summary className="text-sm font-medium select-none">
                 {page_bot('model_configuration')}
-                <span className="text-muted-foreground transition-transform group-open:rotate-90">▶</span>
+                <span className="text-muted-foreground transition-transform group-open:rotate-90">
+                  ▶
+                </span>
               </summary>
-              <div className="p-4 space-y-3">
+              <div className="space-y-3 p-4">
                 <FormField
                   control={form.control}
                   name="confidence_threshold"
@@ -314,7 +333,11 @@ export const IntentRouterEditor = () => {
                           type="number"
                           step="0.1"
                           {...field}
-                          value={field.value === undefined || field.value === null ? '' : String(field.value)}
+                          value={
+                            field.value === undefined || field.value === null
+                              ? ''
+                              : String(field.value)
+                          }
                         />
                       </FormControl>
                     </FormItem>
@@ -327,7 +350,9 @@ export const IntentRouterEditor = () => {
                     name="llm_provider"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{page_bot('intent_model_provider')}</FormLabel>
+                        <FormLabel>
+                          {page_bot('intent_model_provider')}
+                        </FormLabel>
                         <Select
                           onValueChange={(val) => {
                             field.onChange(val);
@@ -338,12 +363,16 @@ export const IntentRouterEditor = () => {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder={page_bot('select_provider')} />
+                              <SelectValue
+                                placeholder={page_bot('select_provider')}
+                              />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {uniqueProviders.map((p) => (
-                              <SelectItem key={p} value={p}>{p}</SelectItem>
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -364,12 +393,16 @@ export const IntentRouterEditor = () => {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder={page_bot('select_model')} />
+                              <SelectValue
+                                placeholder={page_bot('select_model')}
+                              />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {availableModels.map((m) => (
-                              <SelectItem key={m.model} value={m.model}>{m.model}</SelectItem>
+                              <SelectItem key={m.model} value={m.model}>
+                                {m.model}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -380,10 +413,12 @@ export const IntentRouterEditor = () => {
               </div>
             </details>
 
-            <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b">
-              <summary className="select-none font-medium text-sm">
+            <details className="group rounded-md border [&>summary]:flex [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&>summary::-webkit-details-marker]:hidden [&[open]>summary]:border-b">
+              <summary className="text-sm font-medium select-none">
                 {page_bot('intent_prompt')}
-                <span className="text-muted-foreground transition-transform group-open:rotate-90">▶</span>
+                <span className="text-muted-foreground transition-transform group-open:rotate-90">
+                  ▶
+                </span>
               </summary>
               <div className="p-4">
                 <FormField
@@ -393,11 +428,15 @@ export const IntentRouterEditor = () => {
                     <FormItem>
                       <FormLabel>{page_bot('query_prompt_template')}</FormLabel>
                       <FormControl>
-                        <Textarea {...field} value={field.value || ''} className="h-40 font-mono text-sm" />
+                        <Textarea
+                          {...field}
+                          value={field.value || ''}
+                          className="h-40 font-mono text-sm"
+                        />
                       </FormControl>
                     </FormItem>
-                    )}
-                  />
+                  )}
+                />
               </div>
             </details>
 
@@ -408,7 +447,10 @@ export const IntentRouterEditor = () => {
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <FormLabel>{page_bot('orchestration_configured')}</FormLabel>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
                   </FormControl>
                 </FormItem>
               )}
@@ -428,8 +470,12 @@ export const IntentRouterEditor = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="llm">{page_bot('llm_only')}</SelectItem>
-                        <SelectItem value="rules+llm">{page_bot('rules_and_llm')}</SelectItem>
+                        <SelectItem value="llm">
+                          {page_bot('llm_only')}
+                        </SelectItem>
+                        <SelectItem value="rules+llm">
+                          {page_bot('rules_and_llm')}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
@@ -449,7 +495,11 @@ export const IntentRouterEditor = () => {
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={page_bot('orchestration_not_configured')} />
+                          <SelectValue
+                            placeholder={page_bot(
+                              'orchestration_not_configured',
+                            )}
+                          />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -465,20 +515,33 @@ export const IntentRouterEditor = () => {
               />
             </div>
 
-            <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b" open={form.watch('mode') === 'rules+llm'}>
-              <summary className="select-none font-medium text-sm">
+            <details
+              className="group rounded-md border [&>summary]:flex [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&>summary::-webkit-details-marker]:hidden [&[open]>summary]:border-b"
+              open={form.watch('mode') === 'rules+llm'}
+            >
+              <summary className="text-sm font-medium select-none">
                 {page_bot('hard_rules')}
-                <span className="text-muted-foreground transition-transform group-open:rotate-90">▶</span>
+                <span className="text-muted-foreground transition-transform group-open:rotate-90">
+                  ▶
+                </span>
               </summary>
-              <div className="p-4 space-y-3">
-                <p className="text-muted-foreground text-xs">{page_bot('hard_rules_description')}</p>
+              <div className="space-y-3 p-4">
+                <p className="text-muted-foreground text-xs">
+                  {page_bot('hard_rules_description')}
+                </p>
                 {rules.map((rule, idx) => (
-                  <div key={idx} className="flex items-center gap-2 border rounded-md p-3">
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 rounded-md border p-3"
+                  >
                     <Select
                       value={rule.rule_type}
                       onValueChange={(val) => {
                         const next = [...rules];
-                        next[idx] = { ...next[idx], rule_type: val as 'keyword' | 'regex' };
+                        next[idx] = {
+                          ...next[idx],
+                          rule_type: val as 'keyword' | 'regex',
+                        };
                         setRules(next);
                       }}
                     >
@@ -486,8 +549,12 @@ export const IntentRouterEditor = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="keyword">{page_bot('rule_type_keyword')}</SelectItem>
-                        <SelectItem value="regex">{page_bot('rule_type_regex')}</SelectItem>
+                        <SelectItem value="keyword">
+                          {page_bot('rule_type_keyword')}
+                        </SelectItem>
+                        <SelectItem value="regex">
+                          {page_bot('rule_type_regex')}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <Input
@@ -513,7 +580,9 @@ export const IntentRouterEditor = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {skillOptions.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -521,7 +590,9 @@ export const IntentRouterEditor = () => {
                       variant="ghost"
                       size="icon"
                       className="size-8"
-                      onClick={() => setRules(rules.filter((_, i) => i !== idx))}
+                      onClick={() =>
+                        setRules(rules.filter((_, i) => i !== idx))
+                      }
                     >
                       ×
                     </Button>
@@ -530,7 +601,17 @@ export const IntentRouterEditor = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setRules([...rules, { rule_type: 'keyword', value: '', target_skill_id: validFallbackSkillId || '', enabled: true }])}
+                  onClick={() =>
+                    setRules([
+                      ...rules,
+                      {
+                        rule_type: 'keyword',
+                        value: '',
+                        target_skill_id: validFallbackSkillId || '',
+                        enabled: true,
+                      },
+                    ])
+                  }
                 >
                   {page_bot('add_rule')}
                 </Button>
@@ -549,7 +630,11 @@ export const IntentRouterEditor = () => {
                         type="number"
                         step="0.1"
                         {...field}
-                        value={field.value === undefined || field.value === null ? '' : String(field.value)}
+                        value={
+                          field.value === undefined || field.value === null
+                            ? ''
+                            : String(field.value)
+                        }
                       />
                     </FormControl>
                   </FormItem>
@@ -566,7 +651,11 @@ export const IntentRouterEditor = () => {
                       <Input
                         type="number"
                         {...field}
-                        value={field.value === undefined || field.value === null ? '' : String(field.value)}
+                        value={
+                          field.value === undefined || field.value === null
+                            ? ''
+                            : String(field.value)
+                        }
                       />
                     </FormControl>
                   </FormItem>
@@ -579,14 +668,19 @@ export const IntentRouterEditor = () => {
               description={page_bot('intent_router_flow_canvas_description')}
               value={flowDraft}
               onChange={setFlowDraft}
-              skillOptions={skillOptions.map((skill) => ({ id: skill.id, label: skill.name }))}
+              skillOptions={skillOptions.map((skill) => ({
+                id: skill.id,
+                label: skill.name,
+              }))}
               mode="intent-router"
             />
 
-            <details className="group border rounded-md [&>summary::-webkit-details-marker]:hidden [&>summary]:list-none [&>summary]:cursor-pointer [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&[open]>summary]:border-b">
-              <summary className="select-none font-medium">
+            <details className="group rounded-md border [&>summary]:flex [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:gap-2 [&>summary]:p-3 [&>summary::-webkit-details-marker]:hidden [&[open]>summary]:border-b">
+              <summary className="font-medium select-none">
                 {page_bot('intent_router_flow_title')}
-                <span className="transition-transform group-open:rotate-90">▶</span>
+                <span className="transition-transform group-open:rotate-90">
+                  ▶
+                </span>
               </summary>
               <div className="p-4">
                 <FlowJsonEditor

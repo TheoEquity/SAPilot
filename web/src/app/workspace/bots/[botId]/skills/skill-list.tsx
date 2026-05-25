@@ -9,10 +9,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { toast } from 'sonner';
-import { normalizeOrchestration, updateBotOrchestration } from '../bot-config-updater';
+import {
+  normalizeOrchestration,
+  updateBotOrchestration,
+} from '../bot-config-updater';
 
 export const SkillList = () => {
   const { bot, loadBot } = useBotConfigContext();
@@ -20,7 +23,10 @@ export const SkillList = () => {
   const common_tips = useTranslations('common.tips');
 
   const orchestration = normalizeOrchestration(bot);
-  const skills = orchestration.skills || [];
+  const skillMap = new Map(
+    (orchestration.skills || []).map((skill) => [skill.id, skill]),
+  );
+  const skills = Array.from(skillMap.values());
 
   const handleDelete = async (skillId: string) => {
     const nextSkills = skills.filter((skill) => skill.id !== skillId);

@@ -379,6 +379,8 @@
     "flow_canvas_node_end": "End",
     "flow_canvas_default_action_label": "Action Node",
     "flow_canvas_default_condition_label": "Is Condition?",
+    "tool_desc_search_collection": "Search persistent knowledge base content for stored documents and references.",
+    "tool_desc_search_chat_files": "Search files uploaded in the current chat for temporary file analysis.",
     "tool_desc_search_sap_help": "Search official SAP Help Portal documentation.",
     "tool_desc_search_faq_by_chat_image": "Search FAQ entries using an image from the current chat.",
     "tool_desc_list_collections": "List the knowledge base collections currently accessible.",

@@ -12,7 +12,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -42,7 +41,6 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { apiClient } from '@/lib/api/client';
-import { cn } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import _ from 'lodash';
 import { useTranslations } from 'next-intl';
@@ -127,7 +125,8 @@ export const BotForm = () => {
               model: '',
               model_service_provider: '',
             },
-        welcome_title: agentConfig?.welcome_title || DEFAULT_AGENT_WELCOME_TITLE,
+        welcome_title:
+          agentConfig?.welcome_title || DEFAULT_AGENT_WELCOME_TITLE,
         welcome_subtitle:
           agentConfig?.welcome_subtitle || DEFAULT_AGENT_WELCOME_SUBTITLE,
         system_prompt_template:

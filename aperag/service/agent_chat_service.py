@@ -59,6 +59,8 @@ from aperag.config import settings
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops
 from aperag.query.query import DocumentWithScore
 from aperag.schema import view_models
+from aperag.service.chat_collection_service import chat_collection_service
+from aperag.service.collection_service import collection_service
 from aperag.service.image_search_service import image_search_service
 from aperag.service.prompt_template_service import build_agent_query_prompt, prompt_template_service
 from aperag.trace import trace_async_function
@@ -1294,6 +1296,18 @@ class AgentChatService:
             "回答用户的问题。如果问题涉及专业领域，请基于你的知识和工具调用能力给出准确回答。"
         )
 
+        if self._has_non_image_files(effective_agent_message.files):
+            chat_file_context = await self._search_chat_file_context(
+                user=user,
+                chat_id=chat_id,
+                query=effective_agent_message.query,
+            )
+            if chat_file_context:
+                query_prompt = (
+                    f"{query_prompt}\n\n{chat_file_context}\n\n"
+                    "请优先基于以上已上传文件内容回答当前问题。"
+                )
+
         # Use skill runtime config if available, otherwise fall back to agent_message settings
         runtime = skill_config.runtime
         model_name = runtime.model if runtime and runtime.model else agent_message.completion.model
@@ -1372,6 +1386,9 @@ class AgentChatService:
             for binding in skill_config.tools or []:
                 if binding.enabled and binding.tool_id:
                     enabled_tools_from_skill.add(binding.tool_id)
+
+            if effective_agent_message.files:
+                enabled_tools_from_skill.add("search_chat_files")
 
             current_node_id = self._get_flow_start_node_id(skill_config)
             if not current_node_id and skill_config.flow and skill_config.flow.nodes:
@@ -1530,6 +1547,54 @@ class AgentChatService:
     def _is_image_file(self, file: view_models.File) -> bool:
         name = (getattr(file, "name", None) or "").lower()
         return name.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"))
+
+    def _has_non_image_files(self, files: Optional[List[view_models.File]]) -> bool:
+        if not files:
+            return False
+        return any(not self._is_image_file(file) for file in files)
+
+    async def _search_chat_file_context(
+        self,
+        *,
+        user: str,
+        chat_id: str,
+        query: str,
+    ) -> str:
+        try:
+            chat_collection_id = await chat_collection_service.get_user_chat_collection_id(user)
+            if not chat_collection_id:
+                return ""
+
+            items, _ = await collection_service.execute_search_flow(
+                data=view_models.SearchRequest(
+                    query=query,
+                    vector_search=view_models.VectorSearchParams(topk=5, similarity=0.2),
+                    fulltext_search=view_models.FulltextSearchParams(topk=5),
+                    rerank=True,
+                ),
+                collection_id=chat_collection_id,
+                search_user_id=user,
+                chat_id=chat_id,
+                flow_name="chat_search",
+                flow_title="Chat Search",
+            )
+        except Exception:
+            logger.exception("Failed to pre-search chat files for chat=%s", chat_id)
+            return ""
+
+        if not items:
+            return ""
+
+        context_lines = ["[Uploaded Chat File Context]"]
+        for index, item in enumerate(items[:5], start=1):
+            content = (item.content or "").strip()
+            if not content:
+                continue
+            source = item.source or (item.metadata or {}).get("source") or f"Result {index}"
+            score = f" score={item.score:.3f}" if isinstance(item.score, (int, float)) else ""
+            context_lines.append(f"Result {index}: {source}{score}\n{content}")
+
+        return "\n\n".join(context_lines) if len(context_lines) > 1 else ""
 
     def _is_confirmed_image_search_hit(self, result: DocumentWithScore) -> bool:
         score = result.score if result else None

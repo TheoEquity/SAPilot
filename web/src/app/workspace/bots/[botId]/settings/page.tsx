@@ -5,7 +5,6 @@ import {
 } from '@/components/page-container';
 
 import { getTranslations } from 'next-intl/server';
-import { BotHeader } from '../bot-header';
 import { BotForm } from '../bot-form';
 
 export default async function Page() {
@@ -23,7 +22,6 @@ export default async function Page() {
           },
         ]}
       />
-      <BotHeader />
       <PageContent>
         <BotForm />
       </PageContent>

@@ -379,6 +379,8 @@
     "flow_canvas_node_end": "结束",
     "flow_canvas_default_action_label": "动作节点",
     "flow_canvas_default_condition_label": "条件判断",
+    "tool_desc_search_collection": "检索持久知识库内容，适合查询已沉淀的文档与资料。",
+    "tool_desc_search_chat_files": "检索当前聊天中上传的附件内容，适合分析临时文件。",
     "tool_desc_search_sap_help": "搜索 SAP Help Portal 官方帮助文档。",
     "tool_desc_search_faq_by_chat_image": "根据当前聊天中的图片检索 FAQ 条目。",
     "tool_desc_list_collections": "列出当前可访问的知识库集合。",
