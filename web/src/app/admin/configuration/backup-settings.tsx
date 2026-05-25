@@ -62,13 +62,14 @@ async function fetchWithAuth(path: string, options: RequestInit) {
 }
 
 const ExportScopes: { key: ExportScope; labelKey: string }[] = [
-  { key: 'bots', labelKey: 'scope.bots' },
-  { key: 'prompts', labelKey: 'scope.prompts' },
-  { key: 'settings', labelKey: 'scope.settings' },
+  { key: 'bots', labelKey: 'backup_scope_bots' },
+  { key: 'prompts', labelKey: 'backup_scope_prompts' },
+  { key: 'settings', labelKey: 'backup_scope_settings' },
 ];
 
 export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
-  const admin_config = useTranslations('admin_config');
+  const translator = useTranslations('admin_config');
+  const t = (key: string) => translator(key as never);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [exporting, setExporting] = useState(false);
@@ -94,11 +95,9 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
     );
   }, []);
 
-  const t = (key: string) => admin_config(key as never);
-
   const handleExport = useCallback(async () => {
     if (selectedScopes.length === 0) {
-      toast.error(t('backup.toast.no_scope'));
+      toast.error(t('backup_toast_no_scope'));
       return;
     }
 
@@ -126,9 +125,9 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
       a.download = `sapilot-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(t('backup.toast.export_success'));
+      toast.success(t('backup_toast_export_success'));
     } catch {
-      toast.error(t('backup.toast.export_failed'));
+      toast.error(t('backup_toast_export_failed'));
     } finally {
       setExporting(false);
     }
@@ -139,7 +138,7 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
       const file = e.target.files?.[0];
       if (!file) return;
       if (!file.name.endsWith('.json')) {
-        toast.error(t('backup.toast.invalid_file'));
+        toast.error(t('backup_toast_invalid_file'));
         return;
       }
       setImportFile(file);
@@ -169,7 +168,7 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
         validation.prompts_count === 0 &&
         validation.settings_count === 0
       ) {
-        toast.error(t('backup.toast.empty_backup'));
+        toast.error(t('backup_toast_empty_backup'));
         setImportDialogOpen(false);
         return;
       }
@@ -177,7 +176,7 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
       setImportValidation(validation);
       setImportStep('confirm');
     } catch {
-      toast.error(t('backup.toast.invalid_json'));
+      toast.error(t('backup_toast_invalid_json'));
       setImportDialogOpen(false);
     } finally {
       setImporting(false);
@@ -221,10 +220,10 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
         }
       }
 
-      toast.success(t('backup.toast.import_success'));
+      toast.success(t('backup_toast_import_success'));
       setImportDialogOpen(false);
     } catch {
-      toast.error(t('backup.toast.import_failed'));
+      toast.error(t('backup_toast_import_failed'));
     } finally {
       setImporting(false);
     }
@@ -234,23 +233,17 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
     fileInputRef.current?.click();
   }, []);
 
-  const totalSelected = importValidation
-    ? importValidation.bots_count +
-      importValidation.prompts_count +
-      importValidation.settings_count
-    : 0;
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('backup.title')}</CardTitle>
-        <CardDescription>{t('backup.description')}</CardDescription>
+        <CardTitle>{t('backup_title')}</CardTitle>
+        <CardDescription>{t('backup_description')}</CardDescription>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-6">
         {/* Export Section */}
         <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-medium">{t('backup.export_section')}</h4>
+          <h4 className="text-sm font-medium">{t('backup_export_section')}</h4>
 
           <div className="flex flex-wrap gap-2">
             {ExportScopes.map(({ key, labelKey }) => {
@@ -272,7 +265,7 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
                   >
                     {selected ? '✓' : ''}
                   </Badge>
-                  <span>{t(`backup.${labelKey}`)}</span>
+                  <span>{t(labelKey)}</span>
                 </button>
               );
             })}
@@ -286,21 +279,21 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
                 onChange={(e) => setIncludeSecrets(e.target.checked)}
                 className="rounded border-gray-300"
               />
-              {t('backup.include_secrets')}
+              {t('backup_include_secrets')}
             </label>
 
             <Button
               onClick={handleExport}
               disabled={exporting || selectedScopes.length === 0}
             >
-              {exporting ? t('backup.exporting') : t('backup.action.export')}
+              {exporting ? t('backup_exporting') : t('backup_action_export')}
             </Button>
           </div>
         </div>
 
         {/* Import Section */}
         <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-medium">{t('backup.import_section')}</h4>
+          <h4 className="text-sm font-medium">{t('backup_import_section')}</h4>
 
           <div className="flex items-center gap-3">
             <input
@@ -311,10 +304,10 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
               onChange={handleImportFileSelect}
             />
             <Button variant="outline" onClick={triggerImportPicker}>
-              {t('backup.action.import')}
+              {t('backup_action_import')}
             </Button>
             <span className="text-muted-foreground text-xs">
-              {t('backup.import_hint')}
+              {t('backup_import_hint')}
             </span>
           </div>
         </div>
@@ -326,19 +319,19 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
           {importStep === 'validate' && (
             <>
               <DialogHeader>
-                <DialogTitle>{t('backup.import_validating')}</DialogTitle>
+                <DialogTitle>{t('backup_import_validating')}</DialogTitle>
                 <DialogDescription>
-                  {t('backup.import_validating_desc')}
+                  {t('backup_import_validating_desc')}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button variant="outline">{t('action.cancel')}</Button>
+                  <Button variant="outline">{t('check')}</Button>
                 </DialogClose>
                 <Button onClick={handleImportValidate} disabled={importing}>
                   {importing
-                    ? t('backup.validating')
-                    : t('backup.action.validate')}
+                    ? t('backup_validating')
+                    : t('backup_action_validate')}
                 </Button>
               </DialogFooter>
             </>
@@ -347,16 +340,16 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
           {importStep === 'confirm' && importValidation && (
             <>
               <DialogHeader>
-                <DialogTitle>{t('backup.import_confirm')}</DialogTitle>
+                <DialogTitle>{t('backup_import_confirm')}</DialogTitle>
                 <DialogDescription>
-                  {t('backup.import_confirm_desc')}
+                  {t('backup_import_confirm_desc')}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="bg-muted/50 flex flex-col gap-2 rounded-lg border p-4">
                 {importValidation.bots_count > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span>{t('backup.scope.bots')}</span>
+                    <span>{t('backup_scope_bots')}</span>
                     <span className="font-mono">
                       {importValidation.bots_count}
                     </span>
@@ -364,7 +357,7 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
                 )}
                 {importValidation.prompts_count > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span>{t('backup.scope.prompts')}</span>
+                    <span>{t('backup_scope_prompts')}</span>
                     <span className="font-mono">
                       {importValidation.prompts_count}
                     </span>
@@ -372,7 +365,7 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
                 )}
                 {importValidation.settings_count > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span>{t('backup.scope.settings')}</span>
+                    <span>{t('backup_scope_settings')}</span>
                     <span className="font-mono">
                       {importValidation.settings_count}
                     </span>
@@ -380,19 +373,19 @@ export const BackupSettings = ({ bots = [] }: { bots?: Bot[] }) => {
                 )}
                 {importValidation.has_secrets && (
                   <div className="mt-2 text-xs text-amber-600">
-                    {t('backup.has_secrets_warning')}
+                    {t('backup_has_secrets_warning')}
                   </div>
                 )}
               </div>
 
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button variant="outline">{t('action.cancel')}</Button>
+                  <Button variant="outline">{t('check')}</Button>
                 </DialogClose>
                 <Button onClick={handleImportConfirm} disabled={importing}>
                   {importing
-                    ? t('backup.importing')
-                    : t('backup.action.confirm_import')}
+                    ? t('backup_importing')
+                    : t('backup_action_confirm_import')}
                 </Button>
               </DialogFooter>
             </>
