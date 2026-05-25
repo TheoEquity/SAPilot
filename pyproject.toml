@@ -82,7 +82,7 @@ dependencies = [
     "dingtalk-stream>=0.13.0",
 ]
 name = "aperag"
-version = "0.1.0"
+version = "1.2.0"
 description = "A LLM based tool to support Text2SQL, Chatbot, KubeBlocks pilot and troubleshooting"
 readme = "README.md"
 

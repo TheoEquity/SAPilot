@@ -14,7 +14,7 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v0.0.0-nightly}
+    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v1.2.0}
     container_name: aperag-api
     depends_on:
       redis:
@@ -47,7 +47,7 @@ services:
     build:
       context: ./web
       dockerfile: ./Dockerfile
-    image: ${REGISTRY:-docker.io}/apecloud/aperag-frontend:${VERSION:-v0.0.0-nightly}
+    image: ${REGISTRY:-docker.io}/apecloud/aperag-frontend:${VERSION:-v1.2.0}
     container_name: aperag-frontend
     depends_on:
       api:
@@ -61,7 +61,7 @@ services:
       - "3000:3000"
 
   celeryworker:
-    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v0.0.0-nightly}
+    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v1.2.0}
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -89,7 +89,7 @@ services:
     command: ["/app/scripts/entrypoint.sh", "/app/scripts/start-celery-worker.sh"]
 
   celerybeat:
-    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v0.0.0-nightly}
+    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v1.2.0}
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -107,7 +107,7 @@ services:
     command: ["/app/scripts/entrypoint.sh", "/app/scripts/start-celery-beat.sh"]
 
   flower:
-    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v0.0.0-nightly}
+    image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v1.2.0}
     build:
       context: .
       dockerfile: ./Dockerfile
