@@ -37,7 +37,39 @@
     "dingtalk_outgoing_webhook_secret": "Outgoing Webhook Secret",
     "dingtalk_create_agent": "Create Agent",
     "system_default_quota": "User default quotas",
-    "system_default_quota_description": "These default quotas help maintain system stability, prevent resource abuse, and ensure fair allocation across users or applications."
+    "system_default_quota_description": "These default quotas help maintain system stability, prevent resource abuse, and ensure fair allocation across users or applications.",
+    "backup_title": "Import/Export Configuration",
+    "backup_description": "Export or import system configuration (Bots, prompts, system settings) for cross-environment migration and disaster recovery.",
+    "backup_export_section": "Export Configuration",
+    "backup_import_section": "Import Configuration",
+    "backup_import_hint": "Select a previously exported .json backup file to import.",
+    "backup_scope_bots": "Bot Config",
+    "backup_scope_prompts": "Prompts",
+    "backup_scope_settings": "System Settings",
+    "backup_include_secrets": "Include sensitive fields (e.g., DingTalk secrets)",
+    "backup_action_export": "Export",
+    "backup_action_import": "Import",
+    "backup_action_validate": "Validate File",
+    "backup_action_confirm_import": "Confirm Import",
+    "backup_exporting": "Exporting...",
+    "backup_validating": "Validating...",
+    "backup_importing": "Importing...",
+    "backup_import_validating": "Validate Backup File",
+    "backup_import_validating_desc": "Click Validate to parse and inspect the backup file contents.",
+    "backup_import_confirm": "Confirm Import",
+    "backup_import_confirm_desc": "Will import the following configuration items. Existing items with the same name will be overwritten.",
+    "backup_has_secrets_warning": "This backup file contains sensitive fields. Please confirm it is safe.",
+    "backup_import_bots": "Bot(s)",
+    "backup_import_prompts": "Prompt(s)",
+    "backup_import_settings": "Setting(s)",
+    "backup_toast_no_scope": "Please select at least one export scope",
+    "backup_toast_export_success": "Configuration exported",
+    "backup_toast_export_failed": "Export failed",
+    "backup_toast_invalid_file": "Please upload a .json backup file",
+    "backup_toast_empty_backup": "Backup file is empty",
+    "backup_toast_invalid_json": "Invalid backup file format",
+    "backup_toast_import_success": "Configuration imported successfully",
+    "backup_toast_import_failed": "Import failed"
   },
   "admin_users": {
     "metadata": {
@@ -716,19 +748,39 @@
       "title": "Query Prompt",
       "description": "The query template for each conversation. Controls how user questions and knowledge base context are combined before being sent to the AI."
     },
+    "index_graph": {
+      "title": "Graph Index Prompt",
+      "description": "Entity and relation extraction prompt used during graph index building. Controls how knowledge graph information is extracted from documents."
+    },
+    "index_summary": {
+      "title": "Summary Index Prompt",
+      "description": "Document summarization prompt. Controls how document content is automatically summarized."
+    },
+    "index_vision": {
+      "title": "Vision Index Prompt",
+      "description": "Image content extraction prompt. Controls how to analyze and extract text, charts, tables, and other information from images."
+    },
     "status": {
       "customized": "Customized",
       "default": "Using Default"
     },
+    "section": {
+      "types": "Prompt Types"
+    },
     "action": {
       "save": "Save",
       "reset": "Reset to Default",
+      "reset_all": "Reset All",
+      "cancel": "Cancel",
       "reset_confirm": "Reset this prompt to system default?",
-      "reset_confirm_description": "This will delete your customization and restore the built-in system default prompt."
+      "reset_confirm_description": "This will delete your customization and restore the built-in system default prompt.",
+      "reset_all_confirm": "Reset all prompts to system default?",
+      "reset_all_confirm_description": "This will delete all customizations and restore all built-in system default prompts."
     },
     "toast": {
       "save_success": "Prompt saved successfully",
-      "reset_success": "Prompt reset to default"
+      "reset_success": "Prompt reset to default",
+      "reset_all_success": "All prompts reset to default"
     }
   },
   "page_question_set": {

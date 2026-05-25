@@ -37,7 +37,39 @@
     "dingtalk_outgoing_webhook_secret": "Outgoing Webhook Secret",
     "dingtalk_create_agent": "新建 Agent",
     "system_default_quota": "用户默认配额",
-    "system_default_quota_description": "默认配额有助于维护系统稳定性，防止资源滥用，并确保用户或应用间的公平分配"
+    "system_default_quota_description": "默认配额有助于维护系统稳定性，防止资源滥用，并确保用户或应用间的公平分配",
+    "backup_title": "配置导入导出",
+    "backup_description": "导出或导入系统配置（Bot、提示词、系统设置），支持跨环境迁移和灾备恢复。",
+    "backup_export_section": "导出配置",
+    "backup_import_section": "导入配置",
+    "backup_import_hint": "选择之前导出的 .json 备份文件进行导入。",
+    "backup_scope_bots": "Bot 配置",
+    "backup_scope_prompts": "提示词配置",
+    "backup_scope_settings": "系统设置",
+    "backup_include_secrets": "包含敏感字段（如钉钉密钥）",
+    "backup_action_export": "导出配置",
+    "backup_action_import": "导入配置",
+    "backup_action_validate": "验证文件",
+    "backup_action_confirm_import": "确认导入",
+    "backup_exporting": "正在导出...",
+    "backup_validating": "正在验证...",
+    "backup_importing": "正在导入...",
+    "backup_import_validating": "验证备份文件",
+    "backup_import_validating_desc": "点击验证按钮将解析并检查备份文件内容。",
+    "backup_import_confirm": "确认导入配置",
+    "backup_import_confirm_desc": "将导入以下配置，现有同名配置将被覆盖。",
+    "backup_has_secrets_warning": "此备份文件包含敏感字段，请确认是否安全。",
+    "backup_import_bots": "个 Bot",
+    "backup_import_prompts": "个提示词",
+    "backup_import_settings": "个设置项",
+    "backup_toast_no_scope": "请至少选择一个导出范围",
+    "backup_toast_export_success": "配置已导出",
+    "backup_toast_export_failed": "导出失败",
+    "backup_toast_invalid_file": "请上传 .json 格式的备份文件",
+    "backup_toast_empty_backup": "备份文件内容为空",
+    "backup_toast_invalid_json": "备份文件格式无效",
+    "backup_toast_import_success": "配置导入成功",
+    "backup_toast_import_failed": "导入失败"
   },
   "admin_users": {
     "metadata": {
@@ -719,19 +751,39 @@
       "title": "查询提示词",
       "description": "每次对话的查询模板，控制如何将用户问题与知识库上下文组合后发送给 AI。"
     },
+    "index_graph": {
+      "title": "图谱索引提示词",
+      "description": "图谱索引构建时的实体和关系提取 prompt，控制从文档中抽取知识图谱信息的方式。"
+    },
+    "index_summary": {
+      "title": "摘要索引提示词",
+      "description": "文档摘要生成 prompt，控制如何对文档内容进行自动摘要。"
+    },
+    "index_vision": {
+      "title": "视觉索引提示词",
+      "description": "图像内容提取 prompt，控制如何分析和提取图片中的文字、图表、表格等信息。"
+    },
     "status": {
       "customized": "已自定义",
       "default": "使用默认"
     },
+    "section": {
+      "types": "提示词类型"
+    },
     "action": {
       "save": "保存",
       "reset": "重置为默认",
+      "reset_all": "全部重置",
+      "cancel": "取消",
       "reset_confirm": "确认将此提示词重置为系统默认？",
-      "reset_confirm_description": "重置后，当前自定义内容将被删除，恢复为系统内置默认提示词。"
+      "reset_confirm_description": "重置后，当前自定义内容将被删除，恢复为系统内置默认提示词。",
+      "reset_all_confirm": "确认将所有提示词重置为系统默认？",
+      "reset_all_confirm_description": "重置后，所有自定义内容将被删除，恢复为系统内置默认提示词。"
     },
     "toast": {
       "save_success": "提示词已保存",
-      "reset_success": "已重置为默认提示词"
+      "reset_success": "已重置为默认提示词",
+      "reset_all_success": "所有提示词已重置为默认"
     }
   },
   "page_question_set": {
