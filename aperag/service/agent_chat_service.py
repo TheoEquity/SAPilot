@@ -57,6 +57,7 @@ from aperag.agent.response_types import AgentErrorResponse, AgentToolCallResultR
 from aperag.chat.history.message import StoredChatMessage, create_assistant_message
 from aperag.config import settings
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops
+from aperag.objectstore.base import get_async_object_store
 from aperag.query.query import DocumentWithScore
 from aperag.schema import view_models
 from aperag.service.chat_collection_service import chat_collection_service
@@ -514,6 +515,7 @@ class AgentChatService:
             web_search_enabled=agent_message.web_search_enabled,
             language=agent_message.language,
             files=effective_files,
+            force_skill_id=agent_message.force_skill_id,
             action=agent_message.action,
         )
 
@@ -581,8 +583,12 @@ class AgentChatService:
             history_messages = await history.messages
             recent_messages = history_messages[-4:] if len(history_messages) > 4 else history_messages
 
+            if merged_agent_message.force_skill_id:
+                target_skill_id = merged_agent_message.force_skill_id
+                logger.info("Forced skill route: %s -> %s", merged_agent_message.query, target_skill_id)
+
             # Step 1: Hard rules matching
-            if intent_router.mode == 'rules+llm' and intent_router.rules:
+            if not target_skill_id and intent_router.mode == 'rules+llm' and intent_router.rules:
                 # Convert Pydantic models to dicts for try_hard_rules_match
                 rules_dict = [rule.model_dump() for rule in intent_router.rules]
                 matched = self.try_hard_rules_match(
@@ -1106,7 +1112,24 @@ class AgentChatService:
         return decision
 
     @staticmethod
-    def _build_node_output_from_references(references: list[dict[str, Any]]) -> dict[str, Any]:
+    def _extract_primary_reference(references: list[dict[str, Any]]) -> tuple[dict[str, Any], str, dict[str, Any], Any]:
+        for reference in references:
+            metadata = reference.get("metadata") or {}
+            if metadata.get("chunk_type") == "faq_entry" or metadata.get("faq_id"):
+                return reference, str(reference.get("text") or "").strip(), metadata, reference.get("score")
+
+        if not references:
+            return {}, "", {}, None
+
+        first_reference = references[0]
+        return (
+            first_reference,
+            str(first_reference.get("text") or "").strip(),
+            first_reference.get("metadata") or {},
+            first_reference.get("score"),
+        )
+
+    def _build_node_output_from_references(self, references: list[dict[str, Any]]) -> dict[str, Any]:
         has_result = bool(references)
         summaries: list[str] = []
         for reference in references:
@@ -1115,10 +1138,21 @@ class AgentChatService:
                 summaries.append(text[:200])
             if len(summaries) >= 3:
                 break
+
+        _, top_text, top_metadata, top_score = self._extract_primary_reference(references)
+        faq_title = self._extract_faq_title(top_metadata, top_text)
         return {
             "has_result": has_result,
             "kb_summary": "\n\n".join(summaries),
             "reference_count": len(references),
+            "faq_id": top_metadata.get("faq_id") or "",
+            "faq_title": faq_title,
+            "collection_id": top_metadata.get("collection_id") or "",
+            "document_id": top_metadata.get("document_id") or top_metadata.get("doc_id") or "",
+            "asset_id": top_metadata.get("asset_id") or "",
+            "recall_type": top_metadata.get("recall_type") or "",
+            "top_hit_text": top_text,
+            "top_hit_score": top_score,
         }
 
     async def _execute_action_node(
@@ -1297,11 +1331,18 @@ class AgentChatService:
         )
 
         if self._has_non_image_files(effective_agent_message.files):
-            chat_file_context = await self._search_chat_file_context(
-                user=user,
-                chat_id=chat_id,
-                query=effective_agent_message.query,
+            chat_file_context = await self._load_small_chat_file_context(
+                files=effective_agent_message.files,
             )
+            if not chat_file_context:
+                chat_file_context = await self._search_chat_file_context(
+                    user=user,
+                    chat_id=chat_id,
+                    query=self._build_chat_file_search_query(
+                        effective_agent_message.query,
+                        effective_agent_message.files,
+                    ),
+                )
             if chat_file_context:
                 query_prompt = (
                     f"{query_prompt}\n\n{chat_file_context}\n\n"
@@ -1553,6 +1594,79 @@ class AgentChatService:
             return False
         return any(not self._is_image_file(file) for file in files)
 
+    def _build_chat_file_search_query(self, query: str, files: Optional[List[view_models.File]]) -> str:
+        normalized_query = (query or "").strip()
+        if normalized_query:
+            return normalized_query
+
+        keywords: list[str] = []
+        for file in files or []:
+            name = (getattr(file, "name", None) or "").strip()
+            if not name:
+                continue
+            base_name = os.path.splitext(name)[0].strip()
+            if base_name:
+                keywords.append(base_name)
+            keywords.append(name)
+
+        deduped_keywords: list[str] = []
+        seen: set[str] = set()
+        for keyword in keywords:
+            normalized_keyword = keyword.strip()
+            if not normalized_keyword or normalized_keyword in seen:
+                continue
+            seen.add(normalized_keyword)
+            deduped_keywords.append(normalized_keyword)
+
+        return " ".join(deduped_keywords[:4])
+
+    async def _load_small_chat_file_context(
+        self,
+        *,
+        files: Optional[List[view_models.File]],
+        max_bytes: int = 30 * 1024,
+    ) -> str:
+        if not files or len(files) != 1:
+            return ""
+
+        file = files[0]
+        document_id = getattr(file, "id", None)
+        if not document_id or self._is_image_file(file):
+            return ""
+
+        document = await self.db_ops.query_document_by_id(document_id)
+        if not document:
+            return ""
+
+        markdown_path = f"{document.object_store_base_path()}/parsed.md"
+        try:
+            markdown_result = await get_async_object_store().get(markdown_path)
+            if not markdown_result:
+                return ""
+
+            markdown_stream, _ = markdown_result
+            content = b""
+            async for data in markdown_stream:
+                content += data
+                if len(content) > max_bytes:
+                    return ""
+
+            markdown_text = content.decode("utf-8").strip()
+            if not markdown_text:
+                return ""
+
+            file_name = getattr(file, "name", None) or getattr(document, "name", None) or "uploaded-file"
+            logger.info(
+                "Chat file context mode=full_inject document=%s file=%s bytes=%s",
+                document_id,
+                file_name,
+                len(content),
+            )
+            return f"[Uploaded Chat File Context]\n\nFull file: {file_name}\n{markdown_text}"
+        except Exception:
+            logger.exception("Failed to load full parsed chat file for document=%s", document_id)
+            return ""
+
     async def _search_chat_file_context(
         self,
         *,
@@ -1585,6 +1699,12 @@ class AgentChatService:
         if not items:
             return ""
 
+        logger.info(
+            "Chat file context mode=search_inject chat=%s query=%s hits=%s",
+            chat_id,
+            query,
+            len(items),
+        )
         context_lines = ["[Uploaded Chat File Context]"]
         for index, item in enumerate(items[:5], start=1):
             content = (item.content or "").strip()

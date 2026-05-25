@@ -2934,6 +2934,11 @@ class AgentMessage(BaseModel):
         'en-US', description='Language preference for the response', examples=['en-US']
     )
     files: Optional[list[File]] = None
+    force_skill_id: Optional[str] = Field(
+        None,
+        description='Force execution of a specific orchestration skill and bypass intent routing',
+        examples=['Skill-002'],
+    )
     action: Optional[str] = Field(
         None,
         description='Structured chat action, such as faq_expand or faq_end',

@@ -12,24 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import base64
 import hashlib
 import hmac
+import io
 import json
 import logging
+import mimetypes
+import os
 import time
 import urllib.parse
 import uuid
 from typing import Any, Dict, List, Optional
 
 import httpx
+from fastapi import UploadFile
+from starlette.datastructures import Headers
 from sqlalchemy import and_, select
 
 from aperag.config import settings
 from aperag.db import models as db_models
+from aperag.db.models import DocumentStatus
 from aperag.db.ops import async_db_ops
 from aperag.schema import view_models
 from aperag.service.agent_chat_service import AgentChatService
+from aperag.service.chat_document_service import chat_document_service
 from aperag.service.image_search_service import image_search_service
 from aperag.service.prompt_template_service import prompt_template_service
 from aperag.service.setting_service import setting_service
@@ -100,31 +108,46 @@ class DingTalkBotService:
         if bot.type != db_models.BotType.AGENT:
             return self._text_response("SAPilot 钉钉机器人需要绑定 Agent 类型 Bot。")
 
+        bot_config = self._parse_bot_config(bot)
+        supported_attachments = self._extract_file_attachments(payload)
+        if len(supported_attachments) > 1:
+            return self._text_response("上传附件仅支持单个代码文件，请一次只发送 1 个文件。")
+        unsupported_attachments = self._extract_unsupported_file_attachments(payload)
+        if unsupported_attachments:
+            return self._text_response("上传附件仅为代码文本文件服务，其他类型不支持。搜图问诊请直接贴图。")
         query = self._build_query(payload)
-        if not query:
+        force_skill_id = self._resolve_forced_skill_id(payload, query, bot_config)
+        if not query and not force_skill_id:
             return self._text_response("请发送 SAP 运维、开发问题、日志或报错截图。")
 
         logger.info("Processing DingTalk message for bot %s, chat payload peer %s", bot.id, self._peer_id(payload))
 
-        bot_config = self._parse_bot_config(bot)
         default_collections = await self._default_collections(user_id, bot_config)
+        chat = await self._get_or_create_dingtalk_chat(user_id, bot.id, payload)
+        files = await self._upload_dingtalk_attachments_to_chat(chat.id, user_id, payload)
+        if files:
+            ready, failed_files = await self._wait_for_chat_documents_ready(files)
+            if not ready:
+                failed_text = f"，失败附件：{', '.join(failed_files)}" if failed_files else ""
+                return self._text_response(f"附件已收到，正在解析中，请稍后再试{failed_text}。")
 
         search_mode = self._should_search_kb(query, payload)
         if search_mode:
-            image_context = await self._build_image_search_context(payload, user_id, default_collections)
+            image_context = ""
             formatted_query = self._format_dingtalk_query(query, image_context=image_context)
         else:
             formatted_query = query
 
-        chat = await self._get_or_create_dingtalk_chat(user_id, bot.id, payload)
         answer = await self._ask_agent(
             user_id,
             bot,
             chat.id,
             formatted_query,
+            files=files,
             bot_config=bot_config,
             default_collections=default_collections,
             search_mode=search_mode,
+            force_skill_id=force_skill_id,
         )
         return self._markdown_response("SAPilot 现场问诊", answer)
 
@@ -185,9 +208,11 @@ class DingTalkBotService:
         bot: db_models.Bot,
         chat_id: str,
         query: str,
+        files: Optional[List[view_models.File]] = None,
         bot_config: Optional[view_models.BotConfig] = None,
         default_collections: Optional[List[view_models.Collection]] = None,
         search_mode: bool = False,
+        force_skill_id: Optional[str] = None,
     ) -> str:
         if bot_config is None:
             bot_config = self._parse_bot_config(bot)
@@ -202,7 +227,8 @@ class DingTalkBotService:
             completion=None,
             web_search_enabled=(await self._settings())["sap_community_search_enabled"],
             language="zh-CN",
-            files=[],
+            files=files or [],
+            force_skill_id=force_skill_id,
         )
 
         message_id = str(uuid.uuid4())
@@ -212,12 +238,20 @@ class DingTalkBotService:
         )
 
         try:
+            document_ids = [file.id for file in agent_message.files or [] if file.id]
+            associated_files = await chat_document_service.associate_documents_with_message(
+                chat_id=chat_id,
+                message_id=message_id,
+                files=document_ids,
+                user=user_id,
+            )
             result = await self.agent_chat_service.process_agent_message(
                 agent_message,
                 user_id,
                 chat_id,
                 message_id,
                 queue,
+                associated_files=associated_files,
                 bot_config=bot_config,
                 default_collections=default_collections,
                 resolved_system_prompt=resolved_system_prompt,
@@ -310,6 +344,10 @@ class DingTalkBotService:
         msgtype = payload.get("msgtype") or payload.get("msgType") or payload.get("messageType")
         text = self._extract_text(payload).strip()
         image_urls = self._extract_image_urls(payload)
+        file_attachments = self._extract_file_attachments(payload)
+
+        if not text and (image_urls or file_attachments):
+            return ""
 
         parts = []
         if text:
@@ -317,11 +355,35 @@ class DingTalkBotService:
         if image_urls:
             parts.append("用户上传了报错截图，请结合图片信息分析。")
             parts.extend([f"图片地址：{url}" for url in image_urls])
+        if file_attachments:
+            file_names = [attachment.get("file_name") for attachment in file_attachments if attachment.get("file_name")]
+            if file_names:
+                parts.append(f"用户上传了附件，请结合附件内容分析：{', '.join(file_names[:3])}")
+            else:
+                parts.append("用户上传了附件，请结合附件内容分析。")
         if not parts and msgtype:
             parts.append(f"收到钉钉 {msgtype} 类型消息，请提示用户补充 SAP 问题、日志或截图。")
 
         query = "\n".join(parts)
         return self._strip_bot_mentions(query)
+
+    def _resolve_forced_skill_id(
+        self,
+        payload: Dict[str, Any],
+        query: str,
+        bot_config: Optional[view_models.BotConfig],
+    ) -> Optional[str]:
+        normalized_query = self._strip_bot_mentions(query or "").strip()
+        has_images = bool(self._extract_image_urls(payload))
+        has_text_attachments = bool(self._extract_file_attachments(payload))
+
+        if normalized_query:
+            return None
+        if has_images:
+            return "Skill-002"
+        if has_text_attachments:
+            return "Skill-005"
+        return None
 
     async def _build_image_search_context(
         self, payload: Dict[str, Any], user_id: str, collections: List[view_models.Collection]
@@ -364,6 +426,216 @@ class DingTalkBotService:
             contexts,
             top_k=settings.dingtalk_image_search_topk,
         )
+
+    async def _upload_dingtalk_attachments_to_chat(
+        self, chat_id: str, user_id: str, payload: Dict[str, Any]
+    ) -> List[view_models.File]:
+        uploaded_files: List[view_models.File] = []
+        image_refs = self._extract_image_urls(payload)
+        for index, image_ref in enumerate(image_refs[:3], start=1):
+            try:
+                image_file = await self._build_upload_file_from_dingtalk_image(image_ref, payload, index)
+                if not image_file:
+                    continue
+                document = await chat_document_service.upload_chat_document(chat_id=chat_id, user_id=user_id, file=image_file)
+                uploaded_files.append(view_models.File(id=document.id, name=document.name))
+                logger.info("Uploaded DingTalk image as chat document chat=%s document=%s ref=%s", chat_id, document.id, image_ref)
+            except Exception:
+                logger.exception("Failed to upload DingTalk image to chat attachment ref=%s", image_ref)
+
+        file_attachments = self._extract_file_attachments(payload)
+        for index, attachment in enumerate(file_attachments[:3], start=1):
+            try:
+                upload_file = await self._build_upload_file_from_dingtalk_attachment(attachment, payload, index)
+                if not upload_file:
+                    continue
+                document = await chat_document_service.upload_chat_document(chat_id=chat_id, user_id=user_id, file=upload_file)
+                uploaded_files.append(view_models.File(id=document.id, name=document.name))
+                logger.info(
+                    "Uploaded DingTalk file as chat document chat=%s document=%s file=%s",
+                    chat_id,
+                    document.id,
+                    attachment.get("file_name"),
+                )
+            except Exception:
+                logger.exception("Failed to upload DingTalk file attachment=%s", attachment)
+        return uploaded_files
+
+    async def _wait_for_chat_documents_ready(
+        self,
+        files: List[view_models.File],
+        timeout_seconds: float = 30.0,
+        poll_interval_seconds: float = 1.0,
+    ) -> tuple[bool, List[str]]:
+        deadline = time.time() + timeout_seconds
+        pending_ids = {file.id: file.name or file.id for file in files if file.id}
+        failed_files: List[str] = []
+
+        while pending_ids and time.time() < deadline:
+            finished_ids: List[str] = []
+            for document_id, document_name in pending_ids.items():
+                document = await self.db_ops.query_document_by_id(document_id)
+                status = getattr(document, "status", None)
+                status_value = getattr(status, "value", status)
+
+                if status_value == DocumentStatus.COMPLETE.value:
+                    finished_ids.append(document_id)
+                elif status_value == DocumentStatus.FAILED.value:
+                    failed_files.append(document_name)
+                    finished_ids.append(document_id)
+
+            for document_id in finished_ids:
+                pending_ids.pop(document_id, None)
+
+            if pending_ids:
+                await asyncio.sleep(poll_interval_seconds)
+
+        if pending_ids:
+            logger.info("Timed out waiting for DingTalk chat documents to finish indexing: %s", list(pending_ids.values()))
+            return False, failed_files
+        if failed_files:
+            logger.info("Some DingTalk chat documents failed indexing: %s", failed_files)
+            return False, failed_files
+        return True, []
+
+    async def _build_upload_file_from_dingtalk_attachment(
+        self, attachment: Dict[str, str], payload: Dict[str, Any], index: int
+    ) -> Optional[UploadFile]:
+        download_code = str(attachment.get("download_code") or "").strip()
+        if not download_code:
+            return None
+
+        if not self._is_supported_text_attachment(attachment):
+            logger.info(
+                "Skipped DingTalk non-text attachment file=%s content_type=%s",
+                attachment.get("file_name"),
+                attachment.get("content_type"),
+            )
+            return None
+
+        download_url = await self._get_dingtalk_download_url(download_code, payload)
+        if not download_url:
+            return None
+
+        filename = self._build_dingtalk_attachment_filename(attachment, index)
+        content, content_type = await self._download_dingtalk_attachment_file(download_url, filename)
+        return UploadFile(
+            filename=filename,
+            size=len(content),
+            headers=Headers({"content-type": content_type}),
+            file=io.BytesIO(content),
+        )
+
+    async def _build_upload_file_from_dingtalk_image(
+        self, image_ref: str, payload: Dict[str, Any], index: int
+    ) -> Optional[UploadFile]:
+        content: bytes
+        content_type: str
+        filename: str
+
+        if image_ref.startswith("data:image/"):
+            parsed = self._parse_image_data_uri(image_ref, index)
+            if not parsed:
+                return None
+            content, content_type, filename = parsed
+        else:
+            if image_ref.startswith("http://") or image_ref.startswith("https://"):
+                download_url = image_ref
+            else:
+                download_url = await self._get_dingtalk_download_url(image_ref, payload)
+            if not download_url:
+                return None
+            content, content_type, filename = await self._download_dingtalk_image_file(download_url, index)
+
+        return UploadFile(
+            filename=filename,
+            size=len(content),
+            headers=Headers({"content-type": content_type}),
+            file=io.BytesIO(content),
+        )
+
+    def _parse_image_data_uri(self, image_ref: str, index: int) -> Optional[tuple[bytes, str, str]]:
+        header, _, encoded = image_ref.partition(",")
+        if not encoded:
+            return None
+        content_type = header.split(";", 1)[0].replace("data:", "").strip().lower() or "image/png"
+        try:
+            content = base64.b64decode(encoded)
+        except Exception:
+            logger.exception("Failed to decode DingTalk image data uri")
+            return None
+        return content, content_type, self._build_dingtalk_image_filename(index, content_type)
+
+    async def _download_dingtalk_image_file(self, url: str, index: int) -> tuple[bytes, str, str]:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            content = response.content
+
+        content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        if not content_type.startswith("image/"):
+            content_type = self._guess_image_content_type(content)
+        logger.info("Downloaded DingTalk image bytes=%s content_type=%s", len(content), content_type)
+        return content, content_type, self._build_dingtalk_image_filename(index, content_type)
+
+    async def _download_dingtalk_attachment_file(self, url: str, filename: str) -> tuple[bytes, str]:
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            content = response.content
+
+        content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        if not content_type or content_type == "application/octet-stream":
+            content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        logger.info("Downloaded DingTalk file bytes=%s content_type=%s filename=%s", len(content), content_type, filename)
+        return content, content_type
+
+    def _build_dingtalk_image_filename(self, index: int, content_type: str) -> str:
+        suffix = mimetypes.guess_extension(content_type) or ".png"
+        return f"dingtalk-image-{index}{suffix}"
+
+    def _build_dingtalk_attachment_filename(self, attachment: Dict[str, str], index: int) -> str:
+        file_name = str(attachment.get("file_name") or "").strip()
+        if file_name:
+            return os.path.basename(file_name)
+
+        content_type = str(attachment.get("content_type") or "").strip().lower()
+        suffix = mimetypes.guess_extension(content_type) or ".bin"
+        return f"dingtalk-file-{index}{suffix}"
+
+    def _is_supported_text_attachment(self, attachment: Dict[str, str]) -> bool:
+        file_name = str(attachment.get("file_name") or "").strip().lower()
+        content_type = str(attachment.get("content_type") or "").strip().lower()
+
+        if content_type.startswith("image/") or content_type == "application/pdf":
+            return False
+        if file_name.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".heic", ".tif", ".tiff", ".pdf")):
+            return False
+
+        allowed_extensions = {
+            ".txt", ".md", ".markdown", ".log", ".csv", ".tsv", ".json", ".jsonl", ".xml", ".yaml", ".yml",
+            ".ini", ".cfg", ".conf", ".sql", ".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".go", ".rb",
+            ".php", ".c", ".cc", ".cpp", ".h", ".hpp", ".cs", ".rs", ".sh", ".bat", ".ps1", ".kt", ".swift",
+            ".scala", ".r", ".m", ".pl", ".lua", ".vue", ".html", ".htm", ".css", ".scss", ".less", ".sass",
+            ".dockerfile", ".env", ".properties", ".gradle", ".pom", ".doc", ".docx",
+        }
+        allowed_content_prefixes = (
+            "text/",
+            "application/json",
+            "application/xml",
+            "application/x-",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+
+        if file_name:
+            root_name = os.path.basename(file_name)
+            if root_name == "dockerfile" or root_name.endswith(".env"):
+                return True
+            if any(root_name.endswith(ext) for ext in allowed_extensions):
+                return True
+
+        return content_type.startswith(allowed_content_prefixes)
 
     async def _download_dingtalk_image_as_data_uri(self, image_ref: str, payload: Dict[str, Any]) -> str:
         if image_ref.startswith("data:image/"):
@@ -437,15 +709,7 @@ class DingTalkBotService:
         return self._access_token
 
     async def _download_url_as_data_uri(self, url: str) -> str:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            content = response.content
-
-        content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
-        if not content_type.startswith("image/"):
-            content_type = self._guess_image_content_type(content)
-        logger.info("Downloaded DingTalk image bytes=%s content_type=%s", len(content), content_type)
+        content, content_type, _ = await self._download_dingtalk_image_file(url, index=1)
         encoded = base64.b64encode(content).decode("utf-8")
         return f"data:{content_type};base64,{encoded}"
 
@@ -470,6 +734,7 @@ class DingTalkBotService:
 
     def _extract_image_urls(self, payload: Dict[str, Any]) -> List[str]:
         urls = []
+        msgtype = str(payload.get("msgtype") or payload.get("msgType") or payload.get("messageType") or "").strip().lower()
         for key in ("image", "picture", "photo"):
             value = payload.get(key)
             if isinstance(value, dict):
@@ -480,11 +745,96 @@ class DingTalkBotService:
                 urls.append(value)
 
         content = payload.get("content")
-        if isinstance(content, dict):
+        if isinstance(content, dict) and msgtype not in {"file", "richtext"}:
+            content_type = str(content.get("type") or content.get("msgType") or content.get("tag") or "").strip().lower()
+            file_name = str(content.get("fileName") or content.get("file_name") or "").strip()
+            if file_name:
+                return urls
+            if content_type and any(keyword in content_type for keyword in ("file", "attachment", "doc", "link")):
+                return urls
             for url_key in ("downloadCode", "mediaId", "url", "picUrl"):
                 if content.get(url_key):
                     urls.append(str(content[url_key]))
         return urls
+
+    def _extract_file_attachments(self, payload: Dict[str, Any]) -> List[Dict[str, str]]:
+        return self._extract_file_attachments_by_support(payload, supported=True)
+
+    def _extract_unsupported_file_attachments(self, payload: Dict[str, Any]) -> List[Dict[str, str]]:
+        return self._extract_file_attachments_by_support(payload, supported=False)
+
+    def _extract_file_attachments_by_support(self, payload: Dict[str, Any], supported: bool) -> List[Dict[str, str]]:
+        attachments: List[Dict[str, str]] = []
+
+        content = payload.get("content")
+        if isinstance(content, dict):
+            attachment = self._extract_file_attachment_from_item(content)
+            if attachment and self._is_supported_text_attachment(attachment) is supported:
+                attachments.append(attachment)
+
+        rich_text = payload.get("richText")
+        if not isinstance(rich_text, list):
+            return attachments
+
+        for item in rich_text:
+            attachment = self._extract_file_attachment_from_item(item)
+            if attachment and self._is_supported_text_attachment(attachment) is supported:
+                attachments.append(attachment)
+        return attachments
+
+    def _extract_file_attachment_from_item(self, item: Any) -> Optional[Dict[str, str]]:
+        if not isinstance(item, dict):
+            return None
+
+        item_type = str(item.get("type") or item.get("msgType") or item.get("tag") or "").strip().lower()
+        candidate = self._select_file_candidate(item)
+        if not candidate:
+            return None
+
+        download_code = str(
+            candidate.get("downloadCode")
+            or candidate.get("download_code")
+            or candidate.get("mediaId")
+            or candidate.get("media_id")
+            or ""
+        ).strip()
+        if not download_code:
+            return None
+
+        if item_type and any(keyword in item_type for keyword in ("image", "picture", "photo")):
+            return None
+
+        file_name = str(
+            candidate.get("fileName")
+            or candidate.get("file_name")
+            or candidate.get("name")
+            or item.get("text")
+            or ""
+        ).strip()
+        content_type = str(
+            candidate.get("fileType")
+            or candidate.get("contentType")
+            or candidate.get("content_type")
+            or ""
+        ).strip()
+        return {
+            "download_code": download_code,
+            "file_name": file_name,
+            "content_type": content_type,
+        }
+
+    def _select_file_candidate(self, item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        nested_keys = ("file", "attachment", "content", "extra", "value", "data")
+        for key in nested_keys:
+            value = item.get(key)
+            if isinstance(value, dict) and self._contains_file_download_code(value):
+                return value
+        if self._contains_file_download_code(item):
+            return item
+        return None
+
+    def _contains_file_download_code(self, value: Dict[str, Any]) -> bool:
+        return any(value.get(key) for key in ("downloadCode", "download_code", "mediaId", "media_id"))
 
     def _peer_id(self, payload: Dict[str, Any]) -> str:
         conversation_id = payload.get("conversationId") or payload.get("conversation_id")
