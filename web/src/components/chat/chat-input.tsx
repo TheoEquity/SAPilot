@@ -29,7 +29,7 @@ import { motion } from 'framer-motion';
 import _ from 'lodash';
 import { Bot, Globe, LoaderCircle, Paperclip, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { defaultStyles, FileIcon } from 'react-file-icon';
 import { BiSolidRightArrow } from 'react-icons/bi';
 import { PiStopFill } from 'react-icons/pi';
@@ -150,72 +150,85 @@ export const ChatInput = ({
     );
   }, []);
 
+  const onFileReject = useCallback((file: File, message: string) => {
+    toast.error(message, {
+      description: `"${file.name.length > 20 ? `${file.name.slice(0, 20)}...` : file.name}" 上传失败`,
+    });
+  }, []);
+
+  const onFileValidate = useCallback(
+    (file: File): string | null => {
+      const exists = attachments.some(
+        (attachment) =>
+          attachment.file.name === file.name &&
+          attachment.file.size === file.size &&
+          attachment.file.lastModified === file.lastModified,
+      );
+      if (exists) return '该文件已存在。';
+      return null;
+    },
+    [attachments],
+  );
+
+  const prevPendingIdsRef = useRef<Set<string>>(new Set());
+
+  const attachmentsRef = useRef<Attachment[]>([]);
+  attachmentsRef.current = attachments;
+
   const checkAttachmentStatus = useCallback(async () => {
+    const items = attachmentsRef.current;
     const chatId = chat.id;
     if (!chatId) return;
-    const indexingAttachments = attachments.filter((attachment) => {
+    const toCheck = items.filter((a) => {
       return (
-        ['uploaded', 'indexing'].includes(attachment.progress_status) &&
-        attachment.document_id
+        ['uploaded', 'indexing'].includes(a.progress_status) && a.document_id
       );
     });
+    if (toCheck.length === 0) return;
     await Promise.all(
-      indexingAttachments.map(async (attachment) => {
-        setAttachments((items) => {
-          const item = items.find((item) => item.id === attachment.id);
-          if (item) {
-            item.progress_status = 'indexing';
-          }
-          return [...items];
-        });
+      toCheck.map(async (attachment) => {
         const res =
           await apiClient.chatDocumentsApi.chatsChatIdDocumentsDocumentIdGet({
             chatId,
             documentId: attachment.document_id || '',
           });
-
         if (res.data) {
-          setAttachments((items) => {
-            const item = items.find((item) => item.id === attachment.id);
-            if (item) {
-              switch (res.data.status) {
-                case 'COMPLETE':
-                  item.progress_status = 'success';
-                  break;
-                case 'FAILED':
-                  item.progress_status = 'failed';
-                  break;
-                default:
-                  item.progress_status = 'indexing';
-              }
+          setAttachments((prev) => {
+            const item = prev.find((i) => i.id === attachment.id);
+            if (!item) return prev;
+            let next: Attachment['progress_status'] = 'indexing';
+            switch (res.data.status) {
+              case 'COMPLETE':
+                next = 'success';
+                break;
+              case 'FAILED':
+                next = 'failed';
+                break;
             }
-            return [...items];
+            if (item.progress_status === next) return prev;
+            item.progress_status = next;
+            return [...prev];
           });
         }
       }),
     );
-  }, [attachments, chat.id]);
+  }, [chat.id]);
 
   const onAttachmentsChange = useCallback(async () => {
     const chatId = chat.id;
     if (!chatId) return;
-
-    const uploadAttachments = attachments.filter((attachment) => {
-      return (
-        ['pending'].includes(attachment.progress_status) &&
-        !attachment.document_id
-      );
-    });
+    const currentAttachments = attachmentsRef.current;
+    const currentPending = currentAttachments.filter(
+      (a) => a.progress_status === 'pending' && !a.document_id,
+    );
+    const newPending = currentPending.filter(
+      (a) => !prevPendingIdsRef.current.has(a.id),
+    );
+    if (newPending.length === 0) return;
+    newPending.forEach((a) => prevPendingIdsRef.current.add(a.id));
     await Promise.all(
-      uploadAttachments.map(async (attachment) => {
+      newPending.map(async (attachment) => {
         const file = attachment.file;
-        setAttachments((items) => {
-          const item = items.find((item) => item.id === attachment.id);
-          if (item) {
-            item.progress_status = 'uploading';
-          }
-          return [...items];
-        });
         const res = await apiClient.chatDocumentsApi.chatsChatIdDocumentsPost({
           chatId,
           file,
@@ -224,52 +237,20 @@ export const ChatInput = ({
         if (res.data.id) {
           setAttachments((items) => {
             const item = items.find((item) => item.id === attachment.id);
-            if (item) {
-              item.document_id = res.data.id;
-              item.progress_status = isImageFile(item.file)
-                ? 'success'
-                : 'uploaded';
-              // Generate preview URL for images
-              if (isImageFile(item.file)) {
-                item.previewUrl = URL.createObjectURL(item.file);
-              }
+            if (!item) return items;
+            item.document_id = res.data.id;
+            item.progress_status = isImageFile(item.file)
+              ? 'success'
+              : 'uploaded';
+            if (isImageFile(item.file)) {
+              item.previewUrl = URL.createObjectURL(item.file);
             }
             return [...items];
           });
         }
       }),
     );
-  }, [attachments, chat.id]);
-
-  const onFileReject = useCallback((file: File, message: string) => {
-    toast.error(message, {
-      description: `"${file.name.length > 20 ? `${file.name.slice(0, 20)}...` : file.name}" has been rejected`,
-    });
-  }, []);
-
-  const onFileValidate = useCallback(
-    (file: File): string | null => {
-      if (attachments.length > 0) {
-        return '一次只能上传 1 个附件，请先删除当前附件。';
-      }
-      const doc = attachments.some(
-        (attachment) =>
-          attachment.file.name === file.name &&
-          attachment.file.size === file.size &&
-          attachment.file.lastModified === file.lastModified &&
-          attachment.file.type === file.type,
-      );
-      if (doc) {
-        return 'File already exists.';
-      }
-      return null;
-    },
-    [attachments],
-  );
-
-  useInterval(() => {
-    checkAttachmentStatus();
-  }, 3000);
+  }, [chat.id]);
 
   useEffect(() => {
     onAttachmentsChange();

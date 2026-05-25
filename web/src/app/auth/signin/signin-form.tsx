@@ -32,7 +32,7 @@ export function SignInForm({
   methods: string[];
 }) {
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('callbackUrl') || '/workspace';
+  const redirectTo = searchParams.get('callbackUrl') || '/workspace/bots';
   const { signIn } = useAppContext();
   const page_auth = useTranslations('page_auth');
   const form = useForm<z.infer<typeof signInLocalSchema>>({

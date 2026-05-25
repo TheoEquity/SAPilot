@@ -92,7 +92,7 @@ export const AppProvider = ({
 
           if (res.status === 200) {
             setUser(res.data);
-            const callbackUrl = options.redirectTo || '/workspace';
+            const callbackUrl = options.redirectTo || '/workspace/bots';
             router.push(callbackUrl);
           }
           // eslint-disable-next-line @typescript-eslint/no-unused-vars

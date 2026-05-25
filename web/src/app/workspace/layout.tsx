@@ -29,7 +29,7 @@ export default async function Layout({
   } catch (err) {}
 
   if (!user) {
-    redirect(`/auth/signin?callbackUrl=${encodeURIComponent('/workspace')}`);
+    redirect(`/auth/signin?callbackUrl=${encodeURIComponent('/workspace/bots')}`);
   }
 
   return (

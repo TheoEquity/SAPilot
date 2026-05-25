@@ -14,22 +14,16 @@
 
 import json
 import logging
-import time
-import uuid
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aperag.db import models as db_models
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops
 from aperag.exceptions import ChatNotFoundException, ResourceNotFoundException
-from aperag.flow.engine import FlowEngine
-from aperag.flow.parser import FlowParser
 from aperag.schema import view_models
 from aperag.schema.view_models import Chat, ChatDetails
-from aperag.utils.constant import DOC_QA_REFERENCES, DOCUMENT_URLS
 from aperag.utils.history import (
     RedisChatMessageHistory,
     fail_response,
@@ -41,71 +35,6 @@ from aperag.utils.history import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-class FrontendFormatter:
-    """Format responses according to Aperag custom format"""
-
-    @staticmethod
-    def format_stream_start(msg_id: str) -> Dict[str, Any]:
-        """Format the start event for streaming"""
-        return {
-            "type": "start",
-            "id": msg_id,
-            "timestamp": int(time.time()),
-        }
-
-    @staticmethod
-    def format_stream_content(msg_id: str, content: str) -> Dict[str, Any]:
-        """Format a content chunk for streaming"""
-        return {
-            "type": "message",
-            "id": msg_id,
-            "data": content,
-            "timestamp": int(time.time()),
-        }
-
-    @staticmethod
-    def format_stream_end(
-        msg_id: str,
-        references: List[str] = None,
-        memory_count: int = 0,
-        urls: List[str] = None,
-    ) -> Dict[str, Any]:
-        """Format the end event for streaming"""
-        if references is None:
-            references = []
-        if urls is None:
-            urls = []
-
-        return {
-            "type": "stop",
-            "id": msg_id,
-            "data": references,
-            "memoryCount": memory_count,
-            "urls": urls,
-            "timestamp": int(time.time()),
-        }
-
-    @staticmethod
-    def format_complete_response(msg_id: str, content: str) -> Dict[str, Any]:
-        """Format a complete response for non-streaming mode"""
-        return {
-            "type": "message",
-            "id": msg_id,
-            "data": content,
-            "timestamp": int(time.time()),
-        }
-
-    @staticmethod
-    def format_error(error: str) -> Dict[str, Any]:
-        """Format an error response"""
-        return {
-            "type": "error",
-            "id": str(uuid.uuid4()),
-            "data": error,
-            "timestamp": int(time.time()),
-        }
 
 
 class ChatService:
@@ -259,124 +188,6 @@ class ChatService:
             return self.build_chat_response(deleted_chat)
 
         return None
-
-    def stream_frontend_sse_response(
-        self, generator: AsyncGenerator[Any, Any], formatter: FrontendFormatter, msg_id: str
-    ):
-        """Yield SSE events for FastAPI StreamingResponse."""
-
-        async def event_stream():
-            yield f"data: {json.dumps(formatter.format_stream_start(msg_id))}\n\n"
-            async for chunk in generator:
-                yield f"data: {json.dumps(formatter.format_stream_content(msg_id, chunk))}\n\n"
-            yield f"data: {json.dumps(formatter.format_stream_end(msg_id))}\n\n"
-
-        return event_stream()
-
-    async def frontend_chat_completions(
-        self,
-        user: str,
-        message: str,
-        stream: bool,
-        bot_id: str,
-        chat_id: str,
-        msg_id: str,
-        upload_files: List[str] = None,
-        peer_type: db_models.ChatPeerType = db_models.ChatPeerType.FEISHU,
-        chat_title: str = "Feishu Chat",
-    ) -> Any:
-        """Frontend chat completions with special error handling for UI responses"""
-
-        # Get document metadata and associate documents with message if files are provided
-        from aperag.service.chat_document_service import chat_document_service
-
-        files = await chat_document_service.associate_documents_with_message(
-            chat_id=chat_id, message_id=msg_id, files=upload_files or [], user=user
-        )
-
-        # Validate bot_id - return formatted error for frontend
-        if not bot_id:
-            return FrontendFormatter.format_error("bot_id is required")
-
-        bot = await self.db_ops.query_bot(user, bot_id)
-        if not bot:
-            return FrontendFormatter.format_error("Bot not found")
-
-        # Get or create chat session
-        chat = await self.db_ops.query_chat_by_peer(bot.user, peer_type, chat_id)
-
-        if chat is None:
-            # Create chat with peer info atomically in single transaction
-            chat = await self.db_ops.create_chat(
-                user=bot.user,
-                bot_id=bot.id,
-                title=chat_title,
-                peer_type=peer_type,
-                peer_id=chat_id,
-            )
-
-        # Use flow engine instead of MessageProcessor/pipeline
-        formatter = FrontendFormatter()
-
-        # Get bot's flow configuration
-        bot_config = json.loads(bot.config or "{}")
-        flow_config = bot_config.get("flow")
-        if not flow_config:
-            return FrontendFormatter.format_error("Bot flow config not found")
-
-        try:
-            flow = FlowParser.parse(flow_config)
-            engine = FlowEngine()
-
-            # Prepare initial data for flow execution
-            initial_data = {
-                "query": message,
-                "user": user,
-                "message_id": msg_id or str(uuid.uuid4()),
-                "chat_id": chat_id,
-            }
-
-            # Save user message to history with file metadata
-            from aperag.utils.history import RedisChatMessageHistory, get_async_redis_client
-
-            history = RedisChatMessageHistory(chat_id, redis_client=get_async_redis_client())
-            await history.add_user_message(message, msg_id, files=files)
-
-            # Execute flow
-            _, system_outputs = await engine.execute_flow(flow, initial_data)
-            logger.info("Flow executed successfully!")
-
-            # Find the async generator from flow outputs
-            async_generator = None
-            nodes = engine.find_end_nodes(flow)
-            for node in nodes:
-                async_generator = system_outputs[node].get("async_generator")
-                if async_generator:
-                    break
-
-            if not async_generator:
-                return FrontendFormatter.format_error("No output node found")
-
-            # Return streaming or non-streaming response
-            if stream:
-                return StreamingResponse(
-                    self.stream_frontend_sse_response(
-                        async_generator(),
-                        formatter,
-                        msg_id or str(uuid.uuid4()),
-                    ),
-                    media_type="text/event-stream",
-                )
-            else:
-                # Collect all content for non-streaming response
-                full_content = ""
-                async for chunk in async_generator():
-                    full_content += chunk
-                return formatter.format_complete_response(msg_id or str(uuid.uuid4()), full_content)
-
-        except Exception as e:
-            logger.exception(e)
-            return FrontendFormatter.format_error(str(e))
 
     async def feedback_message(
         self,

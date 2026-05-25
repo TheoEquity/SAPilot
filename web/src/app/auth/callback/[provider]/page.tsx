@@ -63,7 +63,7 @@ export default function Page() {
       .then((res) => {
         if (res.status >= 200) {
           setTimeout(() => {
-            window.location.href = '/workspace';
+            window.location.href = '/workspace/bots';
           }, 300);
           return;
         }
