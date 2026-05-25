@@ -83,7 +83,8 @@ async def export_backup(
         from aperag.db import models as db_models
         from aperag.db.ops import async_db_ops
 
-        bot_configs = await async_db_ops.query_bot_list(user_id=user_id)
+        bot_configs = await async_db_ops.query_bots([user_id])
+
         if payload.bots:
             bot_configs = [b for b in bot_configs if b.id in payload.bots]
 
