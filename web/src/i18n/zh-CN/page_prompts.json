@@ -11,18 +11,38 @@
     "title": "查询提示词",
     "description": "每次对话的查询模板，控制如何将用户问题与知识库上下文组合后发送给 AI。"
   },
+  "index_graph": {
+    "title": "图谱索引提示词",
+    "description": "图谱索引构建时的实体和关系提取 prompt，控制从文档中抽取知识图谱信息的方式。"
+  },
+  "index_summary": {
+    "title": "摘要索引提示词",
+    "description": "文档摘要生成 prompt，控制如何对文档内容进行自动摘要。"
+  },
+  "index_vision": {
+    "title": "视觉索引提示词",
+    "description": "图像内容提取 prompt，控制如何分析和提取图片中的文字、图表、表格等信息。"
+  },
   "status": {
     "customized": "已自定义",
     "default": "使用默认"
   },
+  "section": {
+    "types": "提示词类型"
+  },
   "action": {
     "save": "保存",
     "reset": "重置为默认",
+    "reset_all": "全部重置",
+    "cancel": "取消",
     "reset_confirm": "确认将此提示词重置为系统默认？",
-    "reset_confirm_description": "重置后，当前自定义内容将被删除，恢复为系统内置默认提示词。"
+    "reset_confirm_description": "重置后，当前自定义内容将被删除，恢复为系统内置默认提示词。",
+    "reset_all_confirm": "确认将所有提示词重置为系统默认？",
+    "reset_all_confirm_description": "重置后，所有自定义内容将被删除，恢复为系统内置默认提示词。"
   },
   "toast": {
     "save_success": "提示词已保存",
-    "reset_success": "已重置为默认提示词"
+    "reset_success": "已重置为默认提示词",
+    "reset_all_success": "所有提示词已重置为默认"
   }
 }

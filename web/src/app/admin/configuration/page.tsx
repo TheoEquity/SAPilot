@@ -8,6 +8,7 @@ import {
 import { getServerApi } from '@/lib/api/server';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { BackupSettings } from './backup-settings';
 import { DingTalkSettings } from './dingtalk-settings';
 import { FirecrawlSettings } from './firecrawl-settings';
 import { ParserSettings } from './parser-settings';
@@ -47,6 +48,7 @@ export default async function Page() {
           <DingTalkSettings data={settings} bots={resBots.data.items || []} />
           <ParserSettings data={settings} />
           <QuotaSettings data={resSystemDefaultQuotas.data.quotas} />
+          <BackupSettings bots={resBots.data.items || []} />
         </div>
       </PageContent>
     </PageContainer>

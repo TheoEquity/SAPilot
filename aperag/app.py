@@ -42,6 +42,7 @@ from aperag.service.dingtalk_stream_service import dingtalk_stream_consumer  # n
 from aperag.views.api_key import router as api_key_router
 from aperag.views.audit import router as audit_router
 from aperag.views.auth import router as auth_router
+from aperag.views.backup import router as backup_router
 from aperag.views.bot import router as bot_router
 from aperag.views.chat import router as chat_router
 from aperag.views.collections import router as collections_router
@@ -125,6 +126,7 @@ app.include_router(marketplace_router, prefix="/api/v1")  # Add marketplace rout
 app.include_router(marketplace_collections_router, prefix="/api/v1")  # Add marketplace collections router
 app.include_router(settings_router, prefix="/api/v1")
 app.include_router(prompts_router, prefix="/api/v1")  # Add prompts router
+app.include_router(backup_router, prefix="/api/v1")  # Add backup router
 app.include_router(web_router, prefix="/api/v1")  # Add web search router
 app.include_router(evaluation_router, prefix="/api/v1")
 app.include_router(bot_router, prefix="/api/v1")

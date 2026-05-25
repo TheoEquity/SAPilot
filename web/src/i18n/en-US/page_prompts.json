@@ -11,18 +11,38 @@
     "title": "Query Prompt",
     "description": "The query template for each conversation. Controls how user questions and knowledge base context are combined before being sent to the AI."
   },
+  "index_graph": {
+    "title": "Graph Index Prompt",
+    "description": "Entity and relation extraction prompt used during graph index building. Controls how knowledge graph information is extracted from documents."
+  },
+  "index_summary": {
+    "title": "Summary Index Prompt",
+    "description": "Document summarization prompt. Controls how document content is automatically summarized."
+  },
+  "index_vision": {
+    "title": "Vision Index Prompt",
+    "description": "Image content extraction prompt. Controls how to analyze and extract text, charts, tables, and other information from images."
+  },
   "status": {
     "customized": "Customized",
     "default": "Using Default"
   },
+  "section": {
+    "types": "Prompt Types"
+  },
   "action": {
     "save": "Save",
     "reset": "Reset to Default",
+    "reset_all": "Reset All",
+    "cancel": "Cancel",
     "reset_confirm": "Reset this prompt to system default?",
-    "reset_confirm_description": "This will delete your customization and restore the built-in system default prompt."
+    "reset_confirm_description": "This will delete your customization and restore the built-in system default prompt.",
+    "reset_all_confirm": "Reset all prompts to system default?",
+    "reset_all_confirm_description": "This will delete all customizations and restore all built-in system default prompts."
   },
   "toast": {
     "save_success": "Prompt saved successfully",
-    "reset_success": "Prompt reset to default"
+    "reset_success": "Prompt reset to default",
+    "reset_all_success": "All prompts reset to default"
   }
 }
