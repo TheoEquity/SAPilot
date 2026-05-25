@@ -1,8 +1,8 @@
-# ApeRAG 索引链路架构设计文档
+# SAPilot 索引链路架构设计文档
 
 ## 概述
 
-ApeRAG的索引链路架构采用双链路设计模式，将索引管理分为前端链路（Frontend Chain）和后端链路（Backend Chain），通过状态驱动的调谐机制实现文档索引的异步处理。前端链路负责快速响应用户操作并设置索引状态，后端链路通过定时调谐器检测状态变化并调度异步任务执行实际的索引操作。
+SAPilot的索引链路架构采用双链路设计模式，将索引管理分为前端链路（Frontend Chain）和后端链路（Backend Chain），通过状态驱动的调谐机制实现文档索引的异步处理。前端链路负责快速响应用户操作并设置索引状态，后端链路通过定时调谐器检测状态变化并调度异步任务执行实际的索引操作。
 
 > 🚀 **深入阅读**：了解 Graph Index 的详细创建流程，请继续阅读 [Graph Index 创建流程技术文档](./graph_index_creation_zh.md)
 
@@ -53,12 +53,12 @@ graph TB
 **前端链路（Frontend Chain）**：
 - **目标**：快速响应用户操作，不阻塞API请求
 - **实现**：只操作数据库表，设置期望状态，立即返回
-- **代码**：`aperag/index/manager.py` 中的 `IndexManager`
+- **代码**：`sapilot/index/manager.py` 中的 `IndexManager`
 
 **后端链路（Backend Chain）**：
 - **目标**：异步执行耗时的索引操作，支持重试和错误恢复
 - **实现**：通过定时任务持续扫描状态变化，调度异步任务
-- **代码**：`aperag/index/reconciler.py` 中的 `IndexReconciler`
+- **代码**：`sapilot/index/reconciler.py` 中的 `IndexReconciler`
 
 ### 2. 单一状态驱动调谐
 
@@ -115,7 +115,7 @@ class IndexReconciler:
 
 **Celery任务入口与业务代码分离**：
 - Celery任务函数（`config/celery_tasks.py`）：负责任务调度、参数序列化、错误重试
-- 业务逻辑（`aperag/tasks/document.py`）：负责具体的索引创建逻辑
+- 业务逻辑（`sapilot/tasks/document.py`）：负责具体的索引创建逻辑
 - 这种分离使得业务逻辑可以独立测试，也便于在不同任务系统间迁移
 
 ### 4. 创建与更新操作区分
@@ -138,7 +138,7 @@ class IndexReconciler:
 
 ### 当前异步任务列表
 
-ApeRAG当前定义了以下异步任务，每个任务都有明确的职责分工：
+SAPilot当前定义了以下异步任务，每个任务都有明确的职责分工：
 
 | 任务名称 | 功能 | 重试次数 | 位置 |
 |---------|------|---------|------|
@@ -424,7 +424,7 @@ class IndexTaskCallbacks:
 ### 目录结构
 
 ```
-aperag/
+sapilot/
 ├── index/                    # 索引管理核心模块
 │   ├── manager.py           # 索引管理器（前端操作）
 │   ├── reconciler.py        # 后端调谐器
@@ -448,7 +448,7 @@ config/
 
 #### 索引管理接口
 ```python
-# aperag/index/manager.py
+# sapilot/index/manager.py
 class IndexManager:
     def create_indexes(self, document_id, index_types, created_by, session)
     def rebuild_indexes(self, document_id, index_types, created_by, session) 
@@ -457,7 +457,7 @@ class IndexManager:
 
 #### 调谐器接口
 ```python
-# aperag/index/reconciler.py
+# sapilot/index/reconciler.py
 class IndexReconciler:
     def reconcile_all(self)  # 主调谐循环
     def _get_indexes_needing_reconciliation(self, session)  # 获取需要调谐的索引
@@ -466,7 +466,7 @@ class IndexReconciler:
 
 #### 索引器接口
 ```python
-# aperag/index/base.py
+# sapilot/index/base.py
 class BaseIndexer(ABC):
     def create_index(self, document_id, content, doc_parts, collection, **kwargs)
     def update_index(self, document_id, content, doc_parts, collection, **kwargs)
@@ -478,7 +478,7 @@ class BaseIndexer(ABC):
 
 #### 任务数据结构
 ```python
-# aperag/tasks/models.py
+# sapilot/tasks/models.py
 @dataclass
 class ParsedDocumentData:
     """文档解析结果，承载所有索引任务所需的数据"""
@@ -528,7 +528,7 @@ class WorkflowResult:
 
 ## 总结
 
-ApeRAG的索引链路架构通过以下技术设计实现了高效的文档索引处理：
+SAPilot的索引链路架构通过以下技术设计实现了高效的文档索引处理：
 
 ### 核心优势
 

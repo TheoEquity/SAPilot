@@ -1,6 +1,6 @@
-# ApeRAG Project PyCharm Debugging Guide
+# SAPilot Project PyCharm Debugging Guide
 
-This document details how to debug two core components of the ApeRAG project in PyCharm: the Celery asynchronous task service and the web backend service.
+This document details how to debug two core components of the SAPilot project in PyCharm: the Celery asynchronous task service and the web backend service.
 
 ---
 
@@ -41,7 +41,7 @@ Name: backend
 Python interpreter: [Same uv virtual environment as Celery]
 Script path: [uvicorn executable path]
   # Get via: `which uvicorn`
-Parameters: aperag.app:app --host 0.0.0.0 --log-config scripts/uvicorn-log-config.yaml
+Parameters: sapilot.app:app --host 0.0.0.0 --log-config scripts/uvicorn-log-config.yaml
 Environment variables:
   PYTHONUNBUFFERED=1;
   DJANGO_SETTINGS_MODULE=config.settings;

@@ -1,8 +1,8 @@
-# ApeRAG Indexing Pipeline Architecture Design
+# SAPilot Indexing Pipeline Architecture Design
 
 ## Overview
 
-ApeRAG's indexing pipeline architecture adopts a dual-chain design pattern, separating index management into Frontend Chain and Backend Chain, implementing asynchronous document indexing through state-driven reconciliation. The frontend chain handles fast user operation responses and sets desired index states, while the backend chain detects state differences through a periodic reconciler and schedules asynchronous tasks to execute actual indexing operations.
+SAPilot's indexing pipeline architecture adopts a dual-chain design pattern, separating index management into Frontend Chain and Backend Chain, implementing asynchronous document indexing through state-driven reconciliation. The frontend chain handles fast user operation responses and sets desired index states, while the backend chain detects state differences through a periodic reconciler and schedules asynchronous tasks to execute actual indexing operations.
 
 > 🚀 **Deep Dive**: To understand the detailed Graph Index creation process, continue reading [Graph Index Creation Process Technical Documentation](./graph_index_creation.md)
 
@@ -53,12 +53,12 @@ graph TB
 **Frontend Chain**：
 - **Goal**: Fast response to user operations without blocking API requests
 - **Implementation**: Only operates on database tables, sets desired state, returns immediately
-- **Code**: `IndexManager` in `aperag/index/manager.py`
+- **Code**: `IndexManager` in `sapilot/index/manager.py`
 
 **Backend Chain**：
 - **Goal**: Asynchronously execute time-consuming indexing operations with retry and error recovery support
 - **Implementation**: Continuously scans state differences through periodic tasks and schedules async tasks
-- **Code**: `IndexReconciler` in `aperag/index/reconciler.py`
+- **Code**: `IndexReconciler` in `sapilot/index/reconciler.py`
 
 ### 2. Single Status State-Driven Reconciliation
 
@@ -115,7 +115,7 @@ class IndexReconciler:
 
 **Celery Task Entry Point and Business Code Separation**：
 - Celery task functions (`config/celery_tasks.py`): Handle task scheduling, parameter serialization, error retry
-- Business logic (`aperag/tasks/document.py`): Handle specific index creation logic
+- Business logic (`sapilot/tasks/document.py`): Handle specific index creation logic
 - This separation enables independent testing of business logic and facilitates migration between different task systems
 
 ### 4. Create vs Update Operation Distinction
@@ -138,7 +138,7 @@ This distinction allows for different processing strategies and optimizations fo
 
 ### Current Asynchronous Task List
 
-ApeRAG currently defines the following asynchronous tasks, each with clear responsibility division:
+SAPilot currently defines the following asynchronous tasks, each with clear responsibility division:
 
 | Task Name | Function | Retry Count | Location |
 |-----------|----------|-------------|----------|
@@ -424,7 +424,7 @@ class IndexTaskCallbacks:
 ### Directory Structure
 
 ```
-aperag/
+sapilot/
 ├── index/                    # Index management core module
 │   ├── manager.py           # Index manager (frontend operations)
 │   ├── reconciler.py        # Backend reconciler
@@ -448,7 +448,7 @@ config/
 
 #### Index Management Interface
 ```python
-# aperag/index/manager.py
+# sapilot/index/manager.py
 class IndexManager:
     def create_indexes(self, document_id, index_types, created_by, session)
     def rebuild_indexes(self, document_id, index_types, created_by, session) 
@@ -457,7 +457,7 @@ class IndexManager:
 
 #### Reconciler Interface
 ```python
-# aperag/index/reconciler.py
+# sapilot/index/reconciler.py
 class IndexReconciler:
     def reconcile_all(self)  # Main reconciliation loop
     def _get_indexes_needing_reconciliation(self, session)  # Get indexes needing reconciliation
@@ -466,7 +466,7 @@ class IndexReconciler:
 
 #### Indexer Interface
 ```python
-# aperag/index/base.py
+# sapilot/index/base.py
 class BaseIndexer(ABC):
     def create_index(self, document_id, content, doc_parts, collection, **kwargs)
     def update_index(self, document_id, content, doc_parts, collection, **kwargs)
@@ -478,7 +478,7 @@ class BaseIndexer(ABC):
 
 #### Task Data Structures
 ```python
-# aperag/tasks/models.py
+# sapilot/tasks/models.py
 @dataclass
 class ParsedDocumentData:
     """Document parsing result, carries data needed by all index tasks"""
@@ -528,7 +528,7 @@ class WorkflowResult:
 
 ## Summary
 
-ApeRAG's indexing pipeline architecture achieves efficient document indexing through the following technical design:
+SAPilot's indexing pipeline architecture achieves efficient document indexing through the following technical design:
 
 ### Core Advantages
 

@@ -1,6 +1,6 @@
-# ApeRAG 项目 PyCharm 调试指南
+# SAPilot 项目 PyCharm 调试指南
 
-本文详细介绍如何在 PyCharm 中调试 ApeRAG 项目的两个核心模块：Celery 异步任务服务和 Web 后端服务。
+本文详细介绍如何在 PyCharm 中调试 SAPilot 项目的两个核心模块：Celery 异步任务服务和 Web 后端服务。
 
 ---
 
@@ -41,7 +41,7 @@ Python解释器: [通过 uv 虚拟环境获取]
 Python解释器: [与Celery相同的uv虚拟环境]
 脚本路径: [uvicorn可执行文件路径]
   # 获取方法：which uvicorn
-参数: aperag.app:app --host 0.0.0.0 --log-config scripts/uvicorn-log-config.yaml
+参数: sapilot.app:app --host 0.0.0.0 --log-config scripts/uvicorn-log-config.yaml
 环境变量:
   PYTHONUNBUFFERED=1;
   DJANGO_SETTINGS_MODULE=config.settings;

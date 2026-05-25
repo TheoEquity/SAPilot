@@ -1,11 +1,11 @@
 ## 设计文档：Collection 分享与市场 (MVP)
 
 **版本:** 1.6
-**关联 Issue:** [#1127](https://github.com/apecloud/ApeRAG/issues/1127)
+**关联 Issue:** [#1127](https://github.com/apecloud/SAPilot/issues/1127)
 
 ### 1. 概述
 
-本文档旨在为 ApeRAG 设计并实现一个 Collection（知识库）分享与市场的最小可行产品 (MVP)。核心目标是允许用户将自己的 Collection 发布到一个公共市场，其他用户可以发现并以**严格只读**的模式访问这些共享的 Collection。
+本文档旨在为 SAPilot 设计并实现一个 Collection（知识库）分享与市场的最小可行产品 (MVP)。核心目标是允许用户将自己的 Collection 发布到一个公共市场，其他用户可以发现并以**严格只读**的模式访问这些共享的 Collection。
 
 MVP 阶段将专注于实现最核心的发布、浏览和只读访问流程，省略复杂的审核、分类、评级、统计分析、用户评价、热度排序、专门的订阅管理页面等功能，以便快速验证核心价值。
 
@@ -358,7 +358,7 @@ ORDER BY ucs.gmt_subscribed DESC;
 
 #### 4.1. 数据模型设计 (OpenAPI / `view_models.py`)
 
-**4.1.1 新增数据库模型 (aperag/db/models.py):**
+**4.1.1 新增数据库模型 (sapilot/db/models.py):**
 
 - **`CollectionMarketplaceStatusEnum`**: 分享状态枚举 (Python enum，用于代码逻辑)
     - `DRAFT = "DRAFT"`: 未发布状态，仅所有者可见
@@ -379,8 +379,8 @@ ORDER BY ucs.gmt_subscribed DESC;
     - `gmt_subscribed: datetime`: 订阅时间
     - `gmt_deleted: Optional[datetime]`: 取消订阅时间（NULL表示活跃订阅）
 
-**4.1.2 新增视图模型 (aperag/schema/view_models.py):**
-> 在aperag/api/components/schemas/marketplace.yaml中定义
+**4.1.2 新增视图模型 (sapilot/schema/view_models.py):**
+> 在sapilot/api/components/schemas/marketplace.yaml中定义
 > 注意需要用make generate-models和make generate-frontend-sdk生成前后端代码
 
 - **`SharedCollection`**: 共享的 Collection 信息（视图模型）
@@ -406,11 +406,11 @@ ORDER BY ucs.gmt_subscribed DESC;
 
 **4.1.4 OpenAPI Schema 组织:**
 
-所有新增的 model 定义将放置在 `aperag/api/components/schemas/marketplace.yaml` 文件中，现有 Collection model 的扩展将在 `aperag/api/components/schemas/collection.yaml` 中添加新字段。
+所有新增的 model 定义将放置在 `sapilot/api/components/schemas/marketplace.yaml` 文件中，现有 Collection model 的扩展将在 `sapilot/api/components/schemas/collection.yaml` 中添加新字段。
 
 #### 4.2. 服务层设计 (Business Logic)
 
-**4.2.1 新增服务模块: `aperag/service/marketplace_service.py`**
+**4.2.1 新增服务模块: `sapilot/service/marketplace_service.py`**
 
 ```python
 class MarketplaceService:
@@ -1103,7 +1103,7 @@ const CollectionDetail: React.FC = () => {
 #### **Phase 1: 后端 - 数据库与核心服务**
 
 - [x] **1.1. 数据库模型与迁移**
-    - [x] 在 `aperag/db/models.py` 中定义数据库模型：
+    - [x] 在 `sapilot/db/models.py` 中定义数据库模型：
         - `CollectionMarketplace` (SQLAlchemy模型)：分享状态记录，包含状态和时间字段
         - `UserCollectionSubscription` (SQLAlchemy模型)：用户订阅记录，关联collection_marketplace_id，使用 `gmt_deleted` 字段实现软删除
         - `CollectionMarketplaceStatusEnum` (Python enum)：分享状态枚举，用于代码逻辑，数据库使用VARCHAR存储
@@ -1111,32 +1111,32 @@ const CollectionDetail: React.FC = () => {
         - 注意：`status` 字段使用 `Column(String(20))` 而非 `EnumColumn`，确保数据库层使用VARCHAR
         - 重点：UserCollectionSubscription表关联collection_marketplace_id而不是collection_id
     - [x] 运行 `make makemigration` 生成新的数据库迁移脚本
-    - [x] 检查生成的迁移脚本（位于 `aperag/migration/versions/`）确保 SQL 语法正确性和索引创建
+    - [x] 检查生成的迁移脚本（位于 `sapilot/migration/versions/`）确保 SQL 语法正确性和索引创建
     - [x] 运行 `make migrate` 将数据库 schema 变更应用到开发环境
     - [x] 验证新表创建成功，检查约束和索引是否正确建立
 
 - [x] **1.2. OpenAPI Schema 定义**
-    - [x] 创建 `aperag/api/components/schemas/marketplace.yaml`，定义以下视图模型：
+    - [x] 创建 `sapilot/api/components/schemas/marketplace.yaml`，定义以下视图模型：
         - `CollectionMarketplaceStatusEnum`
         - `SharedCollection` (共享Collection模型，用于市场浏览和订阅访问)
         - `SharedCollectionList` (共享Collection列表响应模型)
         - `SharingStatusResponse` (简洁的分享状态响应模型，包含is_published和published_at字段)
-    - [x] 创建 `aperag/api/paths/marketplace.yaml`，定义以下端点的完整规范：
+    - [x] 创建 `sapilot/api/paths/marketplace.yaml`，定义以下端点的完整规范：
         - `GET /api/v1/marketplace/collections`：获取市场Collection列表
         - `GET /api/v1/marketplace/collections/subscriptions`：获取当前用户订阅的Collection列表
         - `POST /api/v1/marketplace/collections/{collection_id}/subscribe`：订阅Collection
         - `DELETE /api/v1/marketplace/collections/{collection_id}/subscribe`：取消订阅Collection
-    - [x] 修改 `aperag/api/paths/collections.yaml`，添加 sharing 相关端点：
+    - [x] 修改 `sapilot/api/paths/collections.yaml`，添加 sharing 相关端点：
         - `GET /api/v1/collections/{collection_id}/sharing`
         - `POST /api/v1/collections/{collection_id}/sharing`
         - `DELETE /api/v1/collections/{collection_id}/sharing`
 
-    - [x] 修改 `aperag/api/components/schemas/collection.yaml`，在 Collection schema 中添加 `is_published` 和 `published_at` 字段
-    - [x] 运行 `make generate-models` 生成更新后的 `aperag/schema/view_models.py`
+    - [x] 修改 `sapilot/api/components/schemas/collection.yaml`，在 Collection schema 中添加 `is_published` 和 `published_at` 字段
+    - [x] 运行 `make generate-models` 生成更新后的 `sapilot/schema/view_models.py`
     - [x] 验证生成的 Pydantic 模型类型注解正确
 
 - [x] **1.3. 服务层 - Marketplace Service**
-    - [x] 创建 `aperag/service/marketplace_service.py` 文件和 MarketplaceService 类
+    - [x] 创建 `sapilot/service/marketplace_service.py` 文件和 MarketplaceService 类
     - [x] 实现 `publish_collection(user_id: str, collection_id: str)` 方法：
         - 验证用户是 Collection 所有者
         - 创建或更新 collection_marketplace 记录为 PUBLISHED 状态，手动设置 `gmt_updated = datetime.utcnow()`
@@ -1175,7 +1175,7 @@ const CollectionDetail: React.FC = () => {
             - 支持分页功能
 
 - [x] **1.4. 服务层 - MarketplaceCollection Service**
-    - [x] 创建 `aperag/service/marketplace_collection_service.py` 文件和 MarketplaceCollectionService 类
+    - [x] 创建 `sapilot/service/marketplace_collection_service.py` 文件和 MarketplaceCollectionService 类
     - [x] 实现 `_check_subscription_access(user_id: str, collection_id: str)` 方法：
         - 验证 Collection 是否存在且已发布（status = 'PUBLISHED'）
         - 验证用户是否已订阅且订阅有效（gmt_deleted IS NULL）
@@ -1199,21 +1199,21 @@ const CollectionDetail: React.FC = () => {
 #### **Phase 2: 后端 - API 视图与前端集成**
 
 - [x] **2.1. API 视图层实现**
-    - [x] 创建 `aperag/views/marketplace.py` 文件：
+    - [x] 创建 `sapilot/views/marketplace.py` 文件：
         - 实现 `list_marketplace_collections_view` 函数
         - 处理分页参数验证和默认值设置
         - 调用 `marketplace_service.list_published_collections`
         - 返回标准化的分页响应格式
-    - [x] 修改 `aperag/views/collections.py`（或相关视图文件）实现 sharing 相关端点：
+    - [x] 修改 `sapilot/views/collections.py`（或相关视图文件）实现 sharing 相关端点：
         - `get_collection_sharing_status_view`: 获取分享状态（仅所有者）
         - `publish_collection_view`: 发布 Collection 到市场
         - `unpublish_collection_view`: 从市场下架 Collection
         - 为每个端点添加用户身份验证、所有权验证和异常错误处理
-    - [x] 在 `aperag/app.py` 中注册新的路由：
+    - [x] 在 `sapilot/app.py` 中注册新的路由：
         - 添加 `marketplace` 路由组，tag 设为 "marketplace"
         - 添加 `marketplace-collections` 路由组，tag 设为 "marketplace-collections"
         - 集成到主应用的路由配置中
-    - [x] 创建 `aperag/views/marketplace_collections.py` 文件：
+    - [x] 创建 `sapilot/views/marketplace_collections.py` 文件：
         - 实现 `get_marketplace_collection_view`: 获取MarketplaceCollection详情
         - 实现 `list_marketplace_collection_documents_view`: 获取文档列表
         - 实现 `get_marketplace_collection_document_preview_view`: 文档预览

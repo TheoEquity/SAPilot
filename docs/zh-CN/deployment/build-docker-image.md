@@ -1,11 +1,11 @@
 ---
 title: 构建 Docker 镜像
-description: 如何构建 ApeRAG 容器镜像
+description: 如何构建 SAPilot 容器镜像
 ---
 
 # 构建指南
 
-本节介绍如何构建 ApeRAG 容器镜像。这主要适用于需要创建自己的构建或部署到"快速开始"中未涵盖的环境的用户。
+本节介绍如何构建 SAPilot 容器镜像。这主要适用于需要创建自己的构建或部署到"快速开始"中未涵盖的环境的用户。
 
 ## 构建容器镜像
 
@@ -18,10 +18,10 @@ description: 如何构建 ApeRAG 容器镜像
     make build-local
 
     # 仅为本地平台构建后端镜像
-    make build-aperag-local
+    make build-sapilot-local
 
     # 仅为本地平台构建前端镜像
-    make build-aperag-frontend-local
+    make build-sapilot-frontend-local
     ```
 
 *   **多平台构建**：
@@ -31,10 +31,10 @@ description: 如何构建 ApeRAG 容器镜像
     make build
 
     # 仅为多个平台构建后端镜像
-    make build-aperag
+    make build-sapilot
 
     # 仅为多个平台构建前端镜像
-    make build-aperag-frontend
+    make build-sapilot-frontend
     ```
     您可以使用 `PLATFORMS` 变量指定目标平台，例如：
     ```bash

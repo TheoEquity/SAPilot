@@ -3,11 +3,11 @@ title: Document Upload Design
 position: 3
 ---
 
-# ApeRAG Document Upload Architecture Design
+# SAPilot Document Upload Architecture Design
 
 ## Overview
 
-This document details the complete architecture design of the document upload module in the ApeRAG project, covering the full pipeline from file upload, temporary storage, document parsing, format conversion to final index construction.
+This document details the complete architecture design of the document upload module in the SAPilot project, covering the full pipeline from file upload, temporary storage, document parsing, format conversion to final index construction.
 
 **Core Design Philosophy**: Adopts a **two-phase commit** pattern, separating file upload (temporary storage) from document confirmation (formal addition), providing better user experience and resource management capabilities.
 
@@ -25,7 +25,7 @@ This document details the complete architecture design of the document upload mo
          │ POST /documents/upload            │ POST /documents/confirm
          ▼                                   ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  View Layer: aperag/views/collections.py                    │
+│  View Layer: sapilot/views/collections.py                    │
 │  - HTTP request handling                                    │
 │  - JWT authentication                                       │
 │  - Parameter validation                                     │
@@ -34,7 +34,7 @@ This document details the complete architecture design of the document upload mo
          │ document_service.upload_document() │ document_service.confirm_documents()
          ▼                                   ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Service Layer: aperag/service/document_service.py          │
+│  Service Layer: sapilot/service/document_service.py          │
 │  - Business logic orchestration                             │
 │  - File validation (type, size)                             │
 │  - SHA-256 hash deduplication                               │
@@ -247,7 +247,7 @@ OBJECT_STORE_S3_ENDPOINT=http://127.0.0.1:9000  # MinIO/S3 address
 OBJECT_STORE_S3_REGION=us-east-1                # AWS Region
 OBJECT_STORE_S3_ACCESS_KEY=minioadmin           # Access Key
 OBJECT_STORE_S3_SECRET_KEY=minioadmin           # Secret Key
-OBJECT_STORE_S3_BUCKET=aperag                   # Bucket name
+OBJECT_STORE_S3_BUCKET=sapilot                   # Bucket name
 OBJECT_STORE_S3_PREFIX_PATH=dev/                # Optional path prefix
 OBJECT_STORE_S3_USE_PATH_STYLE=true             # Set to true for MinIO
 ```
@@ -1021,42 +1021,42 @@ Return standard JSON response:
 
 ### Core Implementation
 
-- **View Layer**: `aperag/views/collections.py` - HTTP interface definition
-- **Service Layer**: `aperag/service/document_service.py` - Business logic
-- **Database Models**: `aperag/db/models.py` - Document, DocumentIndex table definitions
-- **Database Operations**: `aperag/db/ops.py` - CRUD operation encapsulation
+- **View Layer**: `sapilot/views/collections.py` - HTTP interface definition
+- **Service Layer**: `sapilot/service/document_service.py` - Business logic
+- **Database Models**: `sapilot/db/models.py` - Document, DocumentIndex table definitions
+- **Database Operations**: `sapilot/db/ops.py` - CRUD operation encapsulation
 
 ### Object Storage
 
-- **Interface Definition**: `aperag/objectstore/base.py` - AsyncObjectStore abstract class
-- **Local Implementation**: `aperag/objectstore/local.py` - Local filesystem storage
-- **S3 Implementation**: `aperag/objectstore/s3.py` - S3-compatible storage
+- **Interface Definition**: `sapilot/objectstore/base.py` - AsyncObjectStore abstract class
+- **Local Implementation**: `sapilot/objectstore/local.py` - Local filesystem storage
+- **S3 Implementation**: `sapilot/objectstore/s3.py` - S3-compatible storage
 
 ### Document Parsing
 
-- **Main Controller**: `aperag/docparser/doc_parser.py` - DocParser
+- **Main Controller**: `sapilot/docparser/doc_parser.py` - DocParser
 - **Parser Implementations**:
-  - `aperag/docparser/mineru_parser.py` - MinerU PDF parsing
-  - `aperag/docparser/docray_parser.py` - DocRay document parsing
-  - `aperag/docparser/markitdown_parser.py` - MarkItDown universal parsing
-  - `aperag/docparser/image_parser.py` - Image OCR
-  - `aperag/docparser/audio_parser.py` - Audio transcription
-- **Document Processing**: `aperag/index/document_parser.py` - Parsing flow orchestration
+  - `sapilot/docparser/mineru_parser.py` - MinerU PDF parsing
+  - `sapilot/docparser/docray_parser.py` - DocRay document parsing
+  - `sapilot/docparser/markitdown_parser.py` - MarkItDown universal parsing
+  - `sapilot/docparser/image_parser.py` - Image OCR
+  - `sapilot/docparser/audio_parser.py` - Audio transcription
+- **Document Processing**: `sapilot/index/document_parser.py` - Parsing flow orchestration
 
 ### Index Building
 
-- **Index Management**: `aperag/index/manager.py` - DocumentIndexManager
-- **Vector Index**: `aperag/index/vector_index.py` - VectorIndexer
-- **Full-text Index**: `aperag/index/fulltext_index.py` - FulltextIndexer
-- **Knowledge Graph**: `aperag/index/graph_index.py` - GraphIndexer
-- **Document Summary**: `aperag/index/summary_index.py` - SummaryIndexer
-- **Vision Index**: `aperag/index/vision_index.py` - VisionIndexer
+- **Index Management**: `sapilot/index/manager.py` - DocumentIndexManager
+- **Vector Index**: `sapilot/index/vector_index.py` - VectorIndexer
+- **Full-text Index**: `sapilot/index/fulltext_index.py` - FulltextIndexer
+- **Knowledge Graph**: `sapilot/index/graph_index.py` - GraphIndexer
+- **Document Summary**: `sapilot/index/summary_index.py` - SummaryIndexer
+- **Vision Index**: `sapilot/index/vision_index.py` - VisionIndexer
 
 ### Task Scheduling
 
 - **Task Definitions**: `config/celery_tasks.py` - Celery task registration
-- **Reconciler**: `aperag/tasks/reconciler.py` - DocumentIndexReconciler
-- **Document Tasks**: `aperag/tasks/document.py` - DocumentIndexTask
+- **Reconciler**: `sapilot/tasks/reconciler.py` - DocumentIndexReconciler
+- **Document Tasks**: `sapilot/tasks/document.py` - DocumentIndexTask
 
 ### Frontend Implementation
 
@@ -1065,7 +1065,7 @@ Return standard JSON response:
 
 ## Summary
 
-ApeRAG's document upload module adopts a **two-phase commit + multi-parser chain invocation + parallel multi-index building** architecture design:
+SAPilot's document upload module adopts a **two-phase commit + multi-parser chain invocation + parallel multi-index building** architecture design:
 
 **Core Features**:
 1. ✅ **Two-Phase Commit**: Upload (temporary storage) → Confirm (formal addition), providing better user experience

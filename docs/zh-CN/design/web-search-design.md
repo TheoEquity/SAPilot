@@ -1,10 +1,10 @@
-# ApeRAG Web搜索与内容读取服务设计文档
+# SAPilot Web搜索与内容读取服务设计文档
 
 ## 1. 设计概述
 
 ### 1.1 设计理念
 
-ApeRAG Web搜索模块采用**Provider抽象模式**，参考现有LLM服务架构（EmbeddingService、RerankService等），提供统一的Web搜索和内容读取能力。
+SAPilot Web搜索模块采用**Provider抽象模式**，参考现有LLM服务架构（EmbeddingService、RerankService等），提供统一的Web搜索和内容读取能力。
 
 **核心特性**：
 - **统一接口**：上层Service统一调用，底层可切换Provider
@@ -45,7 +45,7 @@ ApeRAG Web搜索模块采用**Provider抽象模式**，参考现有LLM服务架�
 ### 2.1 已实现的模块结构
 
 ```
-aperag/websearch/                       # Web搜索模块根目录
+sapilot/websearch/                       # Web搜索模块根目录
 ├── __init__.py                         # 导出SearchService, ReaderService
 ├── search/                             # 搜索功能模块
 │   ├── __init__.py                     # 导出SearchService, BaseSearchProvider
@@ -73,9 +73,9 @@ aperag/websearch/                       # Web搜索模块根目录
 ### 2.2 集成的系统模块
 
 ```
-aperag/views/web.py                     # HTTP API视图（已实现）
-aperag/mcp/server.py                    # MCP工具注册（待集成）
-aperag/schema/view_models.py            # 数据模型（已扩展）
+sapilot/views/web.py                     # HTTP API视图（已实现）
+sapilot/mcp/server.py                    # MCP工具注册（待集成）
+sapilot/schema/view_models.py            # 数据模型（已扩展）
 ```
 
 ## 3. API接口设计
@@ -168,7 +168,7 @@ class WebReadResponse(BaseModel):
 
 ### 4.1 SearchService实现特性
 
-**参考架构**：`aperag/llm/embed/embedding_service.py`
+**参考架构**：`sapilot/llm/embed/embedding_service.py`
 
 **实现特性**：
 ```python
@@ -210,7 +210,7 @@ finally:
 
 ### 4.2 ReaderService实现特性
 
-**参考架构**：`aperag/llm/rerank/rerank_service.py`
+**参考架构**：`sapilot/llm/rerank/rerank_service.py`
 
 **实现特性**：
 ```python
@@ -341,13 +341,13 @@ service = ReaderService(
 ### 6.1 基础搜索示例
 
 ```python
-from aperag.websearch import SearchService
-from aperag.schema.view_models import WebSearchRequest
+from sapilot.websearch import SearchService
+from sapilot.schema.view_models import WebSearchRequest
 
 async def basic_search():
     async with SearchService() as search_service:
         request = WebSearchRequest(
-            query="ApeRAG RAG系统架构",
+            query="SAPilot RAG系统架构",
             max_results=5,
             search_engine="duckduckgo"
         )
@@ -365,8 +365,8 @@ async def basic_search():
 ### 6.2 内容读取示例
 
 ```python
-from aperag.websearch import ReaderService
-from aperag.schema.view_models import WebReadRequest
+from sapilot.websearch import ReaderService
+from sapilot.schema.view_models import WebReadRequest
 
 async def basic_read():
     async with ReaderService() as reader_service:
@@ -429,7 +429,7 @@ curl -X POST "http://localhost:8000/api/v1/web/search" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your_token" \
   -d '{
-    "query": "ApeRAG RAG系统",
+    "query": "SAPilot RAG系统",
     "max_results": 5,
     "search_engine": "duckduckgo"
   }'
@@ -657,7 +657,7 @@ async def search(self, request: WebSearchRequest):
 
 **计划集成的MCP工具**：
 ```python
-# aperag/mcp/server.py 扩展
+# sapilot/mcp/server.py 扩展
 @server.tool()
 async def web_search(query: str, max_results: int = 5) -> dict:
     """执行Web搜索"""
@@ -715,7 +715,7 @@ data:
 - 完整的单元测试
 
 ✅ **技术优势**：
-- **架构统一**：完全遵循ApeRAG现有LLM服务设计模式
+- **架构统一**：完全遵循SAPilot现有LLM服务设计模式
 - **资源安全**：解决了异步资源泄漏问题，生产环境可靠
 - **性能优化**：内置并发控制、超时保护、智能降级
 - **易于扩展**：新增Provider只需实现标准接口
@@ -737,4 +737,4 @@ data:
 4. **监控关键指标**：确保服务质量
 5. **遵循统一接口**：便于Provider切换
 
-这个Web搜索模块为ApeRAG Agent提供了强大的Web信息获取能力，架构设计完全符合系统整体设计理念，实现了生产级的稳定性和可扩展性。
+这个Web搜索模块为SAPilot Agent提供了强大的Web信息获取能力，架构设计完全符合系统整体设计理念，实现了生产级的稳定性和可扩展性。

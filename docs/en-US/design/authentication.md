@@ -1,8 +1,8 @@
-# ApeRAG Authentication System Architecture Documentation
+# SAPilot Authentication System Architecture Documentation
 
 ## Overview
 
-ApeRAG adopts a Cookie-based authentication system that supports local username/password authentication and OAuth2 social login (GitHub, Google). The system is built on the FastAPI-Users library, providing complete user management and authentication functionality.
+SAPilot adopts a Cookie-based authentication system that supports local username/password authentication and OAuth2 social login (GitHub, Google). The system is built on the FastAPI-Users library, providing complete user management and authentication functionality.
 
 ## Core Architecture
 
@@ -402,7 +402,7 @@ OAuth providers need to configure the following key information:
 1. Visit [GitHub Developer Settings](https://github.com/settings/developers)
 2. Click "New OAuth App" to create a new application
 3. Fill in application information:
-   - **Application name**: ApeRAG
+   - **Application name**: SAPilot
    - **Homepage URL**: `http://127.0.0.1:3000`
    - **Authorization callback URL**: `http://127.0.0.1:3000/web/oauth-callback`
 4. Get Client ID and Client Secret after creation
@@ -422,7 +422,7 @@ OAuth providers need to configure the following key information:
 - Callback URL must match exactly with OAuth application configuration
 - Development environment: `http://127.0.0.1:3000/web/oauth-callback`
 - Production environment: `https://yourdomain.com/web/oauth-callback`
-- ApeRAG frontend BASE_PATH is `/web`, so callback URL includes this prefix
+- SAPilot frontend BASE_PATH is `/web`, so callback URL includes this prefix
 
 ## Security Features
 
@@ -492,11 +492,11 @@ async def get_current_admin(user: User = Depends(get_current_active_user)) -> Us
 - Confirm user association relationship
 
 ### Debugging Methods
-1. Check backend logs: `tail -f logs/aperag.log`
+1. Check backend logs: `tail -f logs/sapilot.log`
 2. Check browser developer tools
 3. Verify database user and OAuth account data
 4. Test API interface responses
 
 ## Summary
 
-The ApeRAG authentication system is built on FastAPI-Users, providing secure and flexible multiple authentication methods. The system supports local authentication and OAuth social login, adopts JWT+Cookie stateless authentication mechanism, and has good security and scalability. Through reasonable permission control and registration mode configuration, it can meet the usage requirements of different scenarios.
+The SAPilot authentication system is built on FastAPI-Users, providing secure and flexible multiple authentication methods. The system supports local authentication and OAuth social login, adopts JWT+Cookie stateless authentication mechanism, and has good security and scalability. Through reasonable permission control and registration mode configuration, it can meet the usage requirements of different scenarios.

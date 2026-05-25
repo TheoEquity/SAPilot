@@ -1,15 +1,15 @@
 ---
 title: 检索流程设计
-description: ApeRAG 检索流程的完整设计文档，涵盖 MCP 入口、Flow 执行引擎与各检索类型的核心实现
+description: SAPilot 检索流程的完整设计文档，涵盖 MCP 入口、Flow 执行引擎与各检索类型的核心实现
 keywords: 检索, Flow Engine, DAG, 向量检索, 全文检索, 图检索, MCP
 position: 3
 ---
 
-# ApeRAG 检索流程设计
+# SAPilot 检索流程设计
 
 ## 概述
 
-ApeRAG 的检索流程采用 **Flow 执行引擎**驱动的多路并行检索架构。用户（或 AI Agent）通过 MCP 工具发起检索请求，请求到达服务端后被转化为一个有向无环图（DAG）描述的检索 Flow，由 Flow 引擎按拓扑顺序并行执行各检索节点，最终将多路结果合并重排后返回。
+SAPilot 的检索流程采用 **Flow 执行引擎**驱动的多路并行检索架构。用户（或 AI Agent）通过 MCP 工具发起检索请求，请求到达服务端后被转化为一个有向无环图（DAG）描述的检索 Flow，由 Flow 引擎按拓扑顺序并行执行各检索节点，最终将多路结果合并重排后返回。
 
 ```mermaid
 graph LR
@@ -41,14 +41,14 @@ graph LR
 
 ## 第一层：MCP 入口
 
-[MCP（Model Context Protocol）](https://modelcontextprotocol.io/) 是 ApeRAG 面向 AI Agent 暴露能力的标准接口。Agent 无需直接调用 REST API，只需调用 MCP 工具即可完成检索。
+[MCP（Model Context Protocol）](https://modelcontextprotocol.io/) 是 SAPilot 面向 AI Agent 暴露能力的标准接口。Agent 无需直接调用 REST API，只需调用 MCP 工具即可完成检索。
 
 ### MCP 挂载位置
 
 MCP Server 以 Stateless HTTP 模式挂载在 FastAPI 应用的 `/mcp` 路径下：
 
 ```python
-# aperag/app.py
+# sapilot/app.py
 mcp_app = mcp_server.http_app(path="/", stateless_http=True)
 app.mount("/mcp", mcp_app)
 ```
@@ -58,7 +58,7 @@ app.mount("/mcp", mcp_app)
 最核心的检索工具是 `search_collection`，它封装了对 REST API 的调用：
 
 ```python
-# aperag/mcp/server.py
+# sapilot/mcp/server.py
 @mcp_server.tool
 async def search_collection(
     collection_id: str,
@@ -93,7 +93,7 @@ async def search_collection(
 MCP 工具调用最终落到以下 FastAPI 路由：
 
 ```python
-# aperag/views/collections.py
+# sapilot/views/collections.py
 @router.post("/collections/{collection_id}/searches", tags=["search"])
 @audit(resource_type="search", api_name="CreateSearch")
 async def create_search_view(
@@ -129,7 +129,7 @@ async def create_search_view(
 `create_search` 校验权限后，调用 `execute_search_flow` 动态构建并执行检索 Flow：
 
 ```python
-# aperag/service/collection_service.py
+# sapilot/service/collection_service.py
 async def execute_search_flow(
     self,
     data: view_models.SearchRequest,
@@ -197,12 +197,12 @@ vision_search ───┘
 
 ## 第四层：Flow 执行引擎
 
-Flow 引擎（`aperag/flow/engine.py`）是整个检索流程的核心调度组件，负责解析 DAG、拓扑排序、并行执行。
+Flow 引擎（`sapilot/flow/engine.py`）是整个检索流程的核心调度组件，负责解析 DAG、拓扑排序、并行执行。
 
 ### 核心数据模型
 
 ```python
-# aperag/flow/base/models.py
+# sapilot/flow/base/models.py
 
 class FlowInstance(BaseModel):
     name: str
@@ -339,7 +339,7 @@ rerank_input_values = {
 每种节点类型通过装饰器注册到全局注册表 `NODE_RUNNER_REGISTRY`：
 
 ```python
-# aperag/flow/base/models.py
+# sapilot/flow/base/models.py
 NODE_RUNNER_REGISTRY = {}
 
 def register_node_runner(node_type, input_model, output_model):
@@ -356,7 +356,7 @@ def register_node_runner(node_type, input_model, output_model):
 节点 Runner 示例：
 
 ```python
-# aperag/flow/runners/vector_search.py
+# sapilot/flow/runners/vector_search.py
 @register_node_runner(
     "vector_search",
     input_model=VectorSearchInput,
@@ -367,7 +367,7 @@ class VectorSearchNodeRunner(BaseNodeRunner):
         ...
 ```
 
-`import aperag.flow.runners` 时，所有 Runner 模块被加载，完成注册（见 `engine.py` 第 23 行的 `import` 语句）。
+`import sapilot.flow.runners` 时，所有 Runner 模块被加载，完成注册（见 `engine.py` 第 23 行的 `import` 语句）。
 
 ---
 
@@ -379,7 +379,7 @@ class VectorSearchNodeRunner(BaseNodeRunner):
 
 **适用场景**：语义理解类查询，例如"有没有关于性能优化的内容"。
 
-**核心代码**（`aperag/flow/runners/vector_search.py`）：
+**核心代码**（`sapilot/flow/runners/vector_search.py`）：
 
 ```python
 # 1. 生成查询向量
@@ -417,7 +417,7 @@ for item in results:
 
 **适用场景**：精确词语查询，例如"找出包含'PostgreSQL'的段落"。
 
-**核心代码**（`aperag/flow/runners/fulltext_search.py`）：
+**核心代码**（`sapilot/flow/runners/fulltext_search.py`）：
 
 ```python
 # 支持自定义关键词，或从查询中自动提取
@@ -452,7 +452,7 @@ results = await fulltext_indexer.search(
 
 **前提条件**：知识库必须启用 `enable_knowledge_graph` 选项。
 
-**核心代码**（`aperag/flow/runners/graph_search.py`）：
+**核心代码**（`sapilot/flow/runners/graph_search.py`）：
 
 ```python
 # 需要集合开启了知识图谱
@@ -484,7 +484,7 @@ context = await rag.aquery_context(query, param=param)
 
 **适用场景**：需要文档级别召回（而非段落级别）的场景。
 
-**核心代码**（`aperag/flow/runners/summary_search.py`）：
+**核心代码**（`sapilot/flow/runners/summary_search.py`）：
 
 ```python
 results = context_manager.query(
@@ -530,7 +530,7 @@ for item in results:
 所有检索节点的结果汇聚到 `merge` 节点：
 
 ```python
-# aperag/flow/runners/merge.py
+# sapilot/flow/runners/merge.py
 @register_node_runner("merge", input_model=MergeInput, output_model=MergeOutput)
 class MergeNodeRunner(BaseNodeRunner):
     async def run(self, ui: MergeInput, si: SystemInput):
@@ -567,7 +567,7 @@ Merge 策略：
 Rerank 节点对合并后的文档列表按与查询的相关性重新排序，过滤噪声，提升最终结果质量：
 
 ```python
-# aperag/flow/runners/rerank.py
+# sapilot/flow/runners/rerank.py
 @register_node_runner("rerank", input_model=RerankInput, output_model=RerankOutput)
 class RerankNodeRunner(BaseNodeRunner):
     async def run(self, ui: RerankInput, si: SystemInput):
@@ -631,19 +631,19 @@ POST /api/v1/chats/{chat_id}/search
 
 | 文件 | 职责 |
 |------|------|
-| `aperag/mcp/server.py` | MCP 工具定义，`search_collection` 入口 |
-| `aperag/app.py` | FastAPI 应用，MCP 挂载点 |
-| `aperag/views/collections.py` | REST API 路由 `/collections/{id}/searches` |
-| `aperag/service/collection_service.py` | `create_search` 和 `execute_search_flow` 实现 |
-| `aperag/flow/engine.py` | Flow 执行引擎，拓扑排序与并行调度 |
-| `aperag/flow/base/models.py` | DAG 数据模型，NodeRunner 注册机制 |
-| `aperag/flow/runners/vector_search.py` | 向量检索 Runner |
-| `aperag/flow/runners/fulltext_search.py` | 全文检索 Runner |
-| `aperag/flow/runners/graph_search.py` | 图谱检索 Runner（基于 LightRAG） |
-| `aperag/flow/runners/summary_search.py` | 摘要检索 Runner |
-| `aperag/flow/runners/vision_search.py` | 视觉检索 Runner |
-| `aperag/flow/runners/merge.py` | 多路结果合并 Runner |
-| `aperag/flow/runners/rerank.py` | 结果重排 Runner |
+| `sapilot/mcp/server.py` | MCP 工具定义，`search_collection` 入口 |
+| `sapilot/app.py` | FastAPI 应用，MCP 挂载点 |
+| `sapilot/views/collections.py` | REST API 路由 `/collections/{id}/searches` |
+| `sapilot/service/collection_service.py` | `create_search` 和 `execute_search_flow` 实现 |
+| `sapilot/flow/engine.py` | Flow 执行引擎，拓扑排序与并行调度 |
+| `sapilot/flow/base/models.py` | DAG 数据模型，NodeRunner 注册机制 |
+| `sapilot/flow/runners/vector_search.py` | 向量检索 Runner |
+| `sapilot/flow/runners/fulltext_search.py` | 全文检索 Runner |
+| `sapilot/flow/runners/graph_search.py` | 图谱检索 Runner（基于 LightRAG） |
+| `sapilot/flow/runners/summary_search.py` | 摘要检索 Runner |
+| `sapilot/flow/runners/vision_search.py` | 视觉检索 Runner |
+| `sapilot/flow/runners/merge.py` | 多路结果合并 Runner |
+| `sapilot/flow/runners/rerank.py` | 结果重排 Runner |
 
 ---
 
@@ -651,4 +651,4 @@ POST /api/v1/chats/{chat_id}/search
 
 - [索引链路架构设计](./indexing_architecture.md)：了解各检索类型的索引是如何构建的
 - [图索引构建流程](./graph_index_creation.md)：深入了解知识图谱的构建过程
-- [MCP API 集成指南](../integration/mcp-api.md)：如何在 Agent 中接入 ApeRAG 的 MCP 工具
+- [MCP API 集成指南](../integration/mcp-api.md)：如何在 Agent 中接入 SAPilot 的 MCP 工具

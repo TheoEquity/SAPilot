@@ -1,6 +1,6 @@
 ---
 title: 图索引构建流程
-description: ApeRAG 知识图谱索引构建的完整流程与核心技术
+description: SAPilot 知识图谱索引构建的完整流程与核心技术
 keywords: 知识图谱, Graph Index, 实体提取, 关系抽取, 并发优化
 position: 2
 ---
@@ -9,7 +9,7 @@ position: 2
 
 ## 1. 什么是图索引
 
-图索引（Graph Index）是 ApeRAG 的核心特色功能，它能从非结构化文本中自动提取出结构化的知识图谱。
+图索引（Graph Index）是 SAPilot 的核心特色功能，它能从非结构化文本中自动提取出结构化的知识图谱。
 
 ### 1.1 一个简单的例子
 
@@ -124,11 +124,11 @@ flowchart LR
 | **多跳推理** | "张三团队用的技术栈" | 图索引 ✨ |
 | **知识追溯** | "这个功能依赖哪些模块？" | 图索引 ✨ |
 
-**最佳实践**：ApeRAG 同时支持向量检索、全文检索和图索引，可以根据问题类型智能选择或组合使用。
+**最佳实践**：SAPilot 同时支持向量检索、全文检索和图索引，可以根据问题类型智能选择或组合使用。
 
 ## 3. 构建流程概览
 
-当你上传一个文档并启用图索引后，ApeRAG 会自动完成以下步骤。这里先给出一个简单的概览，具体细节在后面章节详细介绍。
+当你上传一个文档并启用图索引后，SAPilot 会自动完成以下步骤。这里先给出一个简单的概览，具体细节在后面章节详细介绍。
 
 ### 3.1 五个关键步骤
 
@@ -359,7 +359,7 @@ flowchart LR
 
 ## 5. 核心技术设计
 
-这一章介绍 ApeRAG 图索引的核心技术设计，包括数据隔离、并发控制等。
+这一章介绍 SAPilot 图索引的核心技术设计，包括数据隔离、并发控制等。
 
 > 💡 **阅读建议**：这些是系统架构和实现细节，主要面向开发者和技术决策者。
 
@@ -473,7 +473,7 @@ graph TB
 graph TD
     A[全局锁 - 传统方案] -->|太粗| B[所有实体串行处理]
     
-    C[实体锁 - ApeRAG] -->|刚好| D[只锁定需要合并的实体]
+    C[实体锁 - SAPilot] -->|刚好| D[只锁定需要合并的实体]
     
     style A fill:#ffccbc
     style B fill:#ffccbc
@@ -501,7 +501,7 @@ else:
 
 ### 5.6 多存储后端支持
 
-ApeRAG 支持两种图数据库：Neo4j 和 PostgreSQL。
+SAPilot 支持两种图数据库：Neo4j 和 PostgreSQL。
 
 **如何选择？**
 
@@ -923,7 +923,7 @@ export GRAPH_INDEX_GRAPH_STORAGE=PGOpsSyncGraphStorage
 # 数据库连接（PostgreSQL）
 export POSTGRES_HOST=127.0.0.1
 export POSTGRES_PORT=5432
-export POSTGRES_DB=aperag
+export POSTGRES_DB=sapilot
 export POSTGRES_USER=postgres
 export POSTGRES_PASSWORD=your_password
 
@@ -1039,7 +1039,7 @@ export NEO4J_PASSWORD=your_password
 
 ## 10. 总结
 
-ApeRAG 的图索引提供了生产级的知识图谱构建能力，具有高性能、高可靠性和易扩展的特点。
+SAPilot 的图索引提供了生产级的知识图谱构建能力，具有高性能、高可靠性和易扩展的特点。
 
 ### 关键特性
 
@@ -1066,7 +1066,7 @@ ApeRAG 的图索引提供了生产级的知识图谱构建能力，具有高性�
 
 ### 下一步
 
-图索引构建完成后，就可以进行图谱检索了。ApeRAG 支持三种图谱查询模式：
+图索引构建完成后，就可以进行图谱检索了。SAPilot 支持三种图谱查询模式：
 
 - **Local 模式**：查询某个实体的局部信息
 - **Global 模式**：查询整体关系和模式
@@ -1078,7 +1078,7 @@ ApeRAG 的图索引提供了生产级的知识图谱构建能力，具有高性�
 
 ## 相关文档
 
-- 📋 [系统架构](./architecture.md) - ApeRAG 整体架构设计
+- 📋 [系统架构](./architecture.md) - SAPilot 整体架构设计
 - 📖 [实体提取与合并机制](./lightrag_entity_extraction_and_merging.md) - 核心算法详解
 - 🔗 [连通分量优化](./connected_components_optimization.md) - 并发优化原理
 - 🌐 [索引链路架构](./indexing_architecture.md) - 完整索引流程

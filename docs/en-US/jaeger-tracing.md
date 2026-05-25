@@ -1,12 +1,12 @@
-# Jaeger Distributed Tracing for ApeRAG
+# Jaeger Distributed Tracing for SAPilot
 
-ApeRAG includes OpenTelemetry integration with Jaeger support for distributed tracing, allowing you to monitor and analyze request flows across your services.
+SAPilot includes OpenTelemetry integration with Jaeger support for distributed tracing, allowing you to monitor and analyze request flows across your services.
 
 ## Quick Start
 
 ### 1. Enable Jaeger in Docker Compose
 
-To start ApeRAG with Jaeger enabled:
+To start SAPilot with Jaeger enabled:
 
 ```bash
 # Start infrastructure with Jaeger
@@ -32,7 +32,7 @@ Set the following environment variables:
 
 ```bash
 JAEGER_ENABLED=True
-JAEGER_ENDPOINT=http://aperag-jaeger:14268/api/traces  # Docker environment
+JAEGER_ENDPOINT=http://sapilot-jaeger:14268/api/traces  # Docker environment
 # or
 JAEGER_ENDPOINT=http://localhost:14268/api/traces      # Local development
 ```
@@ -50,7 +50,7 @@ Once Jaeger is running, access the web interface at:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OTEL_ENABLED` | `True` | Enable/disable OpenTelemetry tracing |
-| `OTEL_SERVICE_NAME` | `aperag` | Service name in traces |
+| `OTEL_SERVICE_NAME` | `sapilot` | Service name in traces |
 | `OTEL_SERVICE_VERSION` | `1.0.0` | Service version in traces |
 | `JAEGER_ENABLED` | `False` | Enable/disable Jaeger exporter |
 | `JAEGER_ENDPOINT` | - | Jaeger collector endpoint |
@@ -71,7 +71,7 @@ Once Jaeger is running, access the web interface at:
 
 ## What Gets Traced
 
-ApeRAG automatically instruments:
+SAPilot automatically instruments:
 
 1. **HTTP Requests** (FastAPI)
    - All API endpoints
@@ -98,7 +98,7 @@ ApeRAG automatically instruments:
 ### 1. Find Traces by Service
 
 In Jaeger UI:
-- Select "aperag" from the Service dropdown
+- Select "sapilot" from the Service dropdown
 - Choose an operation (e.g., "GET /api/v1/collections")
 - Click "Find Traces"
 
@@ -144,7 +144,7 @@ make run-backend
 Add custom spans to your code:
 
 ```python
-from aperag.trace import get_tracer, create_span
+from sapilot.trace import get_tracer, create_span
 
 tracer = get_tracer(__name__)
 
@@ -154,7 +154,7 @@ with create_span(tracer, "my_operation", custom_attr="value"):
     pass
 
 # Or use decorators
-from aperag.trace import trace_async_function
+from sapilot.trace import trace_async_function
 
 @trace_async_function("custom_operation")
 async def my_async_function():

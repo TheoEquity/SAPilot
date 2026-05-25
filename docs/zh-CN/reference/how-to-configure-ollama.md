@@ -1,16 +1,16 @@
-# 如何在 ApeRAG 中配置本地 Ollama
+# 如何在 SAPilot 中配置本地 Ollama
 
-本指南介绍如何在 ApeRAG 部署中配置本地 Ollama 模型。
+本指南介绍如何在 SAPilot 部署中配置本地 Ollama 模型。
 
 ## 前提条件
 
-- ApeRAG 在本地运行
+- SAPilot 在本地运行
 - [Ollama](https://ollama.ai/) 已安装并运行
 - Ollama 模型已下载
 
 ## 步骤 1: 添加 Ollama 提供商
 
-在 ApeRAG 界面中导航到 **设置 > 模型**，点击 **"添加提供商"**。
+在 SAPilot 界面中导航到 **设置 > 模型**，点击 **"添加提供商"**。
 
 输入提供商名称（例如 "local-ollama"）并设置 **Base URL** 为：`http://localhost:11434/v1`
 
@@ -63,4 +63,4 @@
 
 ![已配置的模型](../images/configure-ollama-7.png)
 
-您的本地 Ollama 模型现在已准备好与 ApeRAG 一起使用！
+您的本地 Ollama 模型现在已准备好与 SAPilot 一起使用！

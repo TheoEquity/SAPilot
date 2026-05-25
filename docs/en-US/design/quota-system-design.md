@@ -1,4 +1,4 @@
-# ApeRAG Quota System Design Document
+# SAPilot Quota System Design Document
 
 ## Table of Contents
 - [Overview](#overview)
@@ -14,7 +14,7 @@
 
 ## Overview
 
-The ApeRAG quota system is a comprehensive resource management solution designed to control and monitor user resource consumption across the platform. It provides fine-grained control over various resource types including collections, documents, and bots, ensuring fair usage and preventing system abuse.
+The SAPilot quota system is a comprehensive resource management solution designed to control and monitor user resource consumption across the platform. It provides fine-grained control over various resource types including collections, documents, and bots, ensuring fair usage and preventing system abuse.
 
 ### Key Features
 
@@ -479,4 +479,4 @@ await quota_service.update_user_quota(
 
 ---
 
-*This document provides a comprehensive overview of the ApeRAG quota system design and implementation. For specific implementation details, refer to the source code in the respective modules.*
+*This document provides a comprehensive overview of the SAPilot quota system design and implementation. For specific implementation details, refer to the source code in the respective modules.*

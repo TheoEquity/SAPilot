@@ -5,7 +5,7 @@ description: Model Context Protocol API 文档
 
 # MCP API
 
-ApeRAG 通过 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 对外提供标准化的工具接口，让 AI 助手（Claude Desktop、Cursor、Dify 等）能够直接访问你的知识库。
+SAPilot 通过 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 对外提供标准化的工具接口，让 AI 助手（Claude Desktop、Cursor、Dify 等）能够直接访问你的知识库。
 
 ## 快速开始
 
@@ -16,7 +16,7 @@ ApeRAG 通过 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) �
 ```json
 {
   "mcpServers": {
-    "aperag": {
+    "sapilot": {
       "url": "http://localhost:8000/mcp/",
       "headers": {
         "Authorization": "Bearer your-api-key-here"
@@ -33,7 +33,7 @@ ApeRAG 通过 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) �
 1. **HTTP Authorization 头**（推荐）：`Authorization: Bearer your-api-key`
 2. **环境变量**（备用）：`APERAG_API_KEY=your-api-key`
 
-> **获取 API Key**：登录 ApeRAG 后，在设置页面创建或复制你的 API Key
+> **获取 API Key**：登录 SAPilot 后，在设置页面创建或复制你的 API Key
 
 ## 可用工具
 
@@ -170,7 +170,7 @@ results = search_collection(
 
 ```python
 # 常规搜索
-web_search(query="ApeRAG 2025")
+web_search(query="SAPilot 2025")
 
 # 指定网站搜索
 web_search(query="部署文档", source="vercel.com")
@@ -332,5 +332,5 @@ for item in kb_results.items:
 ## 相关链接
 
 - **MCP 协议官网**: https://modelcontextprotocol.io/
-- **ApeRAG GitHub**: https://github.com/apecloud/ApeRAG
+- **SAPilot GitHub**: https://github.com/apecloud/SAPilot
 - **API 文档**: http://localhost:8000/docs （本地部署）

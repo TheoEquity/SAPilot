@@ -20,7 +20,7 @@
 ## 一、Prompt解析服务实现
 
 ### 1.1 文件位置
-`aperag/service/prompt_template_service.py`
+`sapilot/service/prompt_template_service.py`
 
 ### 1.2 需要添加的方法
 
@@ -44,7 +44,7 @@ async def resolve_agent_system_prompt(bot, user_id: str, language: str) -> str:
     Returns:
         解析后的system prompt内容
     """
-    from aperag.db.ops import async_db_ops
+    from sapilot.db.ops import async_db_ops
     
     # 层级1：Bot配置
     if bot.config:
@@ -131,7 +131,7 @@ async def resolve_index_prompt(
     Returns:
         解析后的index prompt内容
     """
-    from aperag.db.ops import async_db_ops
+    from sapilot.db.ops import async_db_ops
     
     # 层级1：Collection配置
     if collection.config:
@@ -179,7 +179,7 @@ async def resolve_index_prompt(
 def get_hardcoded_index_prompt(prompt_type: str) -> str:
     """获取代码硬编码的索引prompt（最终fallback）"""
     if prompt_type == "graph":
-        from aperag.graph.lightrag.prompt import PROMPTS
+        from sapilot.graph.lightrag.prompt import PROMPTS
         return PROMPTS["entity_extraction"]
     elif prompt_type == "summary":
         return """Provide a comprehensive summary of the following document..."""
@@ -194,7 +194,7 @@ def get_hardcoded_index_prompt(prompt_type: str) -> str:
 ## 二、Agent对话集成
 
 ### 2.1 文件位置
-`aperag/service/agent_chat_service.py`
+`sapilot/service/agent_chat_service.py`
 
 ### 2.2 改造点1：_get_agent_session方法
 
@@ -211,7 +211,7 @@ system_prompt = (
 
 **改造后**：
 ```python
-from aperag.service.prompt_template_service import resolve_agent_system_prompt
+from sapilot.service.prompt_template_service import resolve_agent_system_prompt
 
 system_prompt = await resolve_agent_system_prompt(
     bot=bot,
@@ -238,7 +238,7 @@ comprehensive_prompt = build_agent_query_prompt(
 
 **改造后**：
 ```python
-from aperag.service.prompt_template_service import resolve_agent_query_prompt
+from sapilot.service.prompt_template_service import resolve_agent_query_prompt
 
 query_prompt_template = await resolve_agent_query_prompt(
     bot=bot,
@@ -263,7 +263,7 @@ comprehensive_prompt = build_agent_query_prompt(
 ## 三、Graph索引集成（LightRAG）
 
 ### 3.1 文件位置
-`aperag/graph/lightrag_manager.py`
+`sapilot/graph/lightrag_manager.py`
 
 ### 3.2 改造点：create_lightrag_instance函数
 
@@ -285,7 +285,7 @@ async def create_lightrag_instance(collection: Collection) -> LightRAG:
 
 **改造后**：
 ```python
-from aperag.service.prompt_template_service import resolve_index_prompt
+from sapilot.service.prompt_template_service import resolve_index_prompt
 
 async def create_lightrag_instance(collection: Collection) -> LightRAG:
     # ... 获取配置 ...
@@ -313,7 +313,7 @@ async def create_lightrag_instance(collection: Collection) -> LightRAG:
 
 ### 3.3 LightRAG扩展（可选）
 
-**文件位置**：`aperag/graph/lightrag/lightrag.py`
+**文件位置**：`sapilot/graph/lightrag/lightrag.py`
 
 **建议扩展**：
 ```python
@@ -348,7 +348,7 @@ rag = LightRAG(
 ## 四、Summary索引集成
 
 ### 4.1 文件位置
-`aperag/index/summary_index.py`
+`sapilot/index/summary_index.py`
 
 ### 4.2 改造点：create_index方法
 
@@ -365,7 +365,7 @@ def create_index(self, document_id: str, content: str, doc_parts: List[Any], col
 
 **改造后**：
 ```python
-from aperag.service.prompt_template_service import resolve_index_prompt
+from sapilot.service.prompt_template_service import resolve_index_prompt
 
 def create_index(self, document_id: str, content: str, doc_parts: List[Any], collection, **kwargs):
     # ... 现有逻辑 ...
@@ -396,7 +396,7 @@ def create_index(self, document_id: str, content: str, doc_parts: List[Any], col
 ## 五、Vision索引集成
 
 ### 5.1 文件位置
-`aperag/index/vision_index.py`
+`sapilot/index/vision_index.py`
 
 ### 5.2 改造点：create_index方法
 
@@ -409,7 +409,7 @@ prompt = """Analyze the provided image and extract its content with high fidelit
 
 **改造后**：
 ```python
-from aperag.service.prompt_template_service import resolve_index_prompt
+from sapilot.service.prompt_template_service import resolve_index_prompt
 
 # 解析自定义vision prompt
 custom_vision_prompt = await resolve_index_prompt(
@@ -457,7 +457,7 @@ Content-Type: application/json
 
 如果希望在用户修改`index_prompts`后给出"需重建索引"的提示，可以在Collection更新API中添加逻辑：
 
-**文件**：`aperag/service/collection_service.py`
+**文件**：`sapilot/service/collection_service.py`
 
 **位置**：`update_collection`方法
 
@@ -612,6 +612,6 @@ curl -X PUT http://localhost:8000/api/v1/collections/{collection_id} \
 ## 十一、参考文档
 
 - [设计方案](../../.cursor/plans/自定义prompt模板系统_8a863299.plan.md)
-- [OpenAPI定义](../../aperag/api/components/schemas/prompt.yaml)
-- [Repository实现](../../aperag/db/repositories/prompt_template.py)
-- [API实现](../../aperag/views/prompts.py)
+- [OpenAPI定义](../../sapilot/api/components/schemas/prompt.yaml)
+- [Repository实现](../../sapilot/db/repositories/prompt_template.py)
+- [API实现](../../sapilot/views/prompts.py)

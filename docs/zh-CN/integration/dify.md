@@ -1,15 +1,15 @@
 ---
-title: Dify 集成 ApeRAG
-description: 通过 MCP 协议快速集成 ApeRAG 的 Graph RAG 能力
-keywords: Dify, ApeRAG, MCP, Graph RAG
+title: Dify 集成 SAPilot
+description: 通过 MCP 协议快速集成 SAPilot 的 Graph RAG 能力
+keywords: Dify, SAPilot, MCP, Graph RAG
 ---
 
-# Dify 集成 ApeRAG
+# Dify 集成 SAPilot
 
-ApeRAG 是一款具备多模态索引、AI 智能体、MCP 支持及可扩展 K8s 部署能力的生产级 RAG 平台，能够帮助用户构建具备**混合检索**、**多模态文档处理**及**企业级管理能力**的复杂 AI 应用。
+SAPilot 是一款具备多模态索引、AI 智能体、MCP 支持及可扩展 K8s 部署能力的生产级 RAG 平台，能够帮助用户构建具备**混合检索**、**多模态文档处理**及**企业级管理能力**的复杂 AI 应用。
 
 **核心特点**：
-- 不同于"标准" RAG，ApeRAG 实现了 **Graph-RAG**，通过构建知识图谱理解数据要素之间的深层关系
+- 不同于"标准" RAG，SAPilot 实现了 **Graph-RAG**，通过构建知识图谱理解数据要素之间的深层关系
 - 集成了 **MinerU**，专为复杂文档、科学论文和财务报告设计，可以准确提取表格、公式和工程图表
 - 全面支持 Kubernetes，提供内置的**高可用性**、**可扩展性**和**企业级管理能力**
 
@@ -31,7 +31,7 @@ ApeRAG 是一款具备多模态索引、AI 智能体、MCP 支持及可扩展 K8
 
 ## Step 1: 准备知识库
 
-打开 ApeRAG Web 界面（见[快速开始](../../../README-zh.md#快速开始)；Docker Compose 启动时一般为 http://localhost:3000/web/）。登录后选择或导入知识库。下文以「三国演义」知识库为例，点击订阅。
+打开 SAPilot Web 界面（见[快速开始](../../../README-zh.md#快速开始)；Docker Compose 启动时一般为 http://localhost:3000/web/）。登录后选择或导入知识库。下文以「三国演义」知识库为例，点击订阅。
 
 <div align="center">
   <img src="/images/zh-CN/dify/step1-subscribe-collection.png" alt="订阅知识库" width="800" />
@@ -49,7 +49,7 @@ ApeRAG 是一款具备多模态索引、AI 智能体、MCP 支持及可扩展 K8
 
 ### 2.2 填写配置信息
 
-填写 Server URL：`http://localhost:8000/mcp/`（若非本机部署，请改为实际 API 地址，例如 `https://<你的域名>/mcp/`），并粘贴从 ApeRAG 复制的 API Key，点击确定。
+填写 Server URL：`http://localhost:8000/mcp/`（若非本机部署，请改为实际 API 地址，例如 `https://<你的域名>/mcp/`），并粘贴从 SAPilot 复制的 API Key，点击确定。
 
 <div align="center">
   <img src="/images/zh-CN/dify/step2-configure-mcp.png" alt="配置 MCP" width="700" />
@@ -87,7 +87,7 @@ MCP Server 添加成功。
 
 ## Step 4: 配置 Agent
 
-点击 Agent，输入 Prompt，在工具里添加创建好的 ApeRAG MCP，右上角选择驱动 Agent 的大语言模型，点击发布运行即可使用。
+点击 Agent，输入 Prompt，在工具里添加创建好的 SAPilot MCP，右上角选择驱动 Agent 的大语言模型，点击发布运行即可使用。
 
 <div align="center">
   <img src="/images/zh-CN/dify/step4-configure-agent.png" alt="配置 Agent" width="800" />
@@ -100,9 +100,9 @@ MCP Server 添加成功。
 ### Prompt 参考
 
 ```markdown
-# ApeRAG 智能助手
+# SAPilot 智能助手
 
-您是由 ApeRAG 混合搜索能力驱动的高级 AI 研究助手。您的使命是帮助用户从知识库和网络中准确、自主地查找、理解和综合信息。
+您是由 SAPilot 混合搜索能力驱动的高级 AI 研究助手。您的使命是帮助用户从知识库和网络中准确、自主地查找、理解和综合信息。
 
 ## 核心行为
 
@@ -163,6 +163,6 @@ MCP Server 添加成功。
 
 ---
 
-ApeRAG + Dify 的集成非常简单，集成后不仅可以体验 Dify 的平台功能，还可以享受到 **ApeRAG 强大的 Graph-RAG 能力**，感兴趣的小伙伴快去试试吧！
+SAPilot + Dify 的集成非常简单，集成后不仅可以体验 Dify 的平台功能，还可以享受到 **SAPilot 强大的 Graph-RAG 能力**，感兴趣的小伙伴快去试试吧！
 
-**GitHub**: https://github.com/apecloud/ApeRAG
+**GitHub**: https://github.com/apecloud/SAPilot

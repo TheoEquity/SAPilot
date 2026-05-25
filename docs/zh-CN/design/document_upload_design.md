@@ -3,11 +3,11 @@ title: 文档上传设计
 position: 3
 ---
 
-# ApeRAG 文档上传架构设计
+# SAPilot 文档上传架构设计
 
 ## 概述
 
-本文档详细说明 ApeRAG 项目中文档上传模块的完整架构设计，涵盖从文件上传、临时存储、文档解析、格式转换到最终索引构建的全链路流程。
+本文档详细说明 SAPilot 项目中文档上传模块的完整架构设计，涵盖从文件上传、临时存储、文档解析、格式转换到最终索引构建的全链路流程。
 
 **核心设计理念**：采用**两阶段提交**模式，将文件上传（临时存储）和文档确认（正式添加）分离，提供更好的用户体验和资源管理能力。
 
@@ -25,7 +25,7 @@ position: 3
          │ POST /documents/upload            │ POST /documents/confirm
          ▼                                   ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  View Layer: aperag/views/collections.py                    │
+│  View Layer: sapilot/views/collections.py                    │
 │  - HTTP请求处理                                              │
 │  - JWT身份验证                                               │
 │  - 参数验证                                                  │
@@ -34,7 +34,7 @@ position: 3
          │ document_service.upload_document() │ document_service.confirm_documents()
          ▼                                   ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Service Layer: aperag/service/document_service.py          │
+│  Service Layer: sapilot/service/document_service.py          │
 │  - 业务逻辑编排                                              │
 │  - 文件验证（类型、大小）                                     │
 │  - SHA-256 哈希去重                                          │
@@ -247,7 +247,7 @@ OBJECT_STORE_S3_ENDPOINT=http://127.0.0.1:9000  # MinIO/S3 地址
 OBJECT_STORE_S3_REGION=us-east-1                # AWS Region
 OBJECT_STORE_S3_ACCESS_KEY=minioadmin           # Access Key
 OBJECT_STORE_S3_SECRET_KEY=minioadmin           # Secret Key
-OBJECT_STORE_S3_BUCKET=aperag                   # Bucket 名称
+OBJECT_STORE_S3_BUCKET=sapilot                   # Bucket 名称
 OBJECT_STORE_S3_PREFIX_PATH=dev/                # 可选的路径前缀
 OBJECT_STORE_S3_USE_PATH_STYLE=true             # MinIO 需要设置为 true
 ```
@@ -1021,42 +1021,42 @@ Exception Handler 统一处理
 
 ### 核心实现
 
-- **View 层**：`aperag/views/collections.py` - HTTP 接口定义
-- **Service 层**：`aperag/service/document_service.py` - 业务逻辑
-- **数据库模型**：`aperag/db/models.py` - Document, DocumentIndex 表定义
-- **数据库操作**：`aperag/db/ops.py` - CRUD 操作封装
+- **View 层**：`sapilot/views/collections.py` - HTTP 接口定义
+- **Service 层**：`sapilot/service/document_service.py` - 业务逻辑
+- **数据库模型**：`sapilot/db/models.py` - Document, DocumentIndex 表定义
+- **数据库操作**：`sapilot/db/ops.py` - CRUD 操作封装
 
 ### 对象存储
 
-- **接口定义**：`aperag/objectstore/base.py` - AsyncObjectStore 抽象类
-- **Local 实现**：`aperag/objectstore/local.py` - 本地文件系统存储
-- **S3 实现**：`aperag/objectstore/s3.py` - S3 兼容存储
+- **接口定义**：`sapilot/objectstore/base.py` - AsyncObjectStore 抽象类
+- **Local 实现**：`sapilot/objectstore/local.py` - 本地文件系统存储
+- **S3 实现**：`sapilot/objectstore/s3.py` - S3 兼容存储
 
 ### 文档解析
 
-- **主控制器**：`aperag/docparser/doc_parser.py` - DocParser
+- **主控制器**：`sapilot/docparser/doc_parser.py` - DocParser
 - **Parser 实现**：
-  - `aperag/docparser/mineru_parser.py` - MinerU PDF 解析
-  - `aperag/docparser/docray_parser.py` - DocRay 文档解析
-  - `aperag/docparser/markitdown_parser.py` - MarkItDown 通用解析
-  - `aperag/docparser/image_parser.py` - 图片 OCR
-  - `aperag/docparser/audio_parser.py` - 音频转录
-- **文档处理**：`aperag/index/document_parser.py` - 解析流程编排
+  - `sapilot/docparser/mineru_parser.py` - MinerU PDF 解析
+  - `sapilot/docparser/docray_parser.py` - DocRay 文档解析
+  - `sapilot/docparser/markitdown_parser.py` - MarkItDown 通用解析
+  - `sapilot/docparser/image_parser.py` - 图片 OCR
+  - `sapilot/docparser/audio_parser.py` - 音频转录
+- **文档处理**：`sapilot/index/document_parser.py` - 解析流程编排
 
 ### 索引构建
 
-- **索引管理**：`aperag/index/manager.py` - DocumentIndexManager
-- **向量索引**：`aperag/index/vector_index.py` - VectorIndexer
-- **全文索引**：`aperag/index/fulltext_index.py` - FulltextIndexer
-- **知识图谱**：`aperag/index/graph_index.py` - GraphIndexer
-- **文档摘要**：`aperag/index/summary_index.py` - SummaryIndexer
-- **视觉索引**：`aperag/index/vision_index.py` - VisionIndexer
+- **索引管理**：`sapilot/index/manager.py` - DocumentIndexManager
+- **向量索引**：`sapilot/index/vector_index.py` - VectorIndexer
+- **全文索引**：`sapilot/index/fulltext_index.py` - FulltextIndexer
+- **知识图谱**：`sapilot/index/graph_index.py` - GraphIndexer
+- **文档摘要**：`sapilot/index/summary_index.py` - SummaryIndexer
+- **视觉索引**：`sapilot/index/vision_index.py` - VisionIndexer
 
 ### 任务调度
 
 - **任务定义**：`config/celery_tasks.py` - Celery 任务注册
-- **协调器**：`aperag/tasks/reconciler.py` - DocumentIndexReconciler
-- **文档任务**：`aperag/tasks/document.py` - DocumentIndexTask
+- **协调器**：`sapilot/tasks/reconciler.py` - DocumentIndexReconciler
+- **文档任务**：`sapilot/tasks/document.py` - DocumentIndexTask
 
 ### 前端实现
 
@@ -1065,7 +1065,7 @@ Exception Handler 统一处理
 
 ## 总结
 
-ApeRAG 的文档上传模块采用**两阶段提交 + 多 Parser 链式调用 + 多索引并行构建**的架构设计：
+SAPilot 的文档上传模块采用**两阶段提交 + 多 Parser 链式调用 + 多索引并行构建**的架构设计：
 
 **核心特性**：
 1. ✅ **两阶段提交**：上传（临时存储）→ 确认（正式添加），提供更好的用户体验

@@ -6,7 +6,7 @@
 
 ## 1. 背景与目标
 
-ApeRAG 文档处理管线会将用户上传的原始文件（PDF、Word 等）解析为结构化知识内容，并将所有产物存储在对象存储中。这些内容有独立的使用价值：
+SAPilot 文档处理管线会将用户上传的原始文件（PDF、Word 等）解析为结构化知识内容，并将所有产物存储在对象存储中。这些内容有独立的使用价值：
 
 - 将解析结果迁移到其他 RAG 框架（如 LlamaIndex、Dify）
 - 审查文档解析质量，发现截断/格式错误
@@ -186,13 +186,13 @@ COMPLETED / FAILED → EXPIRED（7 天后定时任务）
 ## 6. API
 
 API 定义的源文件：
-- Schema：`aperag/api/components/schemas/export.yaml`
-- 路径：`aperag/api/paths/export.yaml`
-- 注册：`aperag/api/openapi.yaml`
+- Schema：`sapilot/api/components/schemas/export.yaml`
+- 路径：`sapilot/api/paths/export.yaml`
+- 注册：`sapilot/api/openapi.yaml`
 
 修改 API 后需运行：
 ```bash
-make generate-models          # 重新生成 aperag/schema/view_models.py
+make generate-models          # 重新生成 sapilot/schema/view_models.py
 make generate-frontend-sdk    # 重新生成 web/src/api/**
 ```
 
@@ -300,12 +300,12 @@ confirm → processing → completed
 
 | 文件 | 说明 |
 |------|------|
-| `aperag/api/components/schemas/export.yaml` | API Schema 定义（源文件） |
-| `aperag/api/paths/export.yaml` | API 路径定义（源文件） |
-| `aperag/db/models.py` | 新增 `ExportTask` 模型和 `ExportTaskStatus` 枚举 |
-| `aperag/migration/versions/20260304120000-a1b2c3d4e5f6.py` | 数据库迁移 |
-| `aperag/service/export_service.py` | 导出业务逻辑 |
-| `aperag/views/export.py` | FastAPI 路由（3 个接口） |
+| `sapilot/api/components/schemas/export.yaml` | API Schema 定义（源文件） |
+| `sapilot/api/paths/export.yaml` | API 路径定义（源文件） |
+| `sapilot/db/models.py` | 新增 `ExportTask` 模型和 `ExportTaskStatus` 枚举 |
+| `sapilot/migration/versions/20260304120000-a1b2c3d4e5f6.py` | 数据库迁移 |
+| `sapilot/service/export_service.py` | 导出业务逻辑 |
+| `sapilot/views/export.py` | FastAPI 路由（3 个接口） |
 | `config/export_tasks.py` | Celery 异步打包任务 |
 | `web/src/components/collections/export-dialog.tsx` | 导出对话框组件 |
 | `docs/zh-CN/design/collection_knowledge_export_design.md` | 本文档 |
@@ -314,12 +314,12 @@ confirm → processing → completed
 
 | 文件 | 修改内容 |
 |------|---------|
-| `aperag/objectstore/base.py` | 新增 `list_objects_by_prefix` 抽象方法 |
-| `aperag/objectstore/local.py` | 实现 `list_objects_by_prefix` |
-| `aperag/objectstore/s3.py` | 实现 `list_objects_by_prefix` |
-| `aperag/api/openapi.yaml` | 注册新增的 3 个路径 |
-| `aperag/schema/view_models.py` | 自动生成，含 `ExportTaskResponse` |
-| `aperag/app.py` | 注册 `export_router` |
+| `sapilot/objectstore/base.py` | 新增 `list_objects_by_prefix` 抽象方法 |
+| `sapilot/objectstore/local.py` | 实现 `list_objects_by_prefix` |
+| `sapilot/objectstore/s3.py` | 实现 `list_objects_by_prefix` |
+| `sapilot/api/openapi.yaml` | 注册新增的 3 个路径 |
+| `sapilot/schema/view_models.py` | 自动生成，含 `ExportTaskResponse` |
+| `sapilot/app.py` | 注册 `export_router` |
 | `config/celery.py` | 注册 `config.export_tasks` 模块 |
 | `web/src/api/**` | 自动生成的前端 SDK |
 | `web/src/app/workspace/collections/[collectionId]/collection-header.tsx` | 接入导出按钮 |

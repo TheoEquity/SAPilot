@@ -1,8 +1,8 @@
-# ApeRAG Agent 后端接口设计方案
+# SAPilot Agent 后端接口设计方案
 
 ## 1. 设计概述
 
-基于现有ApeRAG项目架构，为Agent功能设计一套完整的后端接口系统。Agent作为一个独立的智能对话助手，需要支持Web搜索、模型切换等功能，并提供流畅的对话体验。集成现有的MCP接口进行collection搜索和管理。
+基于现有SAPilot项目架构，为Agent功能设计一套完整的后端接口系统。Agent作为一个独立的智能对话助手，需要支持Web搜索、模型切换等功能，并提供流畅的对话体验。集成现有的MCP接口进行collection搜索和管理。
 
 ## 2. 接口架构设计
 
@@ -91,7 +91,7 @@ GET /api/v1/agent/chats/{chat_id}
     {
       "id": "msg_67890",
       "type": "user",
-      "content": "请介绍一下ApeRAG的架构",
+      "content": "请介绍一下SAPilot的架构",
       "web_search_enabled": false,
       "model_used": "claude-3-5-sonnet",
       "timestamp": "2025-01-07T10:01:00Z"
@@ -99,7 +99,7 @@ GET /api/v1/agent/chats/{chat_id}
     {
       "id": "msg_67891",
       "type": "assistant",
-      "content": "ApeRAG是一个...",
+      "content": "SAPilot是一个...",
       "sources": [
         {
           "collection_id": "col_1",
@@ -125,7 +125,7 @@ POST /api/v1/agent/chats/{chat_id}/messages
 **请求体**：
 ```json
 {
-  "content": "请介绍一下ApeRAG的架构",
+  "content": "请介绍一下SAPilot的架构",
   "model_id": "claude-3-5-sonnet",       // 可选，使用默认模型
   "web_search_enabled": false,           // 可选，默认false
   "stream": true                         // 可选，是否流式响应
@@ -136,7 +136,7 @@ POST /api/v1/agent/chats/{chat_id}/messages
 ```
 data: {"type": "start", "message_id": "msg_67890"}
 
-data: {"type": "content", "content": "ApeRAG是一个"}
+data: {"type": "content", "content": "SAPilot是一个"}
 
 data: {"type": "content", "content": "强大的"}
 
@@ -149,7 +149,7 @@ data: {"type": "end", "message_id": "msg_67890"}
 ```json
 {
   "id": "msg_67890",
-  "content": "ApeRAG是一个强大的RAG系统...",
+  "content": "SAPilot是一个强大的RAG系统...",
   "sources": [
     {
       "collection_id": "col_1",
@@ -184,7 +184,7 @@ web_search(query, max_results, search_engine, ...)
 **请求体**：
 ```json
 {
-  "query": "ApeRAG 2025年最新发展",
+  "query": "SAPilot 2025年最新发展",
   "max_results": 5,                    // 可选，默认5
   "search_engine": "google",           // 可选，默认google
   "timeout": 30,                       // 可选，超时时间（秒）
@@ -195,13 +195,13 @@ web_search(query, max_results, search_engine, ...)
 **响应**：
 ```json
 {
-  "query": "ApeRAG 2025年最新发展",
+  "query": "SAPilot 2025年最新发展",
   "results": [
     {
       "rank": 1,
-      "title": "ApeRAG 2025年技术路线图",
-      "url": "https://example.com/aperag-2025-roadmap",
-      "snippet": "ApeRAG在2025年将重点发展...",
+      "title": "SAPilot 2025年技术路线图",
+      "url": "https://example.com/sapilot-2025-roadmap",
+      "snippet": "SAPilot在2025年将重点发展...",
       "domain": "example.com",
       "timestamp": "2025-01-01T00:00:00Z"
     }
@@ -230,7 +230,7 @@ web_read(urls, timeout, ...)
 ```json
 {
   "urls": [                            // 支持单个URL字符串或URL数组
-    "https://example.com/aperag-2025-roadmap",
+    "https://example.com/sapilot-2025-roadmap",
     "https://example.com/another-page"
   ],
   "timeout": 30,                       // 可选，超时时间
@@ -248,10 +248,10 @@ web_read(urls, timeout, ...)
 {
   "results": [
     {
-      "url": "https://example.com/aperag-2025-roadmap",
+      "url": "https://example.com/sapilot-2025-roadmap",
       "status": "success",
-      "title": "ApeRAG 2025年技术路线图",
-      "content": "# ApeRAG 2025年技术路线图\n\nApeRAG在2025年将...",
+      "title": "SAPilot 2025年技术路线图",
+      "content": "# SAPilot 2025年技术路线图\n\nSAPilot在2025年将...",
       "extracted_at": "2025-01-07T10:01:00Z",
       "word_count": 1250,
       "token_count": 3200
@@ -516,7 +516,7 @@ class WebResult:
 
 ## 11. 总结
 
-这个设计方案基于现有ApeRAG架构，通过新增Agent专用接口和独立的Web服务来支持智能对话功能。主要特点：
+这个设计方案基于现有SAPilot架构，通过新增Agent专用接口和独立的Web服务来支持智能对话功能。主要特点：
 
 1. **架构兼容**：复用现有的service层和数据模型
 2. **MCP集成**：通过MCP接口进行collection搜索，Agent后端智能选择

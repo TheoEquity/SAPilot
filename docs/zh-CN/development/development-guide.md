@@ -1,23 +1,23 @@
 ---
 title: 开发指南
-description: ApeRAG 开发环境设置和工作流程
+description: SAPilot 开发环境设置和工作流程
 ---
 
 # 🛠️ 开发指南
 
-本指南重点介绍如何为 ApeRAG 设置开发环境和开发工作流程。这是为希望为 ApeRAG 做贡献或在本地运行它进行开发的开发人员设计的。
+本指南重点介绍如何为 SAPilot 设置开发环境和开发工作流程。这是为希望为 SAPilot 做贡献或在本地运行它进行开发的开发人员设计的。
 
 ## 🚀 开发环境设置
 
-按照以下步骤从源代码设置 ApeRAG 进行开发：
+按照以下步骤从源代码设置 SAPilot 进行开发：
 
 ### 1. 📂 克隆仓库并设置环境
 
 首先，获取源代码并配置环境变量：
 
 ```bash
-git clone https://github.com/apecloud/ApeRAG.git
-cd ApeRAG
+git clone https://github.com/apecloud/SAPilot.git
+cd SAPilot
 cp envs/env.template .env
 ```
 
@@ -151,7 +151,7 @@ make run-frontend
 
 这个组合会保留数据库容器化，同时让后端和前端直接基于源码热启动。
 
-### 8. 🌐 访问 ApeRAG
+### 8. 🌐 访问 SAPilot
 
 服务运行后，您可以访问：
 *   **前端 UI**：http://localhost:3000 (如果已启动)
@@ -184,24 +184,24 @@ make compose-down REMOVE_VOLUMES=1
 **验证数据移除：**
 ```bash
 # 检查卷是否仍然存在
-docker volume ls | grep aperag
+docker volume ls | grep sapilot
 
 # REMOVE_VOLUMES=1 后应该不返回结果
 ```
 
-现在您已经从源代码本地运行 ApeRAG，准备好进行开发！🎉
+现在您已经从源代码本地运行 SAPilot，准备好进行开发！🎉
 
 ## ❓ 常见开发任务
 
 ### Q: 🔧 如何添加或修改 REST API 端点？
 
 **完整工作流程：**
-1. 编辑 OpenAPI 规范：`aperag/api/paths/[endpoint-name].yaml`
+1. 编辑 OpenAPI 规范：`sapilot/api/paths/[endpoint-name].yaml`
 2. 重新生成后端模型：
    ```bash
    make generate-models  # 这会在内部运行 merge-openapi
    ```
-3. 实现后端视图：`aperag/views/[module].py`
+3. 实现后端视图：`sapilot/views/[module].py`
 4. 生成前端 TypeScript 客户端：
    ```bash
    make generate-frontend-sdk  # 更新 frontend/src/api/
@@ -215,7 +215,7 @@ docker volume ls | grep aperag
 ### Q: 🗃️ 如何修改数据库模型/架构？
 
 **数据库迁移工作流程：**
-1. 编辑 `aperag/db/models.py` 中的 SQLModel 类
+1. 编辑 `sapilot/db/models.py` 中的 SQLModel 类
 2. 生成迁移文件：
    ```bash
    make makemigration  # 在 migration/versions/ 中创建新迁移
@@ -224,7 +224,7 @@ docker volume ls | grep aperag
    ```bash
    make migrate  # 更新数据库架构
    ```
-4. 更新相关代码（`aperag/db/repositories/` 中的仓库，`aperag/service/` 中的服务）
+4. 更新相关代码（`sapilot/db/repositories/` 中的仓库，`sapilot/service/` 中的服务）
 5. 验证更改：
    ```bash
    make test  # ✅ 确保一切正常工作
@@ -234,9 +234,9 @@ docker volume ls | grep aperag
 
 **功能实现工作流程：**
 1. 实现功能组件：
-   - 后端逻辑：`aperag/[module]/`
-   - 异步任务：`aperag/tasks/`
-   - 数据库模型：`aperag/db/models.py`
+   - 后端逻辑：`sapilot/[module]/`
+   - 异步任务：`sapilot/tasks/`
+   - 数据库模型：`sapilot/db/models.py`
 2. 更新 API 并生成代码：
    ```bash
    make makemigration      # 生成迁移文件
@@ -263,7 +263,7 @@ uv run pytest tests/unit_test/test_model_service.py -v
 uv run pytest tests/unit_test/test_model_service.py::TestModelService::test_get_models -v
 
 # 运行带覆盖率的测试
-uv run pytest tests/unit_test/ --cov=aperag --cov-report=html
+uv run pytest tests/unit_test/ --cov=sapilot --cov-report=html
 ```
 
 **E2E 测试（需要运行服务）：**
@@ -338,7 +338,7 @@ make run-backend
 make run-celery
 
 # 运行全面的 RAG 评估
-make evaluate               # 📊 运行 aperag.evaluation.run 模块
+make evaluate               # 📊 运行 sapilot.evaluation.run 模块
 
 # 📈 检查 tests/report/ 中的评估报告
 ```

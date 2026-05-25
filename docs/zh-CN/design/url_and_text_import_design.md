@@ -7,7 +7,7 @@ position: 4
 
 ## 概述
 
-本文档描述在 ApeRAG Collection 中新增两种文档来源方式的设计：
+本文档描述在 SAPilot Collection 中新增两种文档来源方式的设计：
 
 1. **URL 导入**：用户输入网址，系统自动调用 `web/read` 接口抓取页面内容，生成 Markdown 文件，走现有两阶段上传流程入库。
 2. **文本导入**：用户在前端粘贴文本，前端直接将其封装为 `.txt` 文件，调用现有上传接口，**完全无需新增后端代码**。
@@ -48,10 +48,10 @@ URL 导入和文本导入都将产出 `UPLOADED` 状态的文档，与文件上�
 
 | 组件 | 位置 | 如何复用 |
 |------|------|---------|
-| 文档上传服务 | `aperag/service/document_service.py` → `upload_document()` | URL 导入后端调用此方法存储抓取内容 |
+| 文档上传服务 | `sapilot/service/document_service.py` → `upload_document()` | URL 导入后端调用此方法存储抓取内容 |
 | 文档确认服务 | `document_service.confirm_documents()` | 完全不变 |
-| Web Read 接口 | `POST /api/v1/web/read`（`aperag/views/web.py`） | URL 导入后端通过 HTTP 调用此接口 |
-| ReaderService | `aperag/websearch/reader/reader_service.py` | web/read 的底层实现（JINA + Trafilatura fallback） |
+| Web Read 接口 | `POST /api/v1/web/read`（`sapilot/views/web.py`） | URL 导入后端通过 HTTP 调用此接口 |
+| ReaderService | `sapilot/websearch/reader/reader_service.py` | web/read 的底层实现（JINA + Trafilatura fallback） |
 | 文档列表页暂存区 | `document-upload.tsx` | URL/文本产出的 `UPLOADED` 文档自动出现在此列表 |
 
 ---
@@ -166,7 +166,7 @@ URL 导入和文本导入都将产出 `UPLOADED` 状态的文档，与文件上�
 
 ### 后端实现逻辑
 
-在 `aperag/views/collections.py` 中新增路由函数（约 60 行）：
+在 `sapilot/views/collections.py` 中新增路由函数（约 60 行）：
 
 ```python
 @router.post("/collections/{collection_id}/documents/fetch-url", tags=["documents"])
@@ -247,7 +247,7 @@ async def _call_web_read(request: WebReadRequest, user: User) -> WebReadResponse
         return await _read_with_trafilatura_only(request)
 ```
 
-> 这些私有函数已在 `aperag/views/web.py` 中实现，将其提取到 `aperag/websearch/reader/reader_service.py` 的公共方法即可被两处复用，保持模块化边界。
+> 这些私有函数已在 `sapilot/views/web.py` 中实现，将其提取到 `sapilot/websearch/reader/reader_service.py` 的公共方法即可被两处复用，保持模块化边界。
 
 ---
 
@@ -393,10 +393,10 @@ web/src/app/workspace/collections/[collectionId]/documents/
 
 | 位置 | 改动类型 | 估计行数 |
 |------|---------|---------|
-| `aperag/api/components/schemas/document.yaml` | 新增 `fetchUrlRequest/Response` schema | ~40 行 |
-| `aperag/api/paths/collections.yaml` | 新增 `/fetch-url` 路径 | ~30 行 |
-| `aperag/views/collections.py` | 新增一个路由函数 | ~60 行 |
-| `aperag/websearch/reader/reader_service.py` | 将私有函数提取为公共方法 | ~20 行重构 |
+| `sapilot/api/components/schemas/document.yaml` | 新增 `fetchUrlRequest/Response` schema | ~40 行 |
+| `sapilot/api/paths/collections.yaml` | 新增 `/fetch-url` 路径 | ~30 行 |
+| `sapilot/views/collections.py` | 新增一个路由函数 | ~60 行 |
+| `sapilot/websearch/reader/reader_service.py` | 将私有函数提取为公共方法 | ~20 行重构 |
 | `web/src/...import/import-dialog.tsx` | 新建组件 | ~60 行 |
 | `web/src/...import/url-import.tsx` | 新建组件 | ~80 行 |
 | `web/src/...import/text-import.tsx` | 新建组件 | ~70 行 |
@@ -414,7 +414,7 @@ web/src/app/workspace/collections/[collectionId]/documents/
 
 ## API Schema 定义
 
-在 `aperag/api/components/schemas/document.yaml` 中新增：
+在 `sapilot/api/components/schemas/document.yaml` 中新增：
 
 ```yaml
 fetchUrlRequest:
@@ -569,17 +569,17 @@ URL 导入的文档在 `doc_metadata` 中记录来源信息，便于追溯和未
 
 ### 参考文件
 
-- `aperag/service/document_service.py` — `upload_document()` 实现（核心复用点）
-- `aperag/views/web.py` — `_read_with_jina_fallback()` 等私有函数（待提取为公共方法）
-- `aperag/websearch/reader/reader_service.py` — ReaderService（JINA/Trafilatura 实现）
+- `sapilot/service/document_service.py` — `upload_document()` 实现（核心复用点）
+- `sapilot/views/web.py` — `_read_with_jina_fallback()` 等私有函数（待提取为公共方法）
+- `sapilot/websearch/reader/reader_service.py` — ReaderService（JINA/Trafilatura 实现）
 - `web/src/app/.../upload/document-upload.tsx` — 前端暂存区（参考现有实现）
 
 ### 修改文件
 
-- `aperag/api/components/schemas/document.yaml` — 新增 Schema
-- `aperag/api/paths/collections.yaml` — 新增路由
-- `aperag/views/collections.py` — 新增 `fetch_url_document_view`
-- `aperag/websearch/reader/reader_service.py` — 提取公共方法
+- `sapilot/api/components/schemas/document.yaml` — 新增 Schema
+- `sapilot/api/paths/collections.yaml` — 新增路由
+- `sapilot/views/collections.py` — 新增 `fetch_url_document_view`
+- `sapilot/websearch/reader/reader_service.py` — 提取公共方法
 
 ### 新建文件
 

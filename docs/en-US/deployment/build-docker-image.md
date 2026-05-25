@@ -1,6 +1,6 @@
 # Build Guide
 
-This section covers how to build ApeRAG container images. It's primarily for users who need to create their own builds or deploy to environments other than the ones covered in "Getting Started".
+This section covers how to build SAPilot container images. It's primarily for users who need to create their own builds or deploy to environments other than the ones covered in "Getting Started".
 
 ## Building Container Images
 
@@ -13,10 +13,10 @@ The project uses Docker and `make` commands to build container images.
     make build-local
 
     # Build only the backend image for local platform
-    make build-aperag-local
+    make build-sapilot-local
 
     # Build only the frontend image for local platform
-    make build-aperag-frontend-local
+    make build-sapilot-frontend-local
     ```
 
 *   **Multi-platform Builds**:
@@ -26,10 +26,10 @@ The project uses Docker and `make` commands to build container images.
     make build
 
     # Build only the backend image for multiple platforms
-    make build-aperag
+    make build-sapilot
 
     # Build only the frontend image for multiple platforms
-    make build-aperag-frontend
+    make build-sapilot-frontend
     ```
     You can specify the target platforms using the `PLATFORMS` variable, for example:
     ```bash

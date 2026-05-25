@@ -1,8 +1,8 @@
-# ApeRAG 认证系统架构文档
+# SAPilot 认证系统架构文档
 
 ## 概述
 
-ApeRAG 采用基于 Cookie 的认证系统，支持本地用户名/密码认证和 OAuth2 社交登录（GitHub、Google）。系统基于 FastAPI-Users 库构建，提供完整的用户管理和认证功能。
+SAPilot 采用基于 Cookie 的认证系统，支持本地用户名/密码认证和 OAuth2 社交登录（GitHub、Google）。系统基于 FastAPI-Users 库构建，提供完整的用户管理和认证功能。
 
 ## 核心架构
 
@@ -402,7 +402,7 @@ OAuth提供商需要配置以下关键信息：
 1. 访问 [GitHub Developer Settings](https://github.com/settings/developers)
 2. 点击 "New OAuth App" 创建新应用
 3. 填写应用信息：
-   - **Application name**: ApeRAG
+   - **Application name**: SAPilot
    - **Homepage URL**: `http://127.0.0.1:3000`
    - **Authorization callback URL**: `http://127.0.0.1:3000/web/oauth-callback`
 4. 创建后获取 Client ID 和 Client Secret
@@ -422,7 +422,7 @@ OAuth提供商需要配置以下关键信息：
 - 回调URL必须与OAuth应用配置中的完全一致
 - 开发环境: `http://127.0.0.1:3000/web/oauth-callback`
 - 生产环境: `https://yourdomain.com/web/oauth-callback`
-- ApeRAG前端的BASE_PATH是`/web`，所以回调URL包含此前缀
+- SAPilot前端的BASE_PATH是`/web`，所以回调URL包含此前缀
 
 ## 安全特性
 
@@ -492,11 +492,11 @@ async def get_current_admin(user: User = Depends(get_current_active_user)) -> Us
 - 确认用户关联关系
 
 ### 调试方法
-1. 查看后端日志: `tail -f logs/aperag.log`
+1. 查看后端日志: `tail -f logs/sapilot.log`
 2. 检查浏览器开发者工具
 3. 验证数据库用户和OAuth账户数据
 4. 测试API接口响应
 
 ## 总结
 
-ApeRAG认证系统基于FastAPI-Users构建，提供了安全、灵活的多种认证方式。系统支持本地认证和OAuth社交登录，采用JWT+Cookie的无状态认证机制，具有良好的安全性和扩展性。通过合理的权限控制和注册模式配置，能够满足不同场景的使用需求。
+SAPilot认证系统基于FastAPI-Users构建，提供了安全、灵活的多种认证方式。系统支持本地认证和OAuth社交登录，采用JWT+Cookie的无状态认证机制，具有良好的安全性和扩展性。通过合理的权限控制和注册模式配置，能够满足不同场景的使用需求。

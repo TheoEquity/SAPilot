@@ -1,8 +1,8 @@
-# ApeRAG 聊天历史消息数据流程
+# SAPilot 聊天历史消息数据流程
 
 ## 概述
 
-本文档详细说明ApeRAG项目中聊天历史消息的完整数据流程，从前端API调用到后端存储的全链路实现。
+本文档详细说明SAPilot项目中聊天历史消息的完整数据流程，从前端API调用到后端存储的全链路实现。
 
 **核心接口**: `GET /api/v1/bots/{bot_id}/chats/{chat_id}`
 
@@ -17,7 +17,7 @@
          ▼
 ┌─────────────────────────────────────────────┐
 │  View Layer                                 │
-│  aperag/views/chat.py                       │
+│  sapilot/views/chat.py                       │
 │  - get_chat_view()                          │
 │  - JWT身份验证                               │
 │  - 参数验证                                  │
@@ -26,7 +26,7 @@
          ▼
 ┌─────────────────────────────────────────────┐
 │  Service Layer                              │
-│  aperag/service/chat_service.py             │
+│  sapilot/service/chat_service.py             │
 │  - get_chat()                               │
 │  - 业务逻辑编排                              │
 └────────┬────────────────────────────────────┘
@@ -53,7 +53,7 @@
 
 ### 1. View层 - HTTP请求处理
 
-**文件**: `aperag/views/chat.py`
+**文件**: `sapilot/views/chat.py`
 
 ```python
 @router.get("/bots/{bot_id}/chats/{chat_id}")
@@ -75,11 +75,11 @@ async def get_chat_view(
 
 ### 2. Service层 - 业务逻辑编排
 
-**文件**: `aperag/service/chat_service.py`
+**文件**: `sapilot/service/chat_service.py`
 
 ```python
 async def get_chat(self, user: str, bot_id: str, chat_id: str) -> view_models.ChatDetails:
-    from aperag.utils.history import query_chat_messages
+    from sapilot.utils.history import query_chat_messages
     
     # Step 1: 从PostgreSQL查询Chat基本信息
     chat = await self.db_ops.query_chat(user, bot_id, chat_id)
@@ -106,7 +106,7 @@ async def get_chat(self, user: str, bot_id: str, chat_id: str) -> view_models.Ch
 
 **表**: `chat`
 
-**文件**: `aperag/db/models.py`
+**文件**: `sapilot/db/models.py`
 
 ```python
 class Chat(Base):
@@ -128,7 +128,7 @@ class Chat(Base):
 
 #### 3.2 Redis - 聊天消息历史
 
-**文件**: `aperag/utils/history.py`
+**文件**: `sapilot/utils/history.py`
 
 **Key格式**: `message_store:{chat_id}`
 
@@ -331,7 +331,7 @@ class StoredChatMessagePart(BaseModel):
 
 ### API响应格式
 
-**ChatDetails Schema** (`aperag/api/components/schemas/chat.yaml`):
+**ChatDetails Schema** (`sapilot/api/components/schemas/chat.yaml`):
 
 ```yaml
 chatDetails:
@@ -605,13 +605,13 @@ part_id = "uuid-part-1"           # 部分级别（每个part独立）
 ## 相关文件
 
 ### 核心实现
-- `aperag/views/chat.py` - View层接口
-- `aperag/service/chat_service.py` - Service层业务逻辑
-- `aperag/utils/history.py` - Redis消息历史管理
-- `aperag/chat/history/message.py` - 消息数据结构
-- `aperag/db/models.py` - 数据库模型
-- `aperag/db/repositories/chat.py` - Chat数据库操作
-- `aperag/api/components/schemas/chat.yaml` - OpenAPI Schema
+- `sapilot/views/chat.py` - View层接口
+- `sapilot/service/chat_service.py` - Service层业务逻辑
+- `sapilot/utils/history.py` - Redis消息历史管理
+- `sapilot/chat/history/message.py` - 消息数据结构
+- `sapilot/db/models.py` - 数据库模型
+- `sapilot/db/repositories/chat.py` - Chat数据库操作
+- `sapilot/api/components/schemas/chat.yaml` - OpenAPI Schema
 
 ### 前端实现
 - `web/src/app/workspace/bots/[botId]/chats/[chatId]/page.tsx` - 聊天详情页面
@@ -619,7 +619,7 @@ part_id = "uuid-part-1"           # 部分级别（每个part独立）
 
 ## 总结
 
-ApeRAG的聊天历史消息系统采用**混合存储 + Part-Based消息设计**：
+SAPilot的聊天历史消息系统采用**混合存储 + Part-Based消息设计**：
 
 1. **PostgreSQL**存储Chat元数据和反馈（持久化、可查询）
 2. **Redis**存储消息历史（高性能、支持过期）

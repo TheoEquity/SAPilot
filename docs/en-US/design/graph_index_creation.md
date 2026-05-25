@@ -1,6 +1,6 @@
 ---
 title: Graph Index Creation Process
-description: Complete process and core technologies for ApeRAG knowledge graph index construction
+description: Complete process and core technologies for SAPilot knowledge graph index construction
 keywords: Knowledge Graph, Graph Index, Entity Extraction, Relationship Extraction, Concurrency Optimization
 position: 2
 ---
@@ -9,7 +9,7 @@ position: 2
 
 ## 1. What is Graph Index
 
-Graph Index is a core feature of ApeRAG that automatically extracts structured knowledge graphs from unstructured text.
+Graph Index is a core feature of SAPilot that automatically extracts structured knowledge graphs from unstructured text.
 
 ### 1.1 A Simple Example
 
@@ -124,11 +124,11 @@ Different questions suit different retrieval methods:
 | **Multi-hop Reasoning** | "What tech stack does John's team use?" | Graph Index ✨ |
 | **Knowledge Tracing** | "What modules does this feature depend on?" | Graph Index ✨ |
 
-**Best Practice**: ApeRAG supports vector search, full-text search, and graph index simultaneously, intelligently selecting or combining based on question type.
+**Best Practice**: SAPilot supports vector search, full-text search, and graph index simultaneously, intelligently selecting or combining based on question type.
 
 ## 3. Construction Process Overview
 
-When you upload a document and enable graph indexing, ApeRAG automatically completes the following steps. Here's a simple overview; details are in later chapters.
+When you upload a document and enable graph indexing, SAPilot automatically completes the following steps. Here's a simple overview; details are in later chapters.
 
 ### 3.1 Five Key Steps
 
@@ -472,7 +472,7 @@ Precise entity-level locking:
 graph TD
     A[Global Lock - Traditional] -->|Too Coarse| B[All Entities Serial]
     
-    C[Entity Lock - ApeRAG] -->|Just Right| D[Lock Only Merging Entities]
+    C[Entity Lock - SAPilot] -->|Just Right| D[Lock Only Merging Entities]
     
     style A fill:#ffccbc
     style B fill:#ffccbc
@@ -500,7 +500,7 @@ else:
 
 ### 5.6 Multi-storage Backend Support
 
-ApeRAG supports two graph databases: Neo4j and PostgreSQL.
+SAPilot supports two graph databases: Neo4j and PostgreSQL.
 
 **How to Choose?**
 
@@ -913,7 +913,7 @@ export GRAPH_INDEX_GRAPH_STORAGE=PGOpsSyncGraphStorage
 # Database connection (PostgreSQL)
 export POSTGRES_HOST=127.0.0.1
 export POSTGRES_PORT=5432
-export POSTGRES_DB=aperag
+export POSTGRES_DB=sapilot
 export POSTGRES_USER=postgres
 export POSTGRES_PASSWORD=your_password
 
@@ -1025,7 +1025,7 @@ Let's see how different retrieval methods perform in actual conversations:
 
 ## 10. Summary
 
-ApeRAG's graph index provides production-grade knowledge graph construction capabilities with high performance, reliability, and scalability.
+SAPilot's graph index provides production-grade knowledge graph construction capabilities with high performance, reliability, and scalability.
 
 ### Key Features
 
@@ -1052,7 +1052,7 @@ ApeRAG's graph index provides production-grade knowledge graph construction capa
 
 ### Next Steps
 
-After graph index construction completes, you can perform graph queries. ApeRAG supports three graph query modes:
+After graph index construction completes, you can perform graph queries. SAPilot supports three graph query modes:
 
 - **Local Mode**: Query local information about an entity
 - **Global Mode**: Query overall relationships and patterns
@@ -1064,7 +1064,7 @@ For detailed retrieval process, see [System Architecture Documentation](./archit
 
 ## Related Documentation
 
-- 📋 [System Architecture](./architecture.md) - ApeRAG overall architecture design
+- 📋 [System Architecture](./architecture.md) - SAPilot overall architecture design
 - 📖 [Entity Extraction and Merging Mechanism](./lightrag_entity_extraction_and_merging.md) - Core algorithm details
 - 🔗 [Connected Component Optimization](./connected_components_optimization.md) - Concurrency optimization principles
 - 🌐 [Index Pipeline Architecture](./indexing_architecture.md) - Complete indexing process

@@ -1,17 +1,17 @@
 ---
 title: System Architecture
-description: ApeRAG Architecture Design and Core Components
-keywords: ApeRAG, Architecture, RAG, Knowledge Graph, LightRAG
+description: SAPilot Architecture Design and Core Components
+keywords: SAPilot, Architecture, RAG, Knowledge Graph, LightRAG
 position: 1
 ---
 
-# ApeRAG System Architecture
+# SAPilot System Architecture
 
-## 1. What is ApeRAG
+## 1. What is SAPilot
 
-ApeRAG is an **open, Agentic Graph RAG platform**. It's not just a simple vector retrieval system, but a production-ready solution that deeply integrates knowledge graphs, multimodal retrieval, and intelligent agents.
+SAPilot is an **open, Agentic Graph RAG platform**. It's not just a simple vector retrieval system, but a production-ready solution that deeply integrates knowledge graphs, multimodal retrieval, and intelligent agents.
 
-Traditional RAG systems primarily rely on vector similarity search. While they can find semantically related content, they often lack understanding of relationships between knowledge points. ApeRAG's core innovations are:
+Traditional RAG systems primarily rely on vector similarity search. While they can find semantically related content, they often lack understanding of relationships between knowledge points. SAPilot's core innovations are:
 
 - **Graph RAG**: Automatically extracts entities (people, places, concepts) and relationships from documents to build knowledge graphs, understanding connections between knowledge points
 - **Agentic**: Built-in intelligent agents that can autonomously plan, invoke tools, and conduct multi-turn conversations for smarter Q&A experiences
@@ -19,7 +19,7 @@ Traditional RAG systems primarily rely on vector similarity search. While they c
 
 ### Core Advantages
 
-Compared to traditional RAG solutions, ApeRAG provides:
+Compared to traditional RAG solutions, SAPilot provides:
 
 - **Powerful Document Processing**: Supports PDF, Word, Excel and more, handling complex tables, formulas, and images
 - **Multiple Retrieval Methods**: Vector, full-text, and graph retrieval complement each other
@@ -69,7 +69,7 @@ graph TB
 
 ## 2. Layered Architecture
 
-ApeRAG adopts a clear layered design, with each layer serving its specific purpose:
+SAPilot adopts a clear layered design, with each layer serving its specific purpose:
 
 ```mermaid
 graph TB
@@ -154,11 +154,11 @@ graph TB
 
 ## 3. Document Processing Flow
 
-This is one of ApeRAG's core capabilities. From uploading a PDF file to making it searchable involves a series of carefully designed processing steps.
+This is one of SAPilot's core capabilities. From uploading a PDF file to making it searchable involves a series of carefully designed processing steps.
 
 ### 3.1 Document Upload and Parsing
 
-When you upload a document, ApeRAG automatically identifies the format and selects the appropriate parser:
+When you upload a document, SAPilot automatically identifies the format and selects the appropriate parser:
 
 ```mermaid
 flowchart TD
@@ -264,7 +264,7 @@ flowchart LR
 
 ### 3.4 Knowledge Graph Construction
 
-Graph indexing is ApeRAG's signature feature, extracting structured knowledge from documents.
+Graph indexing is SAPilot's signature feature, extracting structured knowledge from documents.
 
 ```mermaid
 flowchart TD
@@ -311,7 +311,7 @@ Suppose you have 100 documents discussing different topics. Entities about "data
 
 ### 3.5 Async Task System
 
-Document processing is time-consuming, so ApeRAG uses a "dual-chain architecture" to ensure good user experience:
+Document processing is time-consuming, so SAPilot uses a "dual-chain architecture" to ensure good user experience:
 
 ```mermaid
 graph TB
@@ -387,11 +387,11 @@ stateDiagram-v2
 
 ## 4. Retrieval and Q&A Flow
 
-Once indexed, users can ask questions. ApeRAG's retrieval system intelligently selects appropriate retrieval strategies.
+Once indexed, users can ask questions. SAPilot's retrieval system intelligently selects appropriate retrieval strategies.
 
 ### 4.1 Hybrid Retrieval System
 
-Different types of questions suit different retrieval methods. ApeRAG uses multiple retrieval strategies simultaneously and fuses results:
+Different types of questions suit different retrieval methods. SAPilot uses multiple retrieval strategies simultaneously and fuses results:
 
 ```mermaid
 flowchart TB
@@ -442,7 +442,7 @@ flowchart TB
 
 **Result Fusion Strategy**:
 
-Results from different retrieval methods need merging. ApeRAG uses a Rerank model to re-score all candidate results:
+Results from different retrieval methods need merging. SAPilot uses a Rerank model to re-score all candidate results:
 
 1. Collect all retrieval results (may have duplicates)
 2. Deduplicate, keep most relevant segments
@@ -510,7 +510,7 @@ Question: "What is Zhang San responsible for?"
 
 ### 4.3 Agent Dialogue System
 
-Agent is ApeRAG's intelligent assistant that can invoke various tools to answer questions.
+Agent is SAPilot's intelligent assistant that can invoke various tools to answer questions.
 
 ```mermaid
 sequenceDiagram
@@ -555,7 +555,7 @@ sequenceDiagram
 
 **Role of MCP Protocol**:
 
-MCP (Model Context Protocol) is a standardized tool protocol that allows AI assistants (like Claude Desktop, Cursor) to easily invoke ApeRAG's capabilities. Through MCP, external AI tools can:
+MCP (Model Context Protocol) is a standardized tool protocol that allows AI assistants (like Claude Desktop, Cursor) to easily invoke SAPilot's capabilities. Through MCP, external AI tools can:
 - List your knowledge bases
 - Search knowledge base content
 - Read web page content
@@ -564,20 +564,20 @@ MCP (Model Context Protocol) is a standardized tool protocol that allows AI assi
 **Dialogue Example**:
 
 ```
-User: How does ApeRAG's graph indexing work?
+User: How does SAPilot's graph indexing work?
 
 Agent thinks: Need to search knowledge base
 ↓
-Call tool: search_collection(query="graph indexing principles", collection_id="aperag-docs")
+Call tool: search_collection(query="graph indexing principles", collection_id="sapilot-docs")
 ↓
 Retrieval results: Returns document segments about graph construction, entity extraction, relation extraction
 ↓
-Agent answers: ApeRAG's graph indexing works through the following steps... (generated based on retrieved content)
+Agent answers: SAPilot's graph indexing works through the following steps... (generated based on retrieved content)
 ```
 
 ## 5. Storage Architecture
 
-ApeRAG adopts a multi-storage architecture, selecting the most appropriate storage solution for different data types.
+SAPilot adopts a multi-storage architecture, selecting the most appropriate storage solution for different data types.
 
 ### 5.1 Storage Selection Decision
 
@@ -702,7 +702,7 @@ Why Choose:
 
 **Graph Database Choice: PostgreSQL vs Neo4j**
 
-ApeRAG supports two graph database solutions:
+SAPilot supports two graph database solutions:
 
 **PostgreSQL** (Default, Recommended for Small Scale)
 
@@ -748,7 +748,7 @@ Why Choose:
 
 Original LightRAG uses global state, all tasks share one instance. This causes data confusion and concurrency conflicts in multi-user, multi-Collection scenarios.
 
-**ApeRAG's Solution**:
+**SAPilot's Solution**:
 
 - Each task creates independent LightRAG instance
 - Isolates different Collection data through `workspace` parameter
@@ -795,7 +795,7 @@ Use connected components algorithm to divide graph into multiple independent sub
 
 ### 6.4 Provider Abstraction Pattern
 
-ApeRAG supports 100+ LLM providers (OpenAI, Claude, Gemini, domestic LLMs, etc.). How to manage uniformly?
+SAPilot supports 100+ LLM providers (OpenAI, Claude, Gemini, domestic LLMs, etc.). How to manage uniformly?
 
 **Design Approach**:
 
@@ -810,7 +810,7 @@ This way, switching models only requires config change, no code change. Same pat
 
 ### 6.5 Multimodal Index Support
 
-Besides text, ApeRAG can also handle images:
+Besides text, SAPilot can also handle images:
 
 **Vision Index's Two Paths**:
 
@@ -825,7 +825,7 @@ Besides text, ApeRAG can also handle images:
 
 ## 7. Summary
 
-ApeRAG achieves production-grade RAG capabilities through the following design:
+SAPilot achieves production-grade RAG capabilities through the following design:
 
 **Core Advantages**:
 - **Powerful Document Processing**: Supports multiple formats, complex layouts, tables and formulas
@@ -847,4 +847,4 @@ ApeRAG achieves production-grade RAG capabilities through the following design:
 - Research paper analysis
 - Any scenario requiring document understanding and intelligent Q&A
 
-The system's design philosophy is: **Make complex things simple, make simple things automatic**. Users just need to upload documents, everything else is handled automatically by ApeRAG.
+The system's design philosophy is: **Make complex things simple, make simple things automatic**. Users just need to upload documents, everything else is handled automatically by SAPilot.

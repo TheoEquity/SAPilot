@@ -1,15 +1,15 @@
 ---
-title: Integrating ApeRAG with Dify
-description: Quick integration of ApeRAG's Graph RAG capabilities via MCP protocol
-keywords: Dify, ApeRAG, MCP, Graph RAG
+title: Integrating SAPilot with Dify
+description: Quick integration of SAPilot's Graph RAG capabilities via MCP protocol
+keywords: Dify, SAPilot, MCP, Graph RAG
 ---
 
-# Integrating ApeRAG with Dify
+# Integrating SAPilot with Dify
 
-ApeRAG is a production-grade RAG platform with multimodal indexing, AI agents, MCP support, and scalable K8s deployment capabilities. It helps users build complex AI applications with **hybrid retrieval**, **multimodal document processing**, and **enterprise-grade management**.
+SAPilot is a production-grade RAG platform with multimodal indexing, AI agents, MCP support, and scalable K8s deployment capabilities. It helps users build complex AI applications with **hybrid retrieval**, **multimodal document processing**, and **enterprise-grade management**.
 
 **Core Features**:
-- Unlike "standard" RAG, ApeRAG implements **Graph-RAG**, building knowledge graphs to understand deep relationships between data elements
+- Unlike "standard" RAG, SAPilot implements **Graph-RAG**, building knowledge graphs to understand deep relationships between data elements
 - Integrates **MinerU**, designed for complex documents, scientific papers, and financial reports, accurately extracting tables, formulas, and engineering diagrams
 - Full Kubernetes support with built-in **high availability**, **scalability**, and **enterprise-grade management**
 
@@ -31,7 +31,7 @@ ApeRAG is a production-grade RAG platform with multimodal indexing, AI agents, M
 
 ## Step 1: Prepare Knowledge Base
 
-Open your ApeRAG web UI (see [Quick Start](../../../README.md#quick-start); with Docker Compose this is typically http://localhost:3000/web/). Sign in and select or import a knowledge base. This walkthrough uses the Romance of the Three Kingdoms example—click **Subscribe**.
+Open your SAPilot web UI (see [Quick Start](../../../README.md#quick-start); with Docker Compose this is typically http://localhost:3000/web/). Sign in and select or import a knowledge base. This walkthrough uses the Romance of the Three Kingdoms example—click **Subscribe**.
 
 <div align="center">
   <img src="/images/en-US/dify/step1-subscribe-collection.png" alt="Subscribe to Collection" width="800" />
@@ -49,7 +49,7 @@ Go to Dify - Tools - MCP, click Add MCP Server.
 
 ### 2.2 Fill Configuration
 
-Fill in Server URL: `http://localhost:8000/mcp/` (use `https://<your-aperag-host>/mcp/` if ApeRAG is not local), paste your API Key from ApeRAG, then click Confirm.
+Fill in Server URL: `http://localhost:8000/mcp/` (use `https://<your-sapilot-host>/mcp/` if SAPilot is not local), paste your API Key from SAPilot, then click Confirm.
 
 <div align="center">
   <img src="/images/en-US/dify/step2-configure-mcp.png" alt="Configure MCP" width="700" />
@@ -87,7 +87,7 @@ Click More Basic Application Types, select **Agent** type, name it, and click Cr
 
 ## Step 4: Configure Agent
 
-Click Agent, input Prompt, add the ApeRAG MCP tool, select the LLM in the top-right corner, click Publish to use.
+Click Agent, input Prompt, add the SAPilot MCP tool, select the LLM in the top-right corner, click Publish to use.
 
 <div align="center">
   <img src="/images/en-US/dify/step4-configure-agent.png" alt="Configure Agent" width="800" />
@@ -100,9 +100,9 @@ Click Agent, input Prompt, add the ApeRAG MCP tool, select the LLM in the top-ri
 ### Prompt Reference
 
 ```markdown
-# ApeRAG Smart Assistant
+# SAPilot Smart Assistant
 
-You are an advanced AI research assistant powered by ApeRAG's hybrid search capabilities. Your mission is to help users accurately and autonomously find, understand, and synthesize information from knowledge bases and the web.
+You are an advanced AI research assistant powered by SAPilot's hybrid search capabilities. Your mission is to help users accurately and autonomously find, understand, and synthesize information from knowledge bases and the web.
 
 ## Core Behaviors
 
@@ -163,6 +163,6 @@ You are an advanced AI research assistant powered by ApeRAG's hybrid search capa
 
 ---
 
-Integrating ApeRAG with Dify is very simple. Once integrated, you can not only experience Dify's platform features but also enjoy **ApeRAG's powerful Graph-RAG capabilities**!
+Integrating SAPilot with Dify is very simple. Once integrated, you can not only experience Dify's platform features but also enjoy **SAPilot's powerful Graph-RAG capabilities**!
 
-**GitHub**: https://github.com/apecloud/ApeRAG
+**GitHub**: https://github.com/apecloud/SAPilot

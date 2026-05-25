@@ -1,18 +1,18 @@
 # 🛠️ Development Guide
 
-This guide focuses on setting up a development environment and the development workflow for ApeRAG. This is designed for developers looking to contribute to ApeRAG or run it locally for development purposes.
+This guide focuses on setting up a development environment and the development workflow for SAPilot. This is designed for developers looking to contribute to SAPilot or run it locally for development purposes.
 
 ## 🚀 Development Environment Setup
 
-Follow these steps to set up ApeRAG from source code for development:
+Follow these steps to set up SAPilot from source code for development:
 
 ### 1. 📂 Clone the Repository and Setup Environment
 
 First, get the source code and configure environment variables:
 
 ```bash
-git clone https://github.com/apecloud/ApeRAG.git
-cd ApeRAG
+git clone https://github.com/apecloud/SAPilot.git
+cd SAPilot
 cp envs/env.template .env
 ```
 
@@ -144,7 +144,7 @@ make run-frontend
 
 This keeps the databases containerized while the backend and frontend run from source with hot reload.
 
-### 8. 🌐 Access ApeRAG
+### 8. 🌐 Access SAPilot
 
 With the services running, you can access:
 *   **Frontend UI**: http://localhost:3000 (if started)
@@ -177,24 +177,24 @@ make compose-down REMOVE_VOLUMES=1
 **Verify Data Removal:**
 ```bash
 # Check if volumes still exist
-docker volume ls | grep aperag
+docker volume ls | grep sapilot
 
 # Should return no results after REMOVE_VOLUMES=1
 ```
 
-Now you have ApeRAG running locally from source code, ready for development! 🎉
+Now you have SAPilot running locally from source code, ready for development! 🎉
 
 ## ❓ Common Development Tasks
 
 ### Q: 🔧 How do I add or modify a REST API endpoint?
 
 **Complete workflow:**
-1. Edit OpenAPI specification: `aperag/api/paths/[endpoint-name].yaml`
+1. Edit OpenAPI specification: `sapilot/api/paths/[endpoint-name].yaml`
 2. Regenerate backend models: 
    ```bash
    make generate-models  # This runs merge-openapi internally
    ```
-3. Implement backend view: `aperag/views/[module].py`
+3. Implement backend view: `sapilot/views/[module].py`
 4. Generate frontend TypeScript client:
    ```bash
    make generate-frontend-sdk  # Updates frontend/src/api/
@@ -208,7 +208,7 @@ Now you have ApeRAG running locally from source code, ready for development! �
 ### Q: 🗃️ How do I modify database models/schema?
 
 **Database migration workflow:**
-1. Edit SQLModel classes in `aperag/db/models.py`
+1. Edit SQLModel classes in `sapilot/db/models.py`
 2. Generate migration file:
    ```bash
    make makemigration  # Creates new migration in migration/versions/
@@ -217,7 +217,7 @@ Now you have ApeRAG running locally from source code, ready for development! �
    ```bash
    make migrate  # Updates database schema
    ```
-4. Update related code (repositories in `aperag/db/repositories/`, services in `aperag/service/`)
+4. Update related code (repositories in `sapilot/db/repositories/`, services in `sapilot/service/`)
 5. Verify changes:
    ```bash
    make test  # ✅ Ensure everything works
@@ -227,9 +227,9 @@ Now you have ApeRAG running locally from source code, ready for development! �
 
 **Feature implementation workflow:**
 1. Implement feature components:
-   - Backend logic: `aperag/[module]/`
-   - Async tasks: `aperag/tasks/`
-   - Database models: `aperag/db/models.py`
+   - Backend logic: `sapilot/[module]/`
+   - Async tasks: `sapilot/tasks/`
+   - Database models: `sapilot/db/models.py`
 2. Update API and generate code:
    ```bash
    make makemigration      # Generate migration files
@@ -256,7 +256,7 @@ uv run pytest tests/unit_test/test_model_service.py -v
 uv run pytest tests/unit_test/test_model_service.py::TestModelService::test_get_models -v
 
 # Run tests with coverage
-uv run pytest tests/unit_test/ --cov=aperag --cov-report=html
+uv run pytest tests/unit_test/ --cov=sapilot --cov-report=html
 ```
 
 **E2E Tests (Require Running Services):**
@@ -331,7 +331,7 @@ make run-backend
 make run-celery
 
 # Run comprehensive RAG evaluation
-make evaluate               # 📊 Runs aperag.evaluation.run module
+make evaluate               # 📊 Runs sapilot.evaluation.run module
 
 # 📈 Check evaluation reports in tests/report/
 ```

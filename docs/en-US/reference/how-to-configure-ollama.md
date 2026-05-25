@@ -1,16 +1,16 @@
-# How to Configure Local Ollama with ApeRAG
+# How to Configure Local Ollama with SAPilot
 
-This guide shows how to configure local Ollama models in your ApeRAG deployment.
+This guide shows how to configure local Ollama models in your SAPilot deployment.
 
 ## Prerequisites
 
-- ApeRAG running locally
+- SAPilot running locally
 - [Ollama](https://ollama.ai/) installed and running locally
 - Ollama models downloaded
 
 ## Step 1: Add Ollama Provider
 
-Navigate to **Settings > Models** in your ApeRAG interface and click **"Add Provider"**.
+Navigate to **Settings > Models** in your SAPilot interface and click **"Add Provider"**.
 
 Enter a provider name (e.g., "local-ollama") and set the **Base URL** to: `http://localhost:11434/v1`
 
@@ -67,4 +67,4 @@ Once configured, your local Ollama models will be available:
 
 ![Configured Models](../images/configure-ollama-7.png)
 
-Your local Ollama models are now ready to use with ApeRAG!
+Your local Ollama models are now ready to use with SAPilot!

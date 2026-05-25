@@ -1,8 +1,8 @@
-# ApeRAG Chat History Message Data Flow
+# SAPilot Chat History Message Data Flow
 
 ## Overview
 
-This document details the complete data flow of chat history messages in the ApeRAG project, covering the full-stack implementation from frontend API calls to backend storage.
+This document details the complete data flow of chat history messages in the SAPilot project, covering the full-stack implementation from frontend API calls to backend storage.
 
 **Core API**: `GET /api/v1/bots/{bot_id}/chats/{chat_id}`
 
@@ -17,7 +17,7 @@ This document details the complete data flow of chat history messages in the Ape
          ▼
 ┌─────────────────────────────────────────────┐
 │  View Layer                                 │
-│  aperag/views/chat.py                       │
+│  sapilot/views/chat.py                       │
 │  - get_chat_view()                          │
 │  - JWT Authentication                       │
 │  - Parameter Validation                     │
@@ -26,7 +26,7 @@ This document details the complete data flow of chat history messages in the Ape
          ▼
 ┌─────────────────────────────────────────────┐
 │  Service Layer                              │
-│  aperag/service/chat_service.py             │
+│  sapilot/service/chat_service.py             │
 │  - get_chat()                               │
 │  - Business Logic Orchestration             │
 └────────┬────────────────────────────────────┘
@@ -53,7 +53,7 @@ This document details the complete data flow of chat history messages in the Ape
 
 ### 1. View Layer - HTTP Request Handling
 
-**File**: `aperag/views/chat.py`
+**File**: `sapilot/views/chat.py`
 
 ```python
 @router.get("/bots/{bot_id}/chats/{chat_id}")
@@ -75,11 +75,11 @@ async def get_chat_view(
 
 ### 2. Service Layer - Business Logic Orchestration
 
-**File**: `aperag/service/chat_service.py`
+**File**: `sapilot/service/chat_service.py`
 
 ```python
 async def get_chat(self, user: str, bot_id: str, chat_id: str) -> view_models.ChatDetails:
-    from aperag.utils.history import query_chat_messages
+    from sapilot.utils.history import query_chat_messages
     
     # Step 1: Query Chat metadata from PostgreSQL
     chat = await self.db_ops.query_chat(user, bot_id, chat_id)
@@ -106,7 +106,7 @@ async def get_chat(self, user: str, bot_id: str, chat_id: str) -> view_models.Ch
 
 **Table**: `chat`
 
-**File**: `aperag/db/models.py`
+**File**: `sapilot/db/models.py`
 
 ```python
 class Chat(Base):
@@ -128,7 +128,7 @@ class Chat(Base):
 
 #### 3.2 Redis - Message History
 
-**File**: `aperag/utils/history.py`
+**File**: `sapilot/utils/history.py`
 
 **Key Format**: `message_store:{chat_id}`
 
@@ -331,7 +331,7 @@ class StoredChatMessagePart(BaseModel):
 
 ### API Response Format
 
-**ChatDetails Schema** (`aperag/api/components/schemas/chat.yaml`):
+**ChatDetails Schema** (`sapilot/api/components/schemas/chat.yaml`):
 
 ```yaml
 chatDetails:
@@ -605,13 +605,13 @@ part_id = "uuid-part-1"           # Part level (each part is independent)
 ## Related Files
 
 ### Core Implementation
-- `aperag/views/chat.py` - View layer interface
-- `aperag/service/chat_service.py` - Service layer business logic
-- `aperag/utils/history.py` - Redis message history management
-- `aperag/chat/history/message.py` - Message data structures
-- `aperag/db/models.py` - Database models
-- `aperag/db/repositories/chat.py` - Chat database operations
-- `aperag/api/components/schemas/chat.yaml` - OpenAPI Schema
+- `sapilot/views/chat.py` - View layer interface
+- `sapilot/service/chat_service.py` - Service layer business logic
+- `sapilot/utils/history.py` - Redis message history management
+- `sapilot/chat/history/message.py` - Message data structures
+- `sapilot/db/models.py` - Database models
+- `sapilot/db/repositories/chat.py` - Chat database operations
+- `sapilot/api/components/schemas/chat.yaml` - OpenAPI Schema
 
 ### Frontend Implementation
 - `web/src/app/workspace/bots/[botId]/chats/[chatId]/page.tsx` - Chat detail page
@@ -619,7 +619,7 @@ part_id = "uuid-part-1"           # Part level (each part is independent)
 
 ## Summary
 
-ApeRAG's chat history message system adopts **Hybrid Storage + Part-Based Message Design**:
+SAPilot's chat history message system adopts **Hybrid Storage + Part-Based Message Design**:
 
 1. **PostgreSQL** stores Chat metadata and feedback (persistence, queryable)
 2. **Redis** stores message history (high performance, expiration support)

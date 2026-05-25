@@ -156,7 +156,7 @@ CREATE TABLE prompt_template (
 
 ### PromptTemplateService
 
-**位置**：`aperag/service/prompt_template_service.py`
+**位置**：`sapilot/service/prompt_template_service.py`
 
 **核心方法**：
 

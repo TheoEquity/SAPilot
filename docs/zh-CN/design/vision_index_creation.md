@@ -1,8 +1,8 @@
-# ApeRAG Vision Index 创建流程技术文档
+# SAPilot Vision Index 创建流程技术文档
 
 ## 1. 概述
 
-本文档旨在为 ApeRAG 系统设计一套全新的 "Vision Index" 方案。随着多媒体数据的日益增多，为图像等视觉内容建立高效的索引和召回机制变得至关重要。Vision Index 将作为对现有 Vector Index、FullText Index 和 Graph Index 的补充，专门处理图像等多媒体文档，增强系统对视觉信息的理解和检索能力。
+本文档旨在为 SAPilot 系统设计一套全新的 "Vision Index" 方案。随着多媒体数据的日益增多，为图像等视觉内容建立高效的索引和召回机制变得至关重要。Vision Index 将作为对现有 Vector Index、FullText Index 和 Graph Index 的补充，专门处理图像等多媒体文档，增强系统对视觉信息的理解和检索能力。
 
 ### 1.1 设计目标
 
@@ -42,7 +42,7 @@ graph TB
 #### 2.1.1 数据库模型扩展
 为了支持 Vision Index，`DocumentIndex` 模型需要扩展。
 
-**`aperag/db/models.py`**
+**`sapilot/db/models.py`**
 ```python
 class DocumentIndexType(str, Enum):
     VECTOR = "VECTOR"
@@ -92,19 +92,19 @@ def create_index_task(self, document_id: str, index_type: str, ...):
     # ...
 ```
 
-一个新的 `aperag/index/vision_index.py` 文件将包含 `VisionIndexer` 类，负责具体的实现。该类将继承自 `aperag/index/base.py` 中的 `BaseIndexer`。
+一个新的 `sapilot/index/vision_index.py` 文件将包含 `VisionIndexer` 类，负责具体的实现。该类将继承自 `sapilot/index/base.py` 中的 `BaseIndexer`。
 
 ### 2.4 现有服务扩展
 
 #### 2.4.1 `EmbeddingService` 扩展
-`aperag/llm/embed/embedding_service.py` 需要进行如下扩展：
+`sapilot/llm/embed/embedding_service.py` 需要进行如下扩展：
 
 - **重载输入类型**: `embed_documents` 方法的输入参数 `texts: List[str]` 需要重载，使其能够接受 `List[Union[str, Image]]`，其中 `Image` 可以是图像的二进制数据或路径。
 - **逻辑分支**: 在方法内部，需要增加类型检查。如果输入是图像，则调用多模态 embedding 模型的特定逻辑；如果输入是文本，则保持现有逻辑。
 - **底层调用**: `_embed_batch` 方法中，调用 `litellm.embedding` 时，需要根据输入类型构建不同的 `input` 参数，以符合多模态模型的要求。
 
 #### 2.4.2 `CompletionService` 扩展
-`aperag/llm/completion/completion_service.py` 需要进行如下扩展：
+`sapilot/llm/completion/completion_service.py` 需要进行如下扩展：
 
 - **支持多模态消息**: `_build_messages` 方法需要改造，使其能构建符合 VLM（如 GPT-4o）要求的图文混合消息体。例如，`content` 字段可以是一个包含文本和图像 URL 的列表。
 - **接口参数调整**: `agenerate` 等核心方法的 `prompt` 参数需要能够接收图像信息。
@@ -248,7 +248,7 @@ Vision Index 的创建任务将完全融入现有的异步任务体系，因此�
 
 ## 7. 总结
 
-本方案为 ApeRAG 设计了一个可扩展、高内聚的 Vision Index 框架。它不仅在功能上补全了系统对多媒体数据的处理能力，在架构上也与现有设计哲学深度融合。
+本方案为 SAPilot 设计了一个可扩展、高内聚的 Vision Index 框架。它不仅在功能上补全了系统对多媒体数据的处理能力，在架构上也与现有设计哲学深度融合。
 
 ### 核心技术特点
 
@@ -258,4 +258,4 @@ Vision Index 的创建任务将完全融入现有的异步任务体系，因此�
 4.  **配置灵活**: 用户可在创建 Collection 时自主选择是否启用视觉索引，并指定使用的具体模型，满足不同场景的需求。
 5.  **生产就绪**: 方案内置了完整的错误处理、重试机制和状态管理，确保了在生产环境中的稳定性和可靠性。
 
-通过这些设计，Vision Index 不仅是一个功能模块的增加，更是对 ApeRAG 整个 RAG 体系能力的有力增强。
+通过这些设计，Vision Index 不仅是一个功能模块的增加，更是对 SAPilot 整个 RAG 体系能力的有力增强。
