@@ -1519,7 +1519,7 @@ class AgentChatService:
             await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[], skill_id=skill_id))
 
             return {
-                "query": effective_agent_message.query,
+                "query": agent_message.query,
                 "content": full_content,
                 "references": tool_references,
             }
@@ -1529,7 +1529,7 @@ class AgentChatService:
             error_msg = f"Skill execution failed: {str(e)}"
             await message_queue.put(format_stream_content(message_id, error_msg, skill_id=skill_id))
             await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=skill_id))
-            return {"query": effective_agent_message.query, "content": error_msg, "references": []}
+            return {"query": agent_message.query, "content": error_msg, "references": []}
 
     def _build_faq_choice_end_response(self, language: Optional[str]) -> str:
         if language == "zh-CN":

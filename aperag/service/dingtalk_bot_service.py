@@ -125,8 +125,9 @@ class DingTalkBotService:
         default_collections = await self._default_collections(user_id, bot_config)
         chat = await self._get_or_create_dingtalk_chat(user_id, bot.id, payload)
         files = await self._upload_dingtalk_attachments_to_chat(chat.id, user_id, payload)
-        if files:
-            ready, failed_files = await self._wait_for_chat_documents_ready(files)
+        pending_parse_files = [file for file in files if not self._is_image_file(file)]
+        if pending_parse_files:
+            ready, failed_files = await self._wait_for_chat_documents_ready(pending_parse_files)
             if not ready:
                 failed_text = f"，失败附件：{', '.join(failed_files)}" if failed_files else ""
                 return self._text_response(f"附件已收到，正在解析中，请稍后再试{failed_text}。")
@@ -497,6 +498,11 @@ class DingTalkBotService:
             logger.info("Some DingTalk chat documents failed indexing: %s", failed_files)
             return False, failed_files
         return True, []
+
+    @staticmethod
+    def _is_image_file(file: view_models.File) -> bool:
+        name = (getattr(file, "name", None) or "").lower()
+        return name.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"))
 
     async def _build_upload_file_from_dingtalk_attachment(
         self, attachment: Dict[str, str], payload: Dict[str, Any], index: int
