@@ -1273,7 +1273,11 @@ class AgentChatService:
                 )
 
         effective_query_prompt = resolved_query_prompt
-        if skill_id == "Skill-002" and self._has_image_files(effective_agent_message.files):
+        if (
+            skill_id == "Skill-002"
+            and self._has_image_files(effective_agent_message.files)
+            and not self._skill_has_tool(skill_config, "search_faq_by_chat_image")
+        ):
             logger.info(
                 "FAQ image presearch chat=%s message=%s files=%s collections=%s",
                 chat_id,
@@ -1726,6 +1730,22 @@ class AgentChatService:
     def _is_confirmed_faq_image_search_hit(self, result: DocumentWithScore) -> bool:
         score = result.score if result else None
         return isinstance(score, (int, float)) and score >= self._get_faq_image_confirmed_similarity()
+
+    def _skill_has_tool(self, skill_config: Optional[view_models.SkillConfig], tool_id: str) -> bool:
+        if not skill_config or not tool_id:
+            return False
+
+        for binding in skill_config.tools or []:
+            if binding.enabled and binding.tool_id == tool_id:
+                return True
+
+        if skill_config.flow:
+            for node in skill_config.flow.nodes:
+                node_tools = node.data.get("tools", []) if isinstance(node.data, dict) else []
+                if isinstance(node_tools, list) and tool_id in node_tools:
+                    return True
+
+        return False
 
     def _extract_faq_title(self, metadata: Optional[dict], chunk_text: str) -> str:
         """Extract FAQ title from metadata first, then fallback to parsing chunk text."""

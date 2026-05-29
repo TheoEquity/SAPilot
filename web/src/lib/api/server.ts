@@ -19,7 +19,7 @@ const request = axios.create({
   baseURL:
     (process.env.API_SERVER_ENDPOINT || 'http://localhost:8000') +
     (process.env.API_SERVER_BASE_PATH || '/api/v1'),
-  timeout: 1000 * 5,
+  timeout: 1000 * 15,
 });
 
 request.interceptors.request.use(
