@@ -1,6 +1,7 @@
 import { Toaster } from '@/components/ui/sonner';
 import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import { Geist, Geist_Mono } from 'next/font/google';
 import NextTopLoader from 'nextjs-toploader';
 
@@ -8,8 +9,6 @@ import { AppProvider } from '@/components/providers/app-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import 'highlight.js/styles/github-dark.css';
 import './globals.css';
-
-import { getTranslations } from 'next-intl/server';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -38,13 +37,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
@@ -53,7 +55,7 @@ export default function RootLayout({
           showSpinner={false}
           crawl={false}
         />
-        <NextIntlClientProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
           <ThemeProvider
             attribute="class"
             defaultTheme={process.env.NEXT_PUBLIC_DEFAULT_THEME || 'system'}

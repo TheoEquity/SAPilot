@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import json
+import logging
 from typing import Any
 
 import httpx
@@ -22,6 +23,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from aperag.db import models as db_models
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops, db_ops
 from aperag.exceptions import ResourceNotFoundException, ValidationException
+
+logger = logging.getLogger(__name__)
 
 DINGTALK_SETTING_KEYS = {
     "dingtalk_enabled",
@@ -122,7 +125,12 @@ class SettingService:
             result = await session.execute(stmt)
             bot = result.scalars().first()
             if not bot:
-                raise ResourceNotFoundException("Bot", bot_id)
+                logger.warning(
+                    f"Referenced DingTalk Bot '{bot_id}' not found for user {admin_user_id}, clearing binding settings"
+                )
+                settings.pop("dingtalk_bot_id", None)
+                settings.pop("dingtalk_enabled", None)
+                return
             if bot.type != db_models.BotType.AGENT:
                 raise ValidationException("DingTalk integration can only bind an Agent Bot")
             if not bot.is_protected:
