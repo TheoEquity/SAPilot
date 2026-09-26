@@ -168,6 +168,7 @@ local-storage
 cursorplans
 celerybeat-schedule.db
 frontend/node_modules/
+/.run/
 
 # OpenAPI Generator CLI may create this when invoked from the repo root.
 /openapitools.json
