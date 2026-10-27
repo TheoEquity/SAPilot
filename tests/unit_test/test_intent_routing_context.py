@@ -31,6 +31,7 @@ class RecordingRouter:
     async def generate_str(self, prompt, params):
         messages = list(self.history.get()) if params.use_history else []
         self.calls.append((messages, prompt))
+        self.last_params = params
         return self.response
 
 
@@ -49,7 +50,7 @@ class TestIntentRoutingContext(unittest.IsolatedAsyncioTestCase):
         self.bot = view_models.BotConfig.model_validate({
             "orchestration": {"intent_router": {
                 "id": "router", "name": "test", "fallback_skill_id": "basic_qa",
-                "llm": {"provider": "test", "model": "test"},
+                "llm": {"provider": "test", "model": "test", "max_tokens": 2048},
                 "prompt_template": "Classify {{query}} using {{skills}}. Explicit new topics override history.",
                 "candidate_skills": [
                     {"skill_id": skill, "label": skill}
@@ -106,6 +107,10 @@ class TestIntentRoutingContext(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.route("换个话题，查REPORT自测规范。"), "ops_policy")
         self.assertIn("换个话题", self.router.calls[-1][1])
         self.assertEqual(self.service.skill_context_buffers["chat-a"]["skill_id"], "ops_policy")
+
+    async def test_configured_routing_budget_is_forwarded(self):
+        await self.route('Classify this question')
+        self.assertEqual(self.router.last_params.maxTokens, 2048)
 
     async def test_forced_skill_still_bypasses_classifier(self):
         self.assertEqual(await self.route("继续", force_skill_id="ops_policy"), "ops_policy")
