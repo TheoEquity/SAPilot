@@ -640,7 +640,7 @@ class AgentChatService:
                 )
 
                 params = RequestParams(
-                    maxTokens=512, model=intent_router.llm.model, use_history=False,
+                    maxTokens=512, model=intent_router.llm.model, use_history=True,
                     max_iterations=1, temperature=float(intent_router.llm.temperature or 0),
                     user=user, tool_filter={"aperag": set()},
                 )
