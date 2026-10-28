@@ -1,5 +1,7 @@
 # SAPilot v1.2.0 – SAP Operations AI Agent Platform
 
+[Documentation index](docs/README.md) · [Project layout and Git submission rules](docs/zh-CN/reference/project-layout.md)
+
 SAPilot is an enterprise-grade AI assistant for SAP operations scenarios. Built as a secondary development of [apeRAG](https://github.com/apecloud/ApeRAG), it inherits powerful hybrid retrieval (Graph RAG, vector and full-text search) and multimodal processing capabilities, and is deeply customized for SAP operations: DingTalk integration, code attachment analysis, centralized prompt management, Agent orchestration UI, and more — enabling SAP consultants to resolve operations issues efficiently through natural language Q&A, screenshot diagnosis, and code document interpretation.
 
 > **Important:** This project is a fork of apeRAG, independently maintained at [TheoEquity/SAPilot](https://github.com/TheoEquity/SAPilot). The original apeRAG installation instructions and documentation are no longer applicable to this project.
@@ -188,7 +190,7 @@ SAPilot is built as a secondary development of [apeRAG](https://github.com/apecl
 - **Authors**: Zirui Guo, Lianghao Xia, Yanhua Yu, Tu Ao, Chao Huang
 - **License**: MIT License
 
-We have extensively modified LightRAG to support production-grade concurrent processing, distributed task queues (Celery/Prefect), and stateless operations. See our [LightRAG modifications changelog](./aperag/graph/changelog.md) for details.
+We have extensively modified LightRAG to support production-grade concurrent processing, distributed task queues (Celery/Prefect), and stateless operations. See our [LightRAG modifications changelog](./aperag/graph/lightrag/CHANGELOG.md) for details.
 
 ## License
 

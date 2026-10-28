@@ -58,7 +58,7 @@ services:
       - API_SERVER_ENDPOINT=http://api:8000
       - API_SERVER_BASE_PATH=/api/v1
     ports:
-      - "3000:3000"
+      - "${WEB_PORT:-3000}:3000"
 
   celeryworker:
     image: ${REGISTRY:-docker.io}/apecloud/aperag:${VERSION:-v1.2.0}
@@ -179,7 +179,7 @@ services:
     image: ${REGISTRY:-docker.io}/apecloud/elasticsearch:8.8.2
     container_name: aperag-es
     ports:
-      - "9200:9200"
+      - "${ES_PORT:-9200}:9200"
     environment:
       - "discovery.type=single-node"
       - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms1g -Xmx1g}"
