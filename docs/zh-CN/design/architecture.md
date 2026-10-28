@@ -7,6 +7,8 @@ position: 1
 
 # SAPilot 系统架构
 
+> 状态：既有通用架构与能力说明，未完成逐项实现和运行核验。当前离线部署约束、资源与排队方案见 [离线架构讨论稿](offline-deployment-draft.md)；文档导航见 [文档入口](../../README.md)。
+
 ## 1. 什么是 SAPilot
 
 SAPilot 是一个**开放的、Agentic 的 Graph RAG 平台**。它不仅仅是一个简单的向量检索系统，而是将知识图谱、多模态检索和智能 Agent 深度融合的生产级解决方案。
