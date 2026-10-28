@@ -1,0 +1,34 @@
+# All paths are relative to this file. Use a copy named baseline.local.yaml.
+api:
+  base_url: http://localhost:8000/api/v1
+  session_cookie: ${SAPILOT_SESSION}
+  timeout_seconds: 180
+langfuse_base_url: http://localhost:3300
+bot_id: ${SAPILOT_BOT_ID}
+dataset_name: sapilot-integration-smoke
+dataset_version: integration-smoke-v1
+rubric_version: diagnostic-v1-human-review-required
+dataset_path: datasets/integration-smoke.json
+report_dir: reports
+# Record the actual server image/commit, not the evaluator checkout's commit.
+runtime_revision: ${SAPILOT_RUNTIME_REVISION}
+knowledge_version: ${SAPILOT_KNOWLEDGE_VERSION}
+scope: integration-smoke-not-SAP-acceptance
+llm_for_eval:
+  api_base: ${EVAL_LLM_BASE_URL}
+  api_key: ${EVAL_LLM_API_KEY}
+  model: ${EVAL_LLM_MODEL}
+  temperature: 0
+embeddings_for_eval: null
+metrics:
+  - factual_correctness
+  - faithfulness
+readback_timeout_seconds: 90
+# Optional separate retrieval diagnostic. This is not the Agent's own retrieval.
+# Label real document IDs in cases before enabling it.
+# retrieval_probe:
+#   collection_id: ${SAPILOT_COLLECTION_ID}
+#   search:
+#     vector_search: {topk: 5, similarity: 0}
+#     fulltext_search: {topk: 5}
+#     rerank: false

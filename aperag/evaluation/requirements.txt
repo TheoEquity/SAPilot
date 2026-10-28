@@ -1,0 +1,9 @@
+# Isolated evaluator environment; does not upgrade SAPilot runtime dependencies.
+ragas==0.3.9
+langfuse==5.0.4
+langchain-openai==0.3.35
+langchain==0.3.27
+langchain-community==0.3.31
+websockets==15.0.1
+PyYAML>=6,<7
+python-dotenv>=1,<2

@@ -1,0 +1,19 @@
+[
+  {
+    "id": "identity",
+    "scenario": "integration",
+    "question": "你是做什么的，主要能帮助处理哪些 SAP 运维问题？",
+    "answer": "SAPilot 是面向 SAP 运维顾问的助手，目标场景包括 FAQ 故障问答、SAP 知识问答、ABAP 代码阅读和运维规章制度检索。应说明能力范围，不能把规划目标说成已经验证的能力。",
+    "expected_action": "answer",
+    "source": "docs/SAPILOT_PROJECT_CONTEXT.md sections 1-2; project goals, not verified implementation",
+    "required_identifiers": ["SAP", "ABAP"]
+  },
+  {
+    "id": "missing-evidence",
+    "scenario": "clarification",
+    "question": "SAP 系统出错了，帮我处理一下。没有其他信息。",
+    "answer": "应先询问错误文本或错误号、发生场景和必要的系统信息，不能在没有证据时编造具体故障原因或直接指示生产变更。",
+    "expected_action": "clarify",
+    "source": "docs/SAPILOT_PROJECT_CONTEXT.md sections 6-7"
+  }
+]

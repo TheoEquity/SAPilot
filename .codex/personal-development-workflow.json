@@ -1,0 +1,7 @@
+{
+  "database": "~/.codex/change-ledger/sapilot.sqlite3",
+  "repositories": {
+    "SAPilot": "D:/CodexData/CodexPlusPlus-Projects/SAPilot"
+  }
+}
+
