@@ -15,6 +15,7 @@ import subprocess
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from uuid import NAMESPACE_URL, uuid5
 
 import httpx
@@ -88,6 +89,43 @@ def validate_langfuse_destination(config):
     if not expected or actual != expected:
         raise ValueError("LANGFUSE_BASE_URL must match config.langfuse_base_url")
     return expected
+
+
+def verify_experiment(lf, experiment_id, expected, started_at, timeout_seconds=60):
+    """Read back every case and numeric score; v4 may return JSON text for IO."""
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        visible = {}
+        item_count = 0
+        cursor = None
+        while True:
+            page = lf.api.experiments.list_items(
+                from_start_time=started_at, experiment_id=experiment_id,
+                fields="core,io,dataset,scores", limit=100, score_limit=50, cursor=cursor)
+            for item in page.data:
+                item_count += 1
+                output = item.output
+                if isinstance(output, str):
+                    try:
+                        output = json.loads(output)
+                    except json.JSONDecodeError:
+                        continue
+                if isinstance(output, dict) and "case_id" in output:
+                    visible[output["case_id"]] = {score.name: score.value for score in (item.scores or [])}
+            cursor = page.meta.cursor
+            if not cursor:
+                break
+        if item_count == len(expected) and set(visible) == set(expected) and all(
+            isinstance(visible[cid].get(name), (int, float)) and
+            math.isclose(visible[cid][name], value, rel_tol=1e-9, abs_tol=1e-9)
+            for cid, scores in expected.items() for name, value in scores.items()
+        ):
+            return {"experiment_id": experiment_id, "case_count": len(expected),
+                    "score_count": sum(len(scores) for scores in expected.values()),
+                    "verified_at": datetime.now(timezone.utc).isoformat()}
+        if time.monotonic() >= deadline:
+            raise TimeoutError("Langfuse experiment/score readback incomplete or values differ")
+        time.sleep(3)
 
 
 class BotClient:
@@ -308,26 +346,11 @@ def execute(config_path):
             evaluators=[evaluator], max_concurrency=1, metadata=metadata)
         lf.flush()
         # Verify all cases and all expected score names, rather than only HTTP acceptance.
-        expected = {row["case_id"]: set(row["scores"]) for row in results}
-        deadline = time.monotonic() + config.get("readback_timeout_seconds", 60)
-        while True:
-            visible = {}
-            cursor = None
-            while True:
-                page = lf.api.experiments.list_items(from_start_time=started_at,
-                    experiment_id=experiment.experiment_id, fields="core,io,dataset,scores",
-                    limit=100, score_limit=50, cursor=cursor)
-                for item in page.data:
-                    if isinstance(item.output, dict) and "case_id" in item.output:
-                        visible[item.output["case_id"]] = {score.name for score in (item.scores or [])}
-                cursor = page.meta.cursor
-                if not cursor:
-                    break
-            if len(expected) == len(cases) and all(names <= visible.get(cid, set()) for cid, names in expected.items()):
-                break
-            if time.monotonic() >= deadline:
-                raise TimeoutError("Langfuse experiment/score readback incomplete")
-            time.sleep(3)
+        if len(results) != len(cases):
+            raise RuntimeError("Not all dataset cases produced local records")
+        verify_experiment(lf, experiment.experiment_id,
+            {row["case_id"]: row["scores"] for row in results}, started_at,
+            config.get("readback_timeout_seconds", 60))
     except Exception as error:
         publication_error = type(error).__name__
         raise
@@ -350,14 +373,44 @@ def execute(config_path):
     return summary
 
 
+def verify_report(report_path):
+    """Recover an interrupted readback without rerunning the Bot or model judge."""
+    path = Path(report_path)
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if report["executed_cases"] != report["expected_cases"]:
+        raise ValueError("Cannot verify an incomplete local run")
+    url = urlsplit(report["experiment_url"])
+    base_url = validate_langfuse_destination({"langfuse_base_url": f"{url.scheme}://{url.netloc}"})
+    experiment_id = parse_qs(url.query)["baseline"][0]
+    started_at = datetime.strptime(report["run_name"], "baseline-%Y%m%dT%H%M%S%fZ").replace(
+        tzinfo=timezone.utc) - timedelta(seconds=5)
+    lf = Langfuse(base_url=base_url, public_key=os.environ["LANGFUSE_PUBLIC_KEY"],
+                  secret_key=os.environ["LANGFUSE_SECRET_KEY"])
+    try:
+        receipt = verify_experiment(lf, experiment_id,
+            {row["case_id"]: row["scores"] for row in report["results"]}, started_at)
+        receipt["verifier_revision"] = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        receipt["verifier_source_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+        if report.get("publication_error"):
+            report.setdefault("publication_error_history", []).append(report["publication_error"])
+        report.update(publication_verified=True, publication_error=None, publication_verification=receipt)
+        path.write_text(json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
+        print(f"Verified {receipt['case_count']} cases and {receipt['score_count']} scores: {path}")
+    finally:
+        lf.shutdown()
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--config")
+    source.add_argument("--verify-report", help="Retry only server readback of an existing baseline.json")
     parser.add_argument("--env-file", action="append", default=[])
     args = parser.parse_args()
     for path in args.env_file:
         load_dotenv(path, override=True)
-    summary = execute(args.config)
+    summary = verify_report(args.verify_report) if args.verify_report else execute(args.config)
     if summary["summary"]["request_failures"]:
         raise SystemExit(1)
 

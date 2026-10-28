@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,6 +13,8 @@ from aperag.evaluation.baseline import (
     retrieval_scores,
     summarize,
     validate_langfuse_destination,
+    verify_experiment,
+    verify_report,
 )
 from aperag.evaluation.run import EvaluationRunner
 
@@ -21,6 +25,54 @@ def test_explicit_selfhost_target_cannot_be_overridden_by_ambient_cloud(monkeypa
         validate_langfuse_destination({"langfuse_base_url": "http://localhost:3300"})
     monkeypatch.setenv("LANGFUSE_BASE_URL", "http://localhost:3300/")
     assert validate_langfuse_destination({"langfuse_base_url": "http://localhost:3300"}) == "http://localhost:3300"
+
+
+@pytest.mark.parametrize("serialized", [False, True])
+def test_readback_accepts_structured_or_json_text_outputs(serialized):
+    client = MagicMock()
+    output = {"case_id": "a"}
+    item = SimpleNamespace(output=json.dumps(output) if serialized else output,
+                           scores=[SimpleNamespace(name="quality", value=.75)])
+    client.api.experiments.list_items.return_value = SimpleNamespace(
+        data=[item], meta=SimpleNamespace(cursor=None))
+    receipt = verify_experiment(client, "run", {"a": {"quality": .75}},
+                                datetime.now(timezone.utc), timeout_seconds=0)
+    assert receipt["case_count"] == receipt["score_count"] == 1
+
+
+def test_readback_rejects_matching_score_names_with_wrong_values():
+    client = MagicMock()
+    item = SimpleNamespace(output='{"case_id":"a"}',
+                           scores=[SimpleNamespace(name="quality", value=0)])
+    client.api.experiments.list_items.return_value = SimpleNamespace(
+        data=[item], meta=SimpleNamespace(cursor=None))
+    with pytest.raises(TimeoutError):
+        verify_experiment(client, "run", {"a": {"quality": .75}},
+                          datetime.now(timezone.utc), timeout_seconds=0)
+
+
+def test_report_recovery_preserves_generation_provenance_without_model_calls(tmp_path, monkeypatch):
+    monkeypatch.setenv("LANGFUSE_BASE_URL", "http://localhost:3300")
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "public")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "secret")
+    path = tmp_path / "baseline.json"
+    original = {"expected_cases": 1, "executed_cases": 1,
+        "experiment_url": "http://localhost:3300/project/p/experiments/results?baseline=run",
+        "run_name": "baseline-20261028T001007366896Z", "publication_error": "TimeoutError",
+        "metadata": {"evaluator_revision": "original-generation"},
+        "results": [{"case_id": "a", "scores": {"quality": .75}}]}
+    path.write_text(json.dumps(original), encoding="utf-8")
+    with patch("aperag.evaluation.baseline.Langfuse"), \
+         patch("aperag.evaluation.baseline.verify_experiment", return_value={"case_count": 1, "score_count": 1}), \
+         patch("aperag.evaluation.baseline.subprocess.check_output", return_value="new-verifier"), \
+         patch("aperag.evaluation.baseline.BaselineRunner", side_effect=AssertionError("no judge setup")):
+        result = verify_report(path)
+    persisted = json.loads(path.read_text(encoding="utf-8"))
+    assert persisted == result
+    assert result["metadata"]["evaluator_revision"] == "original-generation"
+    assert result["publication_error_history"] == ["TimeoutError"]
+    assert result["publication_verification"]["verifier_revision"] == "new-verifier"
+    assert result["publication_verified"] is True
 
 
 def test_document_metrics_deduplicate_and_distinguish_recall_from_hit():
