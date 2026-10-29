@@ -53,6 +53,7 @@ from aperag.agent.exceptions import (
     handle_agent_error,
     safe_json_parse,
 )
+from aperag.agent.intent_router import route_intent
 from aperag.agent.response_types import AgentErrorResponse, AgentToolCallResultResponse
 from aperag.chat.history.message import StoredChatMessage, create_assistant_message
 from aperag.config import settings
@@ -578,92 +579,17 @@ class AgentChatService:
                 await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
                 return {"query": merged_agent_message.query, "content": error_msg, "references": []}
 
-            # NEW: Intent routing (bypass old _should_search_knowledge_base)
-            target_skill_id = None
             history_messages = await history.messages
             recent_messages = history_messages[-4:] if len(history_messages) > 4 else history_messages
-
-            if merged_agent_message.force_skill_id:
-                target_skill_id = merged_agent_message.force_skill_id
-                logger.info("Forced skill route: %s -> %s", merged_agent_message.query, target_skill_id)
-
-            # Step 1: Hard rules matching
-            if not target_skill_id and intent_router.mode == 'rules+llm' and intent_router.rules:
-                # Convert Pydantic models to dicts for try_hard_rules_match
-                rules_dict = [rule.model_dump() for rule in intent_router.rules]
-                matched = self.try_hard_rules_match(
-                    query=merged_agent_message.query,
-                    rules=rules_dict
-                )
-                if matched:
-                    target_skill_id = matched
-                    logger.info("Hard rule matched: %s -> %s", merged_agent_message.query, target_skill_id)
-
-            # Step 2: LLM intent classification
-            if not target_skill_id:
-                intent_message = merged_agent_message.model_copy(
-                    update={
-                        "completion": merged_agent_message.completion.model_copy(
-                            update={
-                                "model_service_provider": intent_router.llm.provider,
-                                "model": intent_router.llm.model,
-                            }
-                        )
-                    }
-                )
-                session = await self._get_agent_session(intent_message, user, chat_id, resolved_system_prompt)
-                llm = await session.get_llm(intent_router.llm.model)
-                
-                # Intent router only needs the last 1-2 turns for coreference resolution
-                # Take the most recent 4 messages (2 user + 2 assistant) max
-                import re as _re
-                intent_memory = SimpleMemory()
-                for msg in recent_messages:
-                    for openai_msg in msg.to_openai_format(include_tool_results=True):
-                        intent_memory.append(openai_msg)
-                
-                llm.history = intent_memory
-
-                candidate_skills = intent_router.candidate_skills
-                skills_desc = "\n".join([
-                    f"- {s.skill_id}: {s.label or ''} - {s.description or ''}"
-                    for s in candidate_skills if s.enabled
-                ])
-
-                prompt_template = intent_router.prompt_template or ""
-                prompt = prompt_template.replace("{{query}}", merged_agent_message.query)
-                prompt = prompt.replace("{{skills}}", skills_desc)
-                if not prompt.strip():
-                    prompt = (
-                        f"Classify into one skill:\n{skills_desc}\n\n"
-                        f"Query: {merged_agent_message.query}\nReply with skill_id only."
-                    )
-
-                # Always append the authoritative candidate skill list and exact-output rule.
-                # This keeps routing correct even if the saved prompt uses legacy aliases.
-                prompt = (
-                    f"{prompt.strip()}\n\n"
-                    f"Authoritative candidate skills (you must choose one exact skill_id from this list):\n"
-                    f"{skills_desc}\n\n"
-                    f"Current user input:\n{merged_agent_message.query}\n\n"
-                    f"Output exactly one skill_id from the authoritative candidate list above."
-                )
-
-                params = RequestParams(
-                    maxTokens=intent_router.llm.max_tokens, model=intent_router.llm.model, use_history=False,
-                    max_iterations=1, temperature=float(intent_router.llm.temperature or 0),
-                    user=user, tool_filter={"aperag": set()},
-                )
-                resp = await llm.generate_str(prompt, params)
-                classified = (resp or "").strip()
-
-                valid_ids = {s.skill_id for s in candidate_skills if s.enabled}
-                if classified in valid_ids:
-                    target_skill_id = classified
-                else:
-                    target_skill_id = intent_router.fallback_skill_id
-
-                logger.info("Intent classified: %s -> %s", merged_agent_message.query, target_skill_id)
+            target_skill_id = await route_intent(
+                merged_agent_message,
+                intent_router,
+                recent_messages,
+                user=user,
+                chat_id=chat_id,
+                resolved_system_prompt=resolved_system_prompt,
+                get_agent_session=self._get_agent_session,
+            )
 
             # Step 2.5: Manage skill-scoped context isolation
             # If switching skills, initialize a new buffer with recent history for continuity
@@ -867,52 +793,6 @@ class AgentChatService:
         if any(trigger in normalized for trigger in search_triggers):
             logger.info("KB search triggered: explicit search request '%s'", query)
             return "explicit"
-
-        return None
-
-    @staticmethod
-    def try_hard_rules_match(
-        query: str,
-        rules: list,
-    ) -> Optional[str]:
-        """Try to match hard rules against the query. Returns target_skill_id or None."""
-        def normalize_keyword_text(text: str) -> str:
-            normalized = (text or "").lower()
-            normalized = re.sub(r"[\s\t\r\n]+", "", normalized)
-            normalized = re.sub(r"[!！?？。,.，；;:：~～]", "", normalized)
-            normalized = re.sub(r"(查|看|搜|问)一下", r"\1", normalized)
-            normalized = re.sub(r"(查|看|搜|问)下", r"\1", normalized)
-            return normalized
-
-        normalized_query = normalize_keyword_text(query)
-
-        for rule in rules:
-            if not rule.get('enabled', True):
-                continue
-
-            rule_type = rule.get('rule_type', 'keyword')
-            value = rule.get('value', '')
-            target_skill_id = rule.get('target_skill_id', '')
-
-            if not value or not target_skill_id:
-                continue
-
-            matched = False
-            if rule_type == 'keyword':
-                normalized_value = normalize_keyword_text(value)
-                matched = (
-                    value in query
-                    or value.lower() in query.lower()
-                    or (normalized_value and normalized_value in normalized_query)
-                )
-            elif rule_type == 'regex':
-                try:
-                    matched = bool(re.search(value, query, re.IGNORECASE | re.UNICODE))
-                except re.error:
-                    continue
-
-            if matched:
-                return target_skill_id
 
         return None
 
