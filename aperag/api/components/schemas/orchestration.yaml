@@ -1,0 +1,396 @@
+CandidateSkill:
+  properties:
+    skill_id:
+      type: string
+    label:
+      type: string
+    description:
+      default: null
+      type:
+      - string
+      - 'null'
+    enabled:
+      default: true
+      type: boolean
+    examples:
+      default: null
+      anyOf:
+      - type: array
+        items:
+          type: string
+      - type: 'null'
+  required:
+  - skill_id
+  - label
+  type: object
+IntentRouterConfig:
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    description:
+      default: null
+      type:
+      - string
+      - 'null'
+    enabled:
+      default: true
+      type: boolean
+    mode:
+      default: llm
+      enum:
+      - llm
+      - rules+llm
+      type: string
+    llm:
+      $ref: '#/IntentRouterLLMConfig'
+    prompt_template:
+      type: string
+    confidence_threshold:
+      default: 0.6
+      type: number
+      description: Stored configuration; the current router does not compare confidence
+        scores.
+    fallback_skill_id:
+      type: string
+    candidate_skills:
+      items:
+        $ref: '#/CandidateSkill'
+      type: array
+      default: []
+    rules:
+      items:
+        $ref: '#/IntentRouterRule'
+      type: array
+      default: []
+    flow:
+      default: null
+      anyOf:
+      - $ref: '#/ReactFlowSchema'
+      - type: 'null'
+    meta:
+      default: null
+      additionalProperties: true
+      type:
+      - object
+      - 'null'
+  required:
+  - id
+  - name
+  - llm
+  - prompt_template
+  - fallback_skill_id
+  type: object
+IntentRouterLLMConfig:
+  properties:
+    provider:
+      type: string
+    model:
+      type: string
+    temperature:
+      default: 0
+      type: number
+    max_tokens:
+      default: 1024
+      type: integer
+    top_p:
+      default: null
+      type:
+      - number
+      - 'null'
+    timeout_ms:
+      default: null
+      type:
+      - integer
+      - 'null'
+  required:
+  - provider
+  - model
+  type: object
+IntentRouterRule:
+  properties:
+    rule_type:
+      enum:
+      - keyword
+      - regex
+      type: string
+    value:
+      type: string
+    target_skill_id:
+      type: string
+    enabled:
+      default: true
+      type: boolean
+    description:
+      default: null
+      type:
+      - string
+      - 'null'
+  required:
+  - rule_type
+  - value
+  - target_skill_id
+  type: object
+ReactFlowEdge:
+  properties:
+    id:
+      type: string
+    source:
+      type: string
+    target:
+      type: string
+    sourceHandle:
+      default: null
+      type:
+      - string
+      - 'null'
+    targetHandle:
+      default: null
+      type:
+      - string
+      - 'null'
+    type:
+      default: null
+      type:
+      - string
+      - 'null'
+    data:
+      default: null
+      additionalProperties: true
+      type:
+      - object
+      - 'null'
+  required:
+  - id
+  - source
+  - target
+  type: object
+ReactFlowNode:
+  properties:
+    id:
+      type: string
+    type:
+      type: string
+    position:
+      additionalProperties:
+        type: number
+      type: object
+    data:
+      additionalProperties: true
+      type: object
+  required:
+  - id
+  - type
+  - position
+  - data
+  type: object
+ReactFlowSchema:
+  properties:
+    version:
+      type: string
+    viewport:
+      default: null
+      anyOf:
+      - $ref: '#/ReactFlowViewport'
+      - type: 'null'
+    nodes:
+      items:
+        $ref: '#/ReactFlowNode'
+      type: array
+      default: []
+    edges:
+      items:
+        $ref: '#/ReactFlowEdge'
+      type: array
+      default: []
+  required:
+  - version
+  type: object
+ReactFlowViewport:
+  properties:
+    x:
+      type: number
+    y:
+      type: number
+    zoom:
+      type: number
+  required:
+  - x
+  - y
+  - zoom
+  type: object
+SkillCollection:
+  properties:
+    id:
+      type: string
+  required:
+  - id
+  type: object
+SkillConfig:
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    description:
+      default: null
+      type:
+      - string
+      - 'null'
+    enabled:
+      default: true
+      type: boolean
+    type:
+      default: workflow
+      enum:
+      - llm
+      - tool
+      - workflow
+      - hybrid
+      type: string
+    category:
+      default: null
+      type:
+      - string
+      - 'null'
+    runtime:
+      default: null
+      anyOf:
+      - $ref: '#/SkillRuntimeConfig'
+      - type: 'null'
+    prompts:
+      default: null
+      anyOf:
+      - $ref: '#/SkillPrompts'
+      - type: 'null'
+    tools:
+      items:
+        $ref: '#/SkillToolBinding'
+      type: array
+      default: []
+    io:
+      default: null
+      anyOf:
+      - $ref: '#/SkillIOConfig'
+      - type: 'null'
+    flow:
+      default: null
+      anyOf:
+      - $ref: '#/ReactFlowSchema'
+      - type: 'null'
+    collections:
+      items:
+        $ref: '#/SkillCollection'
+      type: array
+      default: []
+    meta:
+      default: null
+      additionalProperties: true
+      type:
+      - object
+      - 'null'
+  required:
+  - id
+  - name
+  type: object
+SkillIOConfig:
+  properties:
+    input_schema:
+      default: null
+      additionalProperties: true
+      type:
+      - object
+      - 'null'
+    output_schema:
+      default: null
+      additionalProperties: true
+      type:
+      - object
+      - 'null'
+  type: object
+SkillPrompts:
+  properties:
+    skill_prompt:
+      default: null
+      type:
+      - string
+      - 'null'
+  type: object
+SkillRuntimeConfig:
+  properties:
+    provider:
+      default: null
+      type:
+      - string
+      - 'null'
+    model:
+      default: null
+      type:
+      - string
+      - 'null'
+    temperature:
+      default: 0.7
+      type:
+      - number
+      - 'null'
+    max_tokens:
+      default: 2048
+      type:
+      - integer
+      - 'null'
+    top_p:
+      default: 1
+      type:
+      - number
+      - 'null'
+    timeout_ms:
+      default: 30000
+      type:
+      - integer
+      - 'null'
+  type: object
+SkillToolBinding:
+  properties:
+    tool_id:
+      type: string
+    enabled:
+      default: true
+      type: boolean
+    required:
+      default: false
+      type:
+      - boolean
+      - 'null'
+      description: Stored configuration; the current Skill executor does not enforce
+        this policy.
+    timeout_ms:
+      default: null
+      type:
+      - integer
+      - 'null'
+      description: Stored configuration; the current Skill executor does not enforce
+        this policy.
+    retry_count:
+      default: 0
+      type:
+      - integer
+      - 'null'
+      description: Stored configuration; the current Skill executor does not enforce
+        this policy.
+  required:
+  - tool_id
+  type: object
+OrchestrationConfig:
+  properties:
+    intent_router:
+      default: null
+      anyOf:
+      - $ref: '#/IntentRouterConfig'
+      - type: 'null'
+    skills:
+      items:
+        $ref: '#/SkillConfig'
+      type: array
+      default: []
+  type: object

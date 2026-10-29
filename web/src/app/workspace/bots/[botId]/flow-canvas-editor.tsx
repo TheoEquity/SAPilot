@@ -121,10 +121,11 @@ export const FlowCanvasEditor = ({
   const buildSchema = useCallback(
     (currNodes: Node[], currEdges: Edge[]): ReactFlowSchema => ({
       version: normalizedValue?.version || 'v2',
+      viewport: normalizedValue?.viewport,
       nodes: currNodes.map((n) => ({
         id: n.id,
         type: n.type || 'action',
-        position: n.position,
+        position: { ...n.position },
         data: n.data,
       })),
       edges: currEdges.map(
@@ -132,13 +133,14 @@ export const FlowCanvasEditor = ({
           id: e.id,
           source: e.source,
           target: e.target,
+          type: e.type,
           sourceHandle: e.sourceHandle ?? undefined,
           targetHandle: e.targetHandle ?? undefined,
           data: e.data,
         }),
       ),
     }),
-    [normalizedValue?.version],
+    [normalizedValue?.version, normalizedValue?.viewport],
   );
 
   const syncChanges = useCallback(

@@ -226,6 +226,8 @@ generate-models: merge-openapi
 		--output-model-type pydantic.BaseModel \
 		--target-python-version 3.11 \
 		--use-standard-collections \
+		--strict-nullable \
+		--encoding utf-8 \
 		--use-schema-description \
 		--enum-field-as-literal all \
 		--output-model-type pydantic_v2.BaseModel

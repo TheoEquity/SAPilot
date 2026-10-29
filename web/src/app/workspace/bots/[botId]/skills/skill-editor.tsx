@@ -238,21 +238,29 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
     }
 
     const nextSkill: OrchestrationSkill = {
+      ...existingSkill,
       id: values.id,
       name: values.name,
       description: values.description,
       enabled: values.enabled,
       type: values.type,
       runtime: {
+        ...existingSkill?.runtime,
         provider: values.provider,
         model: values.model,
         temperature: values.temperature,
         max_tokens: values.max_tokens,
       },
       prompts: {
+        ...existingSkill?.prompts,
         skill_prompt: values.skill_prompt,
       },
-      tools: values.tools || [],
+      tools: (values.tools || []).map((tool) => ({
+        ...existingSkill?.tools?.find(
+          (binding) => binding.tool_id === tool.tool_id,
+        ),
+        ...tool,
+      })),
       io: existingSkill?.io || {
         input_schema: {},
         output_schema: {},
@@ -647,21 +655,29 @@ export const SkillEditor = ({ skillId }: { skillId?: string }) => {
               onQuickSave={async (nextFlow) => {
                 const currentValues = form.getValues() as SkillEditorFormValues;
                 const nextSkill: OrchestrationSkill = {
+                  ...existingSkill,
                   id: currentValues.id,
                   name: currentValues.name,
                   description: currentValues.description,
                   enabled: currentValues.enabled,
                   type: currentValues.type,
                   runtime: {
+                    ...existingSkill?.runtime,
                     provider: currentValues.provider,
                     model: currentValues.model,
                     temperature: currentValues.temperature,
                     max_tokens: currentValues.max_tokens,
                   },
                   prompts: {
+                    ...existingSkill?.prompts,
                     skill_prompt: currentValues.skill_prompt,
                   },
-                  tools: currentValues.tools || [],
+                  tools: (currentValues.tools || []).map((tool) => ({
+                    ...existingSkill?.tools?.find(
+                      (binding) => binding.tool_id === tool.tool_id,
+                    ),
+                    ...tool,
+                  })),
                   io: existingSkill?.io || {
                     input_schema: {},
                     output_schema: {},
