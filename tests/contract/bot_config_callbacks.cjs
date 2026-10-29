@@ -142,7 +142,11 @@ function render(file, exportName, overrides = {}, options = {}) {
     success: [],
     errors: [],
     loads: 0,
+    pushes: [],
+    refreshes: 0,
+    events: [],
     fail: false,
+    failLoad: false,
     form: null,
   };
   const cache = new Map();
@@ -156,12 +160,16 @@ function render(file, exportName, overrides = {}, options = {}) {
     useState: (v) => [typeof v === 'function' ? v() : v, noop],
   };
   const jsx = {
-    jsx: (type, props) => ({ type, props }),
-    jsxs: (type, props) => ({ type, props }),
+    Fragment: 'Fragment',
+    jsx: (type, props) =>
+      typeof type === 'function' ? type(props) : { type, props },
+    jsxs: (type, props) =>
+      typeof type === 'function' ? type(props) : { type, props },
   };
   const apiClient = {
     defaultApi: {
       botsBotIdPut: async (req) => {
+        state.events.push('put');
         if (state.fail) throw Error('request failed');
         state.requests.push(structuredClone(req));
         return { data: req.botUpdate };
@@ -221,11 +229,25 @@ function render(file, exportName, overrides = {}, options = {}) {
       if (name === 'next-intl')
         return { useTranslations: () => (k) => k, useMessages: () => ({}) };
       if (name === 'next/navigation')
-        return { useRouter: () => ({ push: noop, refresh: noop }) };
+        return {
+          useRouter: () => ({
+            push: (value) => {
+              state.pushes.push(value);
+              state.events.push('push');
+            },
+            refresh: () => {
+              state.refreshes++;
+              state.events.push('refresh');
+            },
+          }),
+        };
       if (name === 'sonner')
         return {
           toast: {
-            success: (v) => state.success.push(v),
+            success: (v) => {
+              state.success.push(v);
+              state.events.push('success');
+            },
             error: (v) => state.errors.push(v),
           },
         };
@@ -234,15 +256,26 @@ function render(file, exportName, overrides = {}, options = {}) {
           useBotConfigContext: () => ({
             bot: state.bot,
             loadBot: async () => {
+              state.events.push('load');
               state.loads++;
+              if (state.failLoad) throw Error('refresh failed');
             },
           }),
         };
       if (name === '@/lib/api/client') return { apiClient };
       if (name.startsWith('@/components/') || name === 'lucide-react')
         return ui;
-      if (name.endsWith('flow-utils') || name.endsWith('bot-config-updater'))
+      if (
+        [
+          'flow-utils',
+          'bot-config-updater',
+          'use-skill-editor',
+          'skill-config',
+        ].some((moduleName) => name.endsWith(moduleName))
+      )
         return load(path.resolve(path.dirname(filename), name + '.ts'));
+      if (name.endsWith('skill-editor-fields'))
+        return load(path.resolve(path.dirname(filename), name + '.tsx'));
       if (name.startsWith('.')) return ui;
       return ui;
     };
@@ -292,7 +325,7 @@ const routes = [
       : () => find(state.tree, (n) => n.type === 'form').props.onSubmit();
   for (const [file, name, kind] of routes) {
     const state = render(file, name);
-    await actionFor(state, kind)();
+    const savedResult = await actionFor(state, kind)();
     assert.equal(
       state.requests.length,
       1,
@@ -327,6 +360,15 @@ const routes = [
       );
       assert.deepEqual(actual.orchestration.skills[0].tools, previous.tools);
       assert.deepEqual(actual.orchestration.skills[0].io, previous.io);
+      assert.deepEqual(actual.agent, baseline.config.agent);
+      const { candidate_skills, fallback_skill_id, ...savedRouter } =
+        actual.orchestration.intent_router;
+      const {
+        candidate_skills: previousCandidates,
+        fallback_skill_id: previousFallback,
+        ...previousRouter
+      } = baseline.config.orchestration.intent_router;
+      assert.deepEqual(savedRouter, previousRouter);
     }
     assert.deepEqual(
       actual.orchestration.skills[1],
@@ -338,6 +380,25 @@ const routes = [
       baseline.config.orchestration.intent_router.candidate_skills,
     );
     assert.deepEqual(actual.flow, baseline.config.flow);
+    if (kind === 'normal' || kind === 'quick') {
+      assert.equal(state.loads, 1);
+      assert.deepEqual(
+        state.pushes,
+        kind === 'normal' ? [`/workspace/bots/${baseline.id}/skills`] : [],
+      );
+      assert.equal(state.refreshes, kind === 'normal' ? 1 : 0);
+      assert.deepEqual(
+        state.success,
+        kind === 'normal' ? ['update_success'] : [],
+      );
+      assert.deepEqual(
+        state.events,
+        kind === 'normal'
+          ? ['put', 'load', 'success', 'push', 'refresh']
+          : ['put', 'load'],
+      );
+      if (kind === 'quick') assert.equal(savedResult, true);
+    }
     captures.push({ kind, request: state.requests[0] });
 
     const failed = render(file, name);
@@ -346,6 +407,31 @@ const routes = [
     assert.equal(failed.loads, 0);
     assert.equal(failed.success.length, 0);
     assert.equal(failed.requests.length, 0);
+    assert.deepEqual(failed.pushes, []);
+    assert.equal(failed.refreshes, 0);
+  }
+  // Ordinary Zod coercion and quick getValues retain their different payloads.
+  for (const kind of ['normal', 'quick']) {
+    const state = render('skills/skill-editor.tsx', 'SkillEditor', {
+      temperature: '0.8',
+      max_tokens: '1024',
+    });
+    await actionFor(state, kind)();
+    const runtime =
+      state.requests[0].botUpdate.config.orchestration.skills[0].runtime;
+    assert.equal(runtime.temperature, kind === 'normal' ? 0.8 : '0.8');
+    assert.equal(runtime.max_tokens, kind === 'normal' ? 1024 : '1024');
+  }
+  // A failed Provider refresh also stops the success/navigation path.
+  for (const kind of ['normal', 'quick']) {
+    const failedRefresh = render('skills/skill-editor.tsx', 'SkillEditor');
+    failedRefresh.failLoad = true;
+    await assert.rejects(actionFor(failedRefresh, kind), /refresh failed/);
+    assert.equal(failedRefresh.requests.length, 1);
+    assert.equal(failedRefresh.loads, 1);
+    assert.deepEqual(failedRefresh.success, []);
+    assert.deepEqual(failedRefresh.pushes, []);
+    assert.equal(failedRefresh.refreshes, 0);
   }
   // Explicit edits replace selected arrays/text; preservation does not resurrect removals.
   for (const kind of ['normal', 'quick']) {
