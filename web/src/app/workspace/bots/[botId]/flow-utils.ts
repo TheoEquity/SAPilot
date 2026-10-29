@@ -1,3 +1,4 @@
+import type { ReactFlowSchema as ApiReactFlowSchema } from '@/api/models/react-flow-schema';
 import type { ReactFlowEdge, ReactFlowNode, ReactFlowSchema } from './orchestration-types';
 
 export const buildEdgeId = (edge: {
@@ -34,7 +35,7 @@ export const EMPTY_FLOW: ReactFlowSchema = {
   edges: [],
 };
 
-export const normalizeFlowSchema = (flow?: ReactFlowSchema): ReactFlowSchema => {
+export const normalizeFlowSchema = (flow?: ApiReactFlowSchema | null): ReactFlowSchema => {
   const rawEdges = flow?.edges || [];
   const seenEdgeIds = new Set<string>();
 
@@ -52,13 +53,14 @@ export const normalizeFlowSchema = (flow?: ReactFlowSchema): ReactFlowSchema => 
     return {
       ...edge,
       id: nextId,
+      type: edge.type ?? undefined,
     };
   });
 
   return {
     version: flow?.version || EMPTY_FLOW.version,
     viewport: flow?.viewport || EMPTY_FLOW.viewport,
-    nodes: flow?.nodes || [],
+    nodes: (flow?.nodes || []) as ReactFlowNode[],
     edges: normalizedEdges,
   };
 };
@@ -77,7 +79,7 @@ export const getStartNodeIds = (nodes: ReactFlowNode[], edges: ReactFlowEdge[]) 
   return nodes.filter((node) => (indegree.get(node.id) || 0) === 0).map((node) => node.id);
 };
 
-export const getFlowDiagnostics = (flow?: ReactFlowSchema): FlowDiagnostics => {
+export const getFlowDiagnostics = (flow?: ApiReactFlowSchema | null): FlowDiagnostics => {
   const normalizedFlow = normalizeFlowSchema(flow);
   const nodeIds = new Set(normalizedFlow.nodes.map((node) => node.id));
   const startNodeIds = getStartNodeIds(normalizedFlow.nodes, normalizedFlow.edges);
@@ -115,7 +117,7 @@ export const getFlowDiagnostics = (flow?: ReactFlowSchema): FlowDiagnostics => {
   };
 };
 
-export const validateFlowSchema = (flow?: ReactFlowSchema): FlowValidationIssue[] => {
+export const validateFlowSchema = (flow?: ApiReactFlowSchema | null): FlowValidationIssue[] => {
   const normalizedFlow = normalizeFlowSchema(flow);
   const issues: FlowValidationIssue[] = [];
   const seenNodeIds = new Set<string>();

@@ -243,6 +243,7 @@ export const IntentRouterEditor = () => {
     const nextOrchestration = {
       ...orchestration,
       intent_router: {
+        ...intentRouter,
         id: intentRouter?.id || 'main_intent_router',
         name: values.name,
         description: values.description,
@@ -251,6 +252,7 @@ export const IntentRouterEditor = () => {
         fallback_skill_id: values.fallback_skill_id || validFallbackSkillId,
         confidence_threshold: values.confidence_threshold,
         llm: {
+          ...intentRouter?.llm,
           provider: values.llm_provider,
           model: values.llm_model,
           temperature: values.temperature,

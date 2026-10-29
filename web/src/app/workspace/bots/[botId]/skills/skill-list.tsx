@@ -41,7 +41,9 @@ export const SkillList = () => {
       intent_router: orchestration.intent_router
         ? {
             ...orchestration.intent_router,
-            fallback_skill_id: nextFallbackSkillId,
+            fallback_skill_id:
+              nextFallbackSkillId ??
+              orchestration.intent_router.fallback_skill_id,
             candidate_skills:
               orchestration.intent_router.candidate_skills?.filter(
                 (candidate) => candidate.skill_id !== skillId,
