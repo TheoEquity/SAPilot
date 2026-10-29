@@ -601,7 +601,17 @@ class AgentChatService:
 
             # Step 2: LLM intent classification
             if not target_skill_id:
-                session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
+                intent_message = merged_agent_message.model_copy(
+                    update={
+                        "completion": merged_agent_message.completion.model_copy(
+                            update={
+                                "model_service_provider": intent_router.llm.provider,
+                                "model": intent_router.llm.model,
+                            }
+                        )
+                    }
+                )
+                session = await self._get_agent_session(intent_message, user, chat_id, resolved_system_prompt)
                 llm = await session.get_llm(intent_router.llm.model)
                 
                 # Intent router only needs the last 1-2 turns for coreference resolution
@@ -640,7 +650,7 @@ class AgentChatService:
                 )
 
                 params = RequestParams(
-                    maxTokens=512, model=intent_router.llm.model, use_history=False,
+                    maxTokens=intent_router.llm.max_tokens, model=intent_router.llm.model, use_history=False,
                     max_iterations=1, temperature=float(intent_router.llm.temperature or 0),
                     user=user, tool_filter={"aperag": set()},
                 )
