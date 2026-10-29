@@ -1,4 +1,4 @@
-"""Execute unchanged service/session method ASTs without importing the runtime stack.
+"""Execute real service/router/session definition ASTs without importing the runtime stack.
 
 Only import-time infrastructure is substituted. RequestParams, SimpleMemory,
 DB/LLM/history/queue transports and MCP initialization are local test doubles;
@@ -121,11 +121,12 @@ def harness(monkeypatch):
         "format_stream_content": stream_content,
         "format_stream_end": stream_end,
     }
+    execute_definitions("aperag/agent/intent_router.py", {"route_intent", "try_hard_rules_match"}, scope)
     execute_definitions(
         "aperag/service/agent_chat_service.py",
         {"AgentChatService"},
         scope,
-        {"AgentChatService": {"process_agent_message", "_get_agent_session", "try_hard_rules_match"}},
+        {"AgentChatService": {"process_agent_message", "_get_agent_session", "_build_faq_choice_end_response"}},
     )
     service = scope["AgentChatService"]()
     history = History()
@@ -173,6 +174,7 @@ def harness(monkeypatch):
         initialized=initialized,
         config_class=config_scope["AgentConfig"],
         history=history,
+        rule_match=scope["try_hard_rules_match"],
     )
 
 
@@ -367,3 +369,114 @@ def test_bot_completion_fallback_is_preserved_for_skill_execution(harness):
     assert h.message.completion is None
     assert h.initialized[0].default_model == "intent-model"
     h.queue.close.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    "query,rules,expected",
+    [
+        ("请 查 一下！SAP", [{"value": "查SAP", "target_skill_id": "normalized"}], "normalized"),
+        ("SAP ERROR", [{"value": "sap error", "target_skill_id": "case"}], "case"),
+        ("SAP Error 42", [{"rule_type": "regex", "value": r"error\s+\d+", "target_skill_id": "regex"}], "regex"),
+        (
+            "SAP",
+            [
+                {"value": "SAP", "target_skill_id": "disabled", "enabled": False},
+                {"rule_type": "regex", "value": "[", "target_skill_id": "invalid"},
+                {"rule_type": "unknown", "value": "SAP", "target_skill_id": "unknown"},
+                {"value": "", "target_skill_id": "empty-value"},
+                {"value": "SAP", "target_skill_id": ""},
+                {"value": "SAP", "target_skill_id": "first"},
+                {"value": "SAP", "target_skill_id": "second"},
+            ],
+            "first",
+        ),
+        ("SAP", [{"value": "ABAP", "target_skill_id": "absent"}], None),
+    ],
+)
+def test_hard_rule_algorithm(harness, query, rules, expected):
+    assert harness.rule_match(query, rules) == expected
+
+
+def test_unmatched_rules_classify_once(harness):
+    h = harness
+    h.router.mode = "rules+llm"
+    h.router.rules = [models.IntentRouterRule(rule_type="keyword", value="ABAP", target_skill_id="absent")]
+    run(h)
+    h.llm.generate_str.assert_awaited_once()
+    assert_routed(h, "selected")
+
+
+@pytest.mark.parametrize("existing_skill", ["other", "selected"])
+def test_skill_context_switch_and_continuation(harness, existing_skill):
+    h = harness
+    previous = {"skill_id": existing_skill, "messages": [object()]}
+    h.service.skill_context_buffers["chat-a"] = previous
+    run(h)
+    current = h.service.skill_context_buffers["chat-a"]
+    if existing_skill == "selected":
+        assert current is previous
+    else:
+        assert current is not previous
+        assert current == {"skill_id": "selected", "messages": h.history.entries[-4:]}
+    assert_routed(h, "selected")
+
+
+@pytest.mark.parametrize(
+    "missing,expected",
+    [
+        ("orchestration", "Bot orchestration configuration is missing. Please configure intent router and skills in bot settings."),
+        ("router", "Intent router is not configured. Please configure the intent router."),
+        ("fallback_skill_id", "Intent router configuration incomplete. Missing: fallback skill"),
+        ("candidate_skills", "Intent router configuration incomplete. Missing: candidate skills"),
+        ("llm", "Intent router configuration incomplete. Missing: intent model"),
+        ("prompt_template", "Intent router configuration incomplete. Missing: prompt template"),
+    ],
+)
+def test_configuration_checks_still_precede_forced_routing(harness, missing, expected):
+    h = harness
+    h.message.force_skill_id = "forced"
+    if missing == "orchestration":
+        h.bot.orchestration = None
+    elif missing == "router":
+        h.bot.orchestration.intent_router = None
+    else:
+        setattr(h.router, missing, [] if missing == "candidate_skills" else None)
+    assert run(h) == {"query": "SAP query", "content": expected, "references": []}
+    assert h.queue.put.await_args_list == [
+        ((stream_start("message-a"),), {}),
+        ((stream_content("message-a", expected),), {}),
+        ((stream_end("message-a", references=[], urls=[]),), {}),
+    ]
+    h.service.db_ops.query_llm_provider_by_name.assert_not_awaited()
+    h.llm.generate_str.assert_not_awaited()
+    h.service._execute_skill.assert_not_awaited()
+    assert h.service.skill_context_buffers == {}
+    h.queue.close.assert_awaited_once()
+
+
+def test_faq_end_bypasses_router_configuration(harness):
+    h = harness
+    h.message.action = "faq_end"
+    h.bot.orchestration = None
+    expected = "好的，本次基于知识库标准答案的解答已结束。"
+    assert run(h) == {"query": "SAP query", "content": expected, "references": []}
+    h.service.history_manager.get_chat_history.assert_awaited_once_with("chat-a")
+    h.service.memory_manager.create_memory_from_history.assert_awaited_once_with(h.history, context_limit=4)
+    assert [call.args[0]["type"] for call in h.queue.put.await_args_list] == ["start", "message", "stop"]
+    h.service._execute_skill.assert_not_awaited()
+    h.llm.generate_str.assert_not_awaited()
+    h.queue.close.assert_awaited_once()
+
+
+def test_whitespace_prompt_retains_original_default_and_authoritative_suffix(harness):
+    h = harness
+    h.router.prompt_template = "   "
+    run(h)
+    description = "- selected: Selected - SAP"
+    assert h.llm.generate_str.await_args.args[0] == (
+        f"Classify into one skill:\n{description}\n\nQuery: SAP query\nReply with skill_id only.\n\n"
+        "Authoritative candidate skills (you must choose one exact skill_id from this list):\n"
+        f"{description}\n\nCurrent user input:\nSAP query\n\n"
+        "Output exactly one skill_id from the authoritative candidate list above."
+    )
+    assert_routed(h, "selected")
