@@ -46,6 +46,18 @@ AgentMessage:
       type: array
       items:
         $ref: './chat.yaml#/file'
+    force_skill_id:
+      type:
+        - string
+        - 'null'
+      description: Force execution of a specific orchestration skill and bypass intent routing
+      example: Skill-002
+    action:
+      type:
+        - string
+        - 'null'
+      description: Structured chat action, such as faq_expand or faq_end
+      example: faq_expand
   required:
     - query
     - collections

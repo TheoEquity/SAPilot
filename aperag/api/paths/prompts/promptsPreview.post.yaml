@@ -1,0 +1,19 @@
+/prompts/preview:
+  post:
+    summary: Preview prompt rendering
+    description: Preview how a prompt template will be rendered with given variables
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/prompt.yaml#/previewRequest
+    responses:
+      '200':
+        description: Rendered prompt
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/prompt.yaml#/previewResponse
+      '400':
+        description: Invalid template or variables

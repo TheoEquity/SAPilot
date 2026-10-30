@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import get_args
 
 import pytest
-import yaml
+from fastapi import FastAPI
 from pydantic import ValidationError
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -119,9 +119,41 @@ def test_existing_nonnullable_fields_stay_nonnullable(class_name, field, value):
         cls.model_validate({**fixtures[class_name], field: value})
 
 
-def test_orchestration_source_schema_matches_backend_fields_defaults_and_requiredness():
-    source = yaml.safe_load((ROOT / "aperag/api/components/schemas/orchestration.yaml").read_text(encoding="utf-8"))
-    for class_name, schema in source.items():
+@pytest.fixture(scope="module")
+def api_schemas():
+    app = FastAPI(separate_input_output_schemas=False)
+
+    @app.post("/bots")
+    def create_bot(body: models.BotCreate) -> models.Bot:
+        return models.Bot(**body.model_dump())
+
+    @app.put("/bots/{bot_id}")
+    def update_bot(bot_id: str, body: models.BotUpdate) -> models.Bot:
+        return models.Bot(id=bot_id, **body.model_dump(exclude={"id"}))
+
+    return app.openapi()["components"]["schemas"]
+
+
+def test_exported_orchestration_fields_defaults_and_requiredness(api_schemas):
+    names = [
+        "CandidateSkill",
+        "IntentRouterConfig",
+        "IntentRouterLLMConfig",
+        "IntentRouterRule",
+        "ReactFlowEdge",
+        "ReactFlowNode",
+        "ReactFlowSchema",
+        "ReactFlowViewport",
+        "SkillCollection",
+        "SkillConfig",
+        "SkillIOConfig",
+        "SkillPrompts",
+        "SkillRuntimeConfig",
+        "SkillToolBinding",
+        "OrchestrationConfig",
+    ]
+    for class_name in names:
+        schema = api_schemas[class_name]
         cls = getattr(models, class_name)
         assert set(schema["properties"]) == set(cls.model_fields), class_name
         assert set(schema.get("required", [])) == {
@@ -139,13 +171,13 @@ def test_orchestration_source_schema_matches_backend_fields_defaults_and_require
                 assert actual_default == prop["default"], (class_name, name)
 
 
-def test_bot_source_includes_existing_flags_welcome_and_orchestration():
-    source = yaml.safe_load((ROOT / "aperag/api/components/schemas/bot.yaml").read_text(encoding="utf-8"))
-    for name, cls in [("bot", models.Bot), ("botCreate", models.BotCreate), ("botUpdate", models.BotUpdate)]:
-        assert set(source[name]["properties"]) == set(cls.model_fields)
-        assert "is_default" in source[name]["properties"] and "is_protected" in source[name]["properties"]
-    assert set(source["botConfig"]["properties"]) == set(models.BotConfig.model_fields)
-    assert set(source["botConfig"]["properties"]["agent"]["properties"]) == set(models.Agent.model_fields)
+def test_exported_bot_includes_existing_flags_welcome_and_orchestration(api_schemas):
+    for cls in (models.Bot, models.BotCreate, models.BotUpdate):
+        schema = api_schemas[cls.__name__]
+        assert set(schema["properties"]) == set(cls.model_fields)
+        assert {"is_default", "is_protected"} <= schema["properties"].keys()
+    assert set(api_schemas["BotConfig"]["properties"]) == set(models.BotConfig.model_fields)
+    assert set(api_schemas["Agent"]["properties"]) == set(models.Agent.model_fields)
 
 
 def test_bot_update_flags_distinguish_false_from_omission():

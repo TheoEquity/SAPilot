@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "api:build": "yarn api:clean && yarn api:bundle && openapi-generator-cli generate && yarn api:clear",
-    "api:bundle": "redocly bundle ../aperag/api/openapi.yaml > ./src/api/openapi.merged.yaml",
-    "api:clean": "rm -rf ./src/api/*",
-    "api:clear": "rm -rf ./src/api/.openapi-generator && rm -rf ./src/api/.gitignore && rm -rf ./src/api/.npmignore && rm -rf ./src/api/.openapi-generator-ignore && rm -rf ./src/api/git_push.sh",
+    "api:build": "yarn api:export && yarn api:generate",
+    "api:bundle": "yarn api:export",
+    "api:export": "python ../scripts/export_openapi.py",
+    "api:generate": "orval --config orval.config.ts",
     "build": "yarn install && next build && ts-node scripts/build.mjs",
     "dev": "cp ./deploy/env.local.template ./.env && yarn install && next dev --turbopack",
     "lint": "next lint",
@@ -100,7 +100,8 @@
     "typewriter-effect": "^2.22.0",
     "use-local-storage-state": "^19.5.0",
     "vaul": "^1.1.2",
-    "zod": "^4.0.17"
+    "zod": "^4.0.17",
+    "axios": "1.16.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -130,7 +131,8 @@
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "tw-animate-css": "^1.3.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "orval": "8.45.0"
   },
   "engines": {
     "node": ">=20.16.0"

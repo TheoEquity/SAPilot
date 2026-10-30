@@ -36,6 +36,6 @@ QuestionSetService 提供问题集与问题的管理，并可从 Collection 文�
 
 前端已有评测创建、列表、详情结果和重试等组件。依据：[评测路由](../../../../aperag/views/evaluation.py)、[评测服务](../../../../aperag/service/evaluation_service.py)、[评测页面](../../../../web/src/app/workspace/collections/[collectionId]/evaluations/)。
 
-当前仍需验证题集代表性、模型可达、自动评分稳定性、暂停/恢复与失败重试一致性。历史评测原始结果留在项目旁的数据目录，不能替代当前版本的验收，目录见[项目目录约定](../../reference/project-layout.md)。
+当前仍需验证题集代表性、模型可达、自动评分稳定性、暂停/恢复与失败重试一致性。历史评测原始结果留在项目旁的数据目录，不能替代当前版本的验收，目录见[项目目录约定](../../../../specs/project-layout.md)。
 
 原始材料：[评测设计及核对记录](../pending-review/evaluation-design.md)。返回[当前说明目录](README.md)。

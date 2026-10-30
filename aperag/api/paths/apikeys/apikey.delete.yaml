@@ -1,0 +1,23 @@
+/apikeys/{apikey_id}:
+  delete:
+    summary: Delete API key
+    description: Delete API key
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: apikey_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: API key deleted successfully
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: API key not found

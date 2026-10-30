@@ -1,6 +1,6 @@
 # SAPilot v1.2.0 – SAP Operations AI Agent Platform
 
-[Documentation index](docs/README.md) · [Project layout and Git submission rules](docs/zh-CN/reference/project-layout.md)
+[Documentation index](docs/README.md) · [Project layout and Git submission rules](specs/project-layout.md)
 
 SAPilot is an enterprise-grade AI assistant for SAP operations scenarios. Built as a secondary development of [apeRAG](https://github.com/apecloud/ApeRAG), it inherits powerful hybrid retrieval (Graph RAG, vector and full-text search) and multimodal processing capabilities, and is deeply customized for SAP operations: DingTalk integration, code attachment analysis, centralized prompt management, Agent orchestration UI, and more — enabling SAP consultants to resolve operations issues efficiently through natural language Q&A, screenshot diagnosis, and code document interpretation.
 

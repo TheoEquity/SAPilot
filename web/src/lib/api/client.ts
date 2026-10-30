@@ -9,6 +9,7 @@ import {
   GraphApi,
   QuotasApi,
 } from '@/api';
+import { getBots } from '@/api/generated/bots/bots';
 import axios from 'axios';
 
 import { toast } from 'sonner';
@@ -46,6 +47,7 @@ request.interceptors.response.use(
 );
 
 export const apiClient = {
+  bots: getBots(request),
   defaultApi: new DefaultApi(configuration, undefined, request),
   graphApi: new GraphApi(configuration, undefined, request),
   quotasApi: new QuotasApi(configuration, undefined, request),

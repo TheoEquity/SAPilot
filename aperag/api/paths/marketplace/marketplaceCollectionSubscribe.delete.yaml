@@ -1,0 +1,40 @@
+/marketplace/collections/{collection_id}/subscribe:
+  delete:
+    summary: Unsubscribe from a Collection
+    description: Remove subscription to a Collection
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      description: Collection ID
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Successfully unsubscribed
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: Successfully unsubscribed
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Subscription not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

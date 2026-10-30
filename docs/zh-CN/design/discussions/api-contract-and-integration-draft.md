@@ -1,8 +1,10 @@
 # SAPilot 接口契约与前后端对接梳理讨论稿
 
+正式规则已提炼到[接口契约维护规约](../../../../specs/api-contract-conventions.md)。本稿正文保留原讨论时点的状态、差异与理由；常规开发从正式文档进入，未提炼的建议仍按原状态处理。
+
 记录日期：2026 年 10 月 29 日。状态：讨论记录。用户提出先梳理现有接口与前端组件的对接关系，并要求记录讨论。本稿包含初查发现与工作建议，不代表完整接口盘点、契约修正或运行验证已完成。
 
-后续进展：已另行完成[路由与调用定位、核心配置字段盘点](../../reference/api-component-config-inventory.md)，完整静态 HTTP 对应关系见[调用表](../../reference/http-api-component-matrix.md)。盘点已记录差异，契约修正与运行验证仍未执行；本稿继续保留为讨论记录。
+后续进展：已另行完成[路由与调用定位、核心配置字段盘点](../../reference/api-component-config-inventory.md)，完整静态 HTTP 对应关系见[调用表](../../reference/http-api-component-matrix.md)。Bot / 编排的局部契约对齐及真实 HTTP / 数据库保存回读已执行，具体结果和限制见[实施记录](../../../../records/architecture-implementation-record.md)。全量契约、聊天协议及完整业务运行尚未全部验收；本稿保留初查背景，并在下表区分已处理项与待核对项。
 
 建议在前后端重构前增加一次现状梳理：沿用已有 OpenAPI 与代码生成流程，先建立页面、业务组件、接口和后端处理的对应关系，再核对契约差异，最后开展模块拆分。
 
@@ -22,12 +24,12 @@ aperag/api/openapi.yaml 与引用的定义
 
 | 初查发现 | 源码依据 | 当前状态 |
 | --- | --- | --- |
-| 编排配置未完整进入定义 | [Bot YAML](../../../../aperag/api/components/schemas/bot.yaml)的 `botConfig` 没有 `orchestration`；[后端模型](../../../../aperag/schema/view_models.py)和[前端自定义类型](../../../../web/src/app/workspace/bots/[botId]/orchestration-types.ts)中已有 | 静态核对，待对齐 |
+| 编排配置曾未完整进入定义 | 实施前 Bot YAML 缺少 `orchestration`，而后端模型与前端类型已有；当前 [Bot YAML](../../../../aperag/api/components/schemas/bot.yaml)已引用编排定义，[前端编排类型](../../../../web/src/app/workspace/bots/[botId]/orchestration-types.ts)已引用生成类型 | 本项已局部对齐并验证保存回读；范围和限制见实施记录，全量生成契约尚未对齐 |
 | 聊天请求字段不同步 | 后端 `AgentMessage` 已有 `force_skill_id`、`action`，对应的 [Agent YAML](../../../../aperag/api/components/schemas/agent.yaml)中没有 | 静态核对，待对齐 |
 | 部分页面绕过生成 SDK 请求 | [备份页面](../../../../web/src/app/admin/configuration/backup-settings.tsx)使用 `fetch` 调用备份和 Bot 等接口 | 静态核对；直接请求本身不等于 bug，需纳入盘点 |
-| 文档占位接口与实际通信方式不同 | [`/agent/message` 的定义](../../../../aperag/api/paths/agent.yaml)标明仅供文档与模型生成；[实际聊天入口](../../../../aperag/views/chat.py)使用 WebSocket | 需分别标记，不能当成同一条已验证链路 |
+| 文档占位接口与实际通信方式不同 | [`/agent/message` 的定义](../../../../aperag/api/paths/agent/agent.post.yaml)标明仅供文档与模型生成；[实际聊天入口](../../../../aperag/views/chat.py)使用 WebSocket | 需分别标记，不能当成同一条已验证链路 |
 
-目前不建议直接重新生成并覆盖现有文件。前端生成脚本会先清理 `src/api/`，后端生成目标为 `aperag/schema/view_models.py`；在定义缺项尚未补齐时，覆盖可能丢失现有类型或字段。应先保留现有工作，再在隔离输出位置生成和比较。
+目前仍不建议直接全量生成并覆盖现有文件。前端生成脚本会先清理 `src/api/`，后端生成目标为 `aperag/schema/view_models.py`；首批只采用了相关产物，范围外仍有已知生成差异。后续应先保留现有工作，再在隔离输出位置生成和比较，范围见[契约测试说明](../../../../tests/contract/README.md)。
 
 ## 2 页面与业务组件对照表
 

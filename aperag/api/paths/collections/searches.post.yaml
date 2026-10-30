@@ -1,0 +1,31 @@
+/collections/{collection_id}/searches:
+  post:
+    summary: Search in collection
+    description: Search in a collection with different search types
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/collection.yaml#/searchRequest
+    responses:
+      '200':
+        description: Search results
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/collection.yaml#/searchResult
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

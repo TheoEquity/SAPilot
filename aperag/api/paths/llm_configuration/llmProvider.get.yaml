@@ -1,0 +1,30 @@
+/llm_providers/{provider_name}:
+  get:
+    summary: Get a specific LLM provider
+    description: Get a specific LLM provider by name
+    parameters:
+    - name: provider_name
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Provider name
+    responses:
+      '200':
+        description: LLM provider details
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/model.yaml#/llmProvider
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Provider not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

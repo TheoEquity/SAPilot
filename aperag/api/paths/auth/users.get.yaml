@@ -1,0 +1,17 @@
+/users:
+  get:
+    summary: Get all users
+    description: Get all users
+    responses:
+      '200':
+        description: Users fetched successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/auth.yaml#/userList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

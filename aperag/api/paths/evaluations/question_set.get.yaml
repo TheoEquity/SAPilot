@@ -1,0 +1,21 @@
+/question-sets/{qs_id}:
+  get:
+    tags:
+    - evaluation
+    summary: Get details of a question set
+    security:
+    - BearerAuth: []
+    operationId: get_question_set_api_v1_question_sets__qs_id__get
+    parameters:
+    - name: qs_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Successful Response
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/evaluation.yaml#/QuestionSetDetail

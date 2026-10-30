@@ -1,0 +1,30 @@
+/bots:
+  get:
+    summary: List bots
+    description: Get a list of bots
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    - name: page_size
+      in: query
+      schema:
+        type: integer
+        default: 10
+    responses:
+      '200':
+        description: List of bots
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/bot.yaml#/botList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
