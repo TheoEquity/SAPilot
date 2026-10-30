@@ -1,0 +1,50 @@
+/collections/{collection_id}/documents/upload:
+  post:
+    summary: Upload a single document
+    description: Upload a single document file to temporary storage (UPLOADED status)
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              file:
+                type: string
+                format: binary
+                description: Document file to upload
+            required:
+            - file
+    responses:
+      '200':
+        description: Document uploaded successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/document.yaml#/uploadDocumentResponse
+      '400':
+        description: Bad request - invalid file or file too large
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

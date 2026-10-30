@@ -1,0 +1,48 @@
+/marketplace/collections/{collection_id}/subscribe:
+  post:
+    summary: Subscribe to a Collection
+    description: Subscribe to a published Collection
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      description: Collection ID
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Successfully subscribed
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/marketplace.yaml#/SharedCollection
+      '400':
+        description: Bad request (e.g., Collection not published, self-subscription)
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '409':
+        description: Already subscribed
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

@@ -1,0 +1,44 @@
+/collections/{collection_id}/sharing:
+  get:
+    summary: Get collection sharing status
+    description: Get the sharing status of a collection (owner only)
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Collection ID
+    responses:
+      '200':
+        description: Collection sharing status
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/marketplace.yaml#/SharingStatusResponse
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '403':
+        description: Permission denied (not collection owner)
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

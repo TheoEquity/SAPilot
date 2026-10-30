@@ -1,0 +1,32 @@
+/prompts/system:
+  get:
+    summary: Get system default prompts
+    description: Get system default prompt configurations for reference
+    parameters:
+    - name: language
+      in: query
+      schema:
+        type: string
+        enum:
+        - zh-CN
+        - en-US
+        default: zh-CN
+    - name: type
+      in: query
+      schema:
+        type: string
+        enum:
+        - agent_system
+        - agent_query
+        - index_graph
+        - index_summary
+        - index_vision
+    responses:
+      '200':
+        description: System default prompts
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: ../../components/schemas/prompt.yaml#/systemPromptDetail
+              - $ref: ../../components/schemas/prompt.yaml#/systemPromptsResponse

@@ -1,0 +1,40 @@
+/bots/{bot_id}/chats:
+  get:
+    summary: List chats
+    description: Get a paginated list of chats
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: bot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number (1-based)
+    - name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      description: Number of items per page
+    responses:
+      '200':
+        description: Paginated list of chats
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/chat.yaml#/chatList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

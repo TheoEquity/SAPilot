@@ -1,0 +1,44 @@
+/collections/{collection_id}/documents/confirm:
+  post:
+    summary: Confirm documents to collection
+    description: Confirm uploaded documents and add them to the collection (change
+      status from UPLOADED to PENDING)
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/document.yaml#/confirmDocumentsRequest
+    responses:
+      '200':
+        description: Documents confirmed successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/document.yaml#/confirmDocumentsResponse
+      '400':
+        description: Bad request - invalid document IDs or quota exceeded
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

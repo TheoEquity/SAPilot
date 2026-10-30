@@ -1,0 +1,40 @@
+/collections/{collection_id}/documents/{document_id}/object:
+  get:
+    summary: Get document object
+    description: Get an object from a specific document
+    operationId: get_document_object
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: path
+      in: query
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Document object
+        content:
+          application/octet-stream: {}
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Document not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

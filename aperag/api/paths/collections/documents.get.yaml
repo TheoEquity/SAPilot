@@ -1,0 +1,65 @@
+/collections/{collection_id}/documents:
+  get:
+    summary: List documents
+    description: Get a paginated list of documents with sorting and search capabilities
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number (1-based)
+    - name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      description: Number of items per page
+    - name: sort_by
+      in: query
+      schema:
+        type: string
+        enum:
+        - name
+        - created
+        - updated
+        - size
+        - status
+      description: Field to sort by
+    - name: sort_order
+      in: query
+      schema:
+        type: string
+        enum:
+        - asc
+        - desc
+        default: desc
+      description: Sort order
+    - name: search
+      in: query
+      schema:
+        type: string
+      description: Search documents by name
+    responses:
+      '200':
+        description: Paginated list of documents
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/document.yaml#/documentList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

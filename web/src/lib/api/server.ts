@@ -9,6 +9,7 @@ import {
   GraphApi,
   QuotasApi,
 } from '@/api';
+import { getBots } from '@/api/generated/bots/bots';
 import { getLocale } from '@/services/cookies';
 import axios from 'axios';
 import { cookies } from 'next/headers';
@@ -41,6 +42,7 @@ request.interceptors.request.use(
 );
 
 const api = {
+  bots: getBots(request),
   defaultApi: new DefaultApi(configuration, undefined, request),
   graphApi: new GraphApi(configuration, undefined, request),
   quotasApi: new QuotasApi(configuration, undefined, request),

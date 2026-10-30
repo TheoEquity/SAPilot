@@ -16,9 +16,9 @@
 
 ## 使用边界
 
-准备前后端拆分时，先读[接口、组件与配置字段盘点](../../reference/api-component-config-inventory.md)及[HTTP 调用对应表](../../reference/http-api-component-matrix.md)。该盘点覆盖实施前路由、调用与核心字段差异；后续修正和验证以[实施记录](../../development/architecture-implementation-record.md)为准，不能继续把所有差异视为当前未修复。
+准备前后端拆分时，先读[接口、组件与配置字段盘点](../../reference/api-component-config-inventory.md)及[HTTP 调用对应表](../../reference/http-api-component-matrix.md)。该盘点覆盖实施前路由、调用与核心字段差异；后续修正和验证以[实施记录](../../../../records/architecture-implementation-record.md)为准，不能继续把所有差异视为当前未修复。
 
-上述专题根据 2026 年 10 月 29 日逐篇核对结果整理。后续代码实施、审核与验证的变化见[架构整理实施记录](../../development/architecture-implementation-record.md)，使用专题时需同时核对该记录和最新源码。工作区含既有未提交改动，不能只用最初 Git HEAD 复现全部内容；各篇保留源码链接和具体限制。
+上述专题根据 2026 年 10 月 29 日逐篇核对结果整理。后续代码实施、审核与验证的变化见[架构整理实施记录](../../../../records/architecture-implementation-record.md)，使用专题时需同时核对该记录和最新源码。工作区含既有未提交改动，不能只用最初 Git HEAD 复现全部内容；各篇保留源码链接和具体限制。
 
 “当前”指有对应实现，不代表已启用、权限审计通过或实际运行验收完成。部署、模型联通、并发、异常恢复和 SAP 内容质量仍需实际证据，不能由目录分类推定。
 

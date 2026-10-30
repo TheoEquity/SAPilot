@@ -1,0 +1,21 @@
+/prompts/user:
+  get:
+    summary: Get user prompts
+    description: Get user's prompt configuration with priority resolution and source
+      information
+    parameters:
+    - name: language
+      in: query
+      schema:
+        type: string
+        enum:
+        - zh-CN
+        - en-US
+        default: zh-CN
+    responses:
+      '200':
+        description: User prompts with resolution details
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/prompt.yaml#/userPromptsResponse

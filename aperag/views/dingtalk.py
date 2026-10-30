@@ -22,7 +22,8 @@ from aperag.service.dingtalk_bot_service import dingtalk_bot_service
 router = APIRouter(tags=["dingtalk"])
 
 
-@router.api_route("/dingtalk/bot/callback", methods=["GET", "HEAD"])
+@router.get("/dingtalk/bot/callback")
+@router.head("/dingtalk/bot/callback")
 async def dingtalk_bot_callback_check():
     return {"status": "ok", "service": "sapilot-dingtalk"}
 

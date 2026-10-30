@@ -1,0 +1,17 @@
+/default_models:
+  get:
+    summary: Get default model configurations
+    description: Get current default model settings for different scenarios
+    responses:
+      '200':
+        description: Default models configuration
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/model.yaml#/defaultModelsResponse
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

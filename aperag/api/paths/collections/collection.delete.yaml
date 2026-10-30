@@ -1,0 +1,15 @@
+/collections/{collection_id}:
+  delete:
+    summary: Delete a collection
+    description: Delete a collection
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '204':
+        description: Collection deleted successfully

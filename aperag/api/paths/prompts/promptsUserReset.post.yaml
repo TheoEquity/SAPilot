@@ -1,0 +1,19 @@
+/prompts/user/reset:
+  post:
+    summary: Reset user prompts
+    description: Batch reset user's prompt configurations
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/prompt.yaml#/resetPromptsRequest
+    responses:
+      '200':
+        description: Prompts reset successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/prompt.yaml#/resetPromptsResponse
+      '400':
+        description: Invalid request

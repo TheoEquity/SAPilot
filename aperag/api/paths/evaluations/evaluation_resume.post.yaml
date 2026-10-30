@@ -1,0 +1,21 @@
+/evaluations/{eval_id}/resume:
+  post:
+    tags:
+    - evaluation
+    summary: Resume an evaluation task
+    security:
+    - BearerAuth: []
+    operationId: resume_evaluation_api_v1_evaluations__eval_id__resume_post
+    parameters:
+    - name: eval_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Successful Response
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/evaluation.yaml#/Evaluation

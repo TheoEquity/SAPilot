@@ -1,0 +1,17 @@
+/apikeys:
+  get:
+    summary: Get API keys
+    description: Get API keys
+    responses:
+      '200':
+        description: API keys
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/apikey.yaml#/apiKeyList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

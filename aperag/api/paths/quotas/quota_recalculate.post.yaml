@@ -1,0 +1,55 @@
+/quotas/{user_id}/recalculate:
+  post:
+    summary: Recalculate user quota usage
+    description: Recalculate and update current usage for all quota types for a user
+      (admin only)
+    tags:
+    - quotas
+    parameters:
+    - name: user_id
+      in: path
+      description: User ID to recalculate quotas for
+      required: true
+      schema:
+        type: string
+        example: user123
+    responses:
+      '200':
+        description: Quota usage recalculated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Quota usage recalculated successfully
+                updated_usage:
+                  type: object
+                  additionalProperties:
+                    type: integer
+                  example:
+                    max_collection_count: 3
+                    max_document_count: 25
+                    max_bot_count: 2
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '403':
+        description: Forbidden - Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

@@ -1,0 +1,27 @@
+/export-tasks/{task_id}:
+  get:
+    summary: Get export task status
+    description: Query the status and progress of an export task.
+    operationId: getExportTask
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: task_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Export task ID
+    responses:
+      '200':
+        description: Export task details
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/export.yaml#/exportTaskResponse
+      '404':
+        description: Export task not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

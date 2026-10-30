@@ -1,0 +1,51 @@
+/quotas/{user_id}:
+  put:
+    summary: Update user quota
+    description: Update quota limit for a specific user (admin only)
+    tags:
+    - quotas
+    parameters:
+    - name: user_id
+      in: path
+      description: User ID to update quota for
+      required: true
+      schema:
+        type: string
+        example: user123
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/quota.yaml#/quotaUpdateRequest
+    responses:
+      '200':
+        description: Quota updated successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/quota.yaml#/quotaUpdateResponse
+      '400':
+        description: Invalid request data
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '403':
+        description: Forbidden - Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

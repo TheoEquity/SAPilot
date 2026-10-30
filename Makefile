@@ -47,9 +47,7 @@ install: venv
 .PHONY: dev install-hooks
 dev: install-uv venv install-addlicense install-hooks
 	@echo "Installing development tools..."
-	@command -v redocly >/dev/null || npm install @redocly/cli -g
-	@command -v openapi-generator-cli >/dev/null || npm install @openapitools/openapi-generator-cli -g
-	@command -v datamodel-codegen >/dev/null || uv tool install datamodel-code-generator
+	@echo "Install the locked frontend API tools with yarn install in web/."
 	@echo ""
 	@echo "✅ Development environment ready!"
 	@echo "📝 Next steps:"
@@ -213,25 +211,12 @@ evaluate:
 # Code Generation & API
 ##################################################
 
-# OpenAPI and model generation
-.PHONY: merge-openapi generate-models generate-frontend-sdk
-merge-openapi:
-	@cd aperag && npx --yes @redocly/cli bundle ./api/openapi.yaml > ./api/openapi.merged.yaml
+# Python models are maintained directly; OpenAPI is an exported artifact.
+.PHONY: export-openapi merge-openapi generate-frontend-sdk
+export-openapi:
+	@python scripts/export_openapi.py
 
-generate-models: merge-openapi
-	@datamodel-codegen \
-		--input aperag/api/openapi.merged.yaml \
-		--input-file-type openapi \
-		--output aperag/schema/view_models.py \
-		--output-model-type pydantic.BaseModel \
-		--target-python-version 3.11 \
-		--use-standard-collections \
-		--strict-nullable \
-		--encoding utf-8 \
-		--use-schema-description \
-		--enum-field-as-literal all \
-		--output-model-type pydantic_v2.BaseModel
-	@rm aperag/api/openapi.merged.yaml
+merge-openapi: export-openapi
 
 generate-frontend-sdk:
 	cd ./web && yarn api:build

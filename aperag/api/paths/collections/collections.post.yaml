@@ -1,0 +1,19 @@
+/collections:
+  post:
+    summary: Create a new collection
+    description: Create a new collection
+    security:
+    - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/collection.yaml#/collectionCreate
+    responses:
+      '201':
+        description: Collection created successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/collection.yaml#/collection

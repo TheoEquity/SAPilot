@@ -1,0 +1,33 @@
+/prompts/user/{prompt_type}:
+  delete:
+    summary: Delete user prompt
+    description: Delete user's specific prompt configuration (reset to system default)
+    parameters:
+    - name: prompt_type
+      in: path
+      required: true
+      schema:
+        type: string
+        enum:
+        - agent_system
+        - agent_query
+        - index_graph
+        - index_summary
+        - index_vision
+    - name: language
+      in: query
+      schema:
+        type: string
+        enum:
+        - zh-CN
+        - en-US
+        default: zh-CN
+    responses:
+      '200':
+        description: Prompt reset successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/prompt.yaml#/deleteUserPromptResponse
+      '404':
+        description: Prompt not customized by user

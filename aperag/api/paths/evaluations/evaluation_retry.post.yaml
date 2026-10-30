@@ -1,0 +1,30 @@
+/evaluations/{eval_id}/retry:
+  post:
+    tags:
+    - evaluation
+    summary: Retry failed items in an evaluation task
+    security:
+    - BearerAuth: []
+    operationId: retry_evaluation_api_v1_evaluations__eval_id__retry_post
+    parameters:
+    - name: eval_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: scope
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+        - failed
+        - all
+        default: failed
+    responses:
+      '200':
+        description: Successful Response
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/evaluation.yaml#/Evaluation

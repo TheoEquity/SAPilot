@@ -1,0 +1,36 @@
+/collections:
+  get:
+    summary: List collections
+    description: Get a list of collections (owned and optionally subscribed)
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    - name: page_size
+      in: query
+      schema:
+        type: integer
+        default: 10
+    - name: include_subscribed
+      in: query
+      schema:
+        type: boolean
+        default: true
+      description: Whether to include subscribed collections in results
+    responses:
+      '200':
+        description: List of collections
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/collection.yaml#/collectionViewList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

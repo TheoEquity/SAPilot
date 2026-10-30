@@ -1,0 +1,29 @@
+/llm_providers:
+  post:
+    summary: Create a new LLM provider
+    description: Create a new LLM provider with optional API key
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/model.yaml#/llmProviderCreateWithApiKey
+    responses:
+      '200':
+        description: LLM provider created successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/model.yaml#/llmProvider
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

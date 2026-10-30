@@ -1,6 +1,6 @@
 # SAPilot v1.2.0 – SAP 运维场景智能助手
 
-[文档入口](docs/README.md) · [目录与提交规则](docs/zh-CN/reference/project-layout.md)
+[文档入口](docs/README.md) · [目录与提交规则](specs/project-layout.md)
 
 SAPilot 是一个面向 SAP 运维场景的企业级 AI 智能助手。基于 [apeRAG](https://github.com/apecloud/ApeRAG) 二次开发，继承了其强大的混合检索（图谱 RAG、向量和全文搜索）和多模态处理能力，并针对 SAP 运维场景进行了深度定制：钉钉集成、代码附件分析、提示词集中管理、Agent 编排 UI 等特色能力，使 SAP 顾问能够通过自然语言问答、截图问诊、代码文档解读等方式高效解决运维问题。
 

@@ -1,0 +1,21 @@
+/bots/{bot_id}:
+  put:
+    summary: Update a bot
+    description: Update a bot
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: bot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/bot.yaml#/botUpdate
+    responses:
+      '200':
+        description: Bot updated successfully

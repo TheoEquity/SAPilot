@@ -1,0 +1,17 @@
+/evaluations/{eval_id}:
+  delete:
+    tags:
+    - evaluation
+    summary: Delete an evaluation task
+    security:
+    - BearerAuth: []
+    operationId: delete_evaluation_api_v1_evaluations__eval_id__delete
+    parameters:
+    - name: eval_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '204':
+        description: Successful Response
