@@ -20,11 +20,12 @@ dmypy.json
 aperag.egg-info/
 
 # Frontend development files (keep dist and deploy for production builds)
-frontend/node_modules
-frontend/.umi
-frontend/.umi-production
-frontend/yarn-error.log
-frontend/npm-debug.log*
+web/node_modules
+web/.next
+web/.umi
+web/.umi-production
+web/yarn-error.log
+web/npm-debug.log*
 
 # Development and build artifacts
 *.egg-info/
@@ -53,3 +54,11 @@ Thumbs.db
 
 # Object storage cache (runtime data)
 .objects/
+
+# Local credentials, workflow state and knowledge source material
+.env
+.env.*
+.codex/
+.run/
+downloads/
+测试用例/
