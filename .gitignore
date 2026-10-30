@@ -172,3 +172,9 @@ frontend/node_modules/
 
 # OpenAPI Generator CLI may create this when invoked from the repo root.
 /openapitools.json
+
+# Local SAP test case documents (keep out of Git)
+/测试用例/
+
+# Machine-specific workflow configuration and local state
+/.codex/

@@ -218,7 +218,7 @@ export const SearchTest = ({ children }: { children: ReactNode }) => {
                         <FormItem className="gap-1">
                           <FormControl>
                             <Slider
-                              value={[field.value]}
+                              value={[field.value ?? 0]}
                               onValueChange={(v) => field.onChange(v[0])}
                               min={0}
                               max={20}
@@ -240,7 +240,7 @@ export const SearchTest = ({ children }: { children: ReactNode }) => {
                         <FormItem className="gap-1">
                           <FormControl>
                             <Slider
-                              value={[field.value]}
+                              value={[field.value ?? 0]}
                               onValueChange={(v) => field.onChange(v[0])}
                               min={0}
                               max={1}
@@ -282,7 +282,7 @@ export const SearchTest = ({ children }: { children: ReactNode }) => {
                         <FormItem className="gap-1">
                           <FormControl>
                             <Slider
-                              value={[field.value]}
+                              value={[field.value ?? 0]}
                               onValueChange={(v) => field.onChange(v[0])}
                               min={0}
                               max={20}
@@ -323,7 +323,7 @@ export const SearchTest = ({ children }: { children: ReactNode }) => {
                         <FormItem className="gap-1">
                           <FormControl>
                             <Slider
-                              value={[field.value]}
+                              value={[field.value ?? 0]}
                               onValueChange={(v) => field.onChange(v[0])}
                               min={0}
                               max={20}
@@ -364,7 +364,7 @@ export const SearchTest = ({ children }: { children: ReactNode }) => {
                         <FormItem className="gap-1">
                           <FormControl>
                             <Slider
-                              value={[field.value]}
+                              value={[field.value ?? 0]}
                               onValueChange={(v) => field.onChange(v[0])}
                               min={0}
                               max={20}
@@ -386,7 +386,7 @@ export const SearchTest = ({ children }: { children: ReactNode }) => {
                         <FormItem className="gap-1">
                           <FormControl>
                             <Slider
-                              value={[field.value]}
+                              value={[field.value ?? 0]}
                               onValueChange={(v) => field.onChange(v[0])}
                               min={0}
                               max={1}
