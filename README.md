@@ -6,6 +6,27 @@ SAPilot is an enterprise-grade AI assistant for SAP operations scenarios. Built 
 
 > **Important:** This project is a fork of apeRAG, independently maintained at [TheoEquity/SAPilot](https://github.com/TheoEquity/SAPilot). The original apeRAG installation instructions and documentation are no longer applicable to this project.
 
+## Project Information Map
+
+This map helps the project owner find materials and keep track of how the project is organized. It can be refreshed during occasional documentation reviews; routine endpoint, field, or page changes do not require README updates. The README has no role in development execution or acceptance. Development conventions are referenced directly by [AGENTS.md](AGENTS.md).
+
+| What to find | Location | Purpose |
+| --- | --- | --- |
+| Product goals and SAP context | [Project context](docs/SAPILOT_PROJECT_CONTEXT.md) | The problem, business scope, and acceptance goals |
+| High-level architecture | [Engineering architecture](specs/engineering-architecture.md) | Module responsibilities, boundaries, and dependencies, without endpoint or field inventories |
+| Development conventions | [specs/](specs/) | Workflow, frontend, backend, database, and API conventions, separate from the architecture overview |
+| Development environment and file placement | [Environment guide](specs/development-guide.md), [project layout](specs/project-layout.md) | Local setup, running the project, and where files belong |
+| Implementation details and flows | [Current implementation explanations](docs/zh-CN/design/current/) | Message processing, ingestion, retrieval, storage, and related implementation details |
+| Discussion drafts and alternatives | [discussions/](docs/zh-CN/design/discussions/) | Ideas, rationale, and alternatives; discussion does not automatically establish a development decision |
+| Main project steps | [Development roadmap record](records/development-roadmap.md) | Overall steps, stage priorities, and open questions |
+| Implementation, review, and verification records | [records/](records/) | What changed in a particular round, what was checked, and what remains; kept separate from architecture and conventions |
+| Deployment, integrations, and other materials | [Documentation index](docs/README.md) | Deployment explanations, DingTalk and MCP integrations, test guides, and references |
+| Older materials | [Archive](docs/archive/), [historical designs](docs/zh-CN/design/historical/), [preserved drafts](docs/zh-CN/design/pending-review/) | Background and earlier proposals, rather than evidence of current behavior or development requirements |
+| Source code and automated tests | [aperag/](aperag/), [web/](web/), [tests/](tests/) | Backend, frontend, and test code |
+| Scripts and configuration templates | [scripts/](scripts/), [config/](config/), [envs/](envs/), [deploy/](deploy/) | Scripts, application configuration, and environment and deployment templates |
+| API maintenance and generated artifacts | [API conventions](specs/api-contract-conventions.md) | Python routes and models in `aperag/views/` and `aperag/schema/`; generated clients in `web/src/api/generated/`; local exported documentation in `.run/openapi/` |
+| Private materials and temporary artifacts | Sibling `../SAPilot-data/`; local `.run/` | Private documents, raw evaluations, and model weights in the former; temporary runtime and generated artifacts in the latter. Neither is committed. `models/` contains configuration catalogs, not weights |
+
 [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Docker Compose Deployment](#docker-compose-deployment)

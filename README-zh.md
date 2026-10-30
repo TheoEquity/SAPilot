@@ -6,6 +6,27 @@ SAPilot 是一个面向 SAP 运维场景的企业级 AI 智能助手。基于 [a
 
 > **重要说明：** 本项目为 apeRAG 的二次开发版本，已独立维护于 [TheoEquity/SAPilot](https://github.com/TheoEquity/SAPilot) 仓库。原版 apeRAG 的安装说明和文档不再适用于本项目。
 
+## 项目资料地图
+
+这份地图供项目负责人查阅资料、回顾项目组织方式，可以在阶段性整理时不定期更新。日常新增或修改接口、字段、页面，不需要同步修改 README；README 不参与开发流程或验收。实际开发约定由 [AGENTS.md](AGENTS.md) 直接引用具体规约。
+
+| 想了解什么 | 放在哪里 | 内容与用途 |
+| --- | --- | --- |
+| 产品目标与 SAP 业务背景 | [项目背景](docs/SAPILOT_PROJECT_CONTEXT.md) | 说明项目要解决什么问题、业务范围和验收方向 |
+| 高层架构 | [工程架构概述](specs/engineering-architecture.md) | 说明模块分别做什么、职责边界和依赖关系，不维护接口或字段清单 |
+| 开发规约 | [specs/](specs/) | 开发流程、前端、后端、数据库及接口维护约定，与架构概述分别存放 |
+| 开发环境与目录说明 | [开发环境说明](specs/development-guide.md)、[项目目录约定](specs/project-layout.md) | 查本地环境、运行方式及各类文件的归属 |
+| 具体实现与处理链路 | [当前实现说明](docs/zh-CN/design/current/) | 解释消息处理、摄取、检索和存储等实现，供深入查阅 |
+| 讨论稿与备选方案 | [discussions/](docs/zh-CN/design/discussions/) | 保留思路、理由和备选方案，讨论内容不自动成为开发决定 |
+| 项目大步骤 | [开发路线记录](records/development-roadmap.md) | 回顾整体推进步骤、阶段关注点和待明确事项 |
+| 实施、审核与验证记录 | [records/](records/) | 查某一轮改了什么、验证了什么、还剩什么；过程材料与架构、规约分开 |
+| 部署、集成与其他资料 | [文档目录](docs/README.md) | 汇集部署说明、钉钉与 MCP 集成、测试手册及参考资料 |
+| 旧资料与历史讨论 | [归档](docs/archive/)、[历史设计](docs/zh-CN/design/historical/)、[保留原稿](docs/zh-CN/design/pending-review/) | 供回顾背景和追溯旧方案，不代表当前实现或开发要求 |
+| 代码与自动化测试 | [aperag/](aperag/)、[web/](web/)、[tests/](tests/) | 分别是后端、前端和测试代码 |
+| 启动脚本与配置模板 | [scripts/](scripts/)、[config/](config/)、[envs/](envs/)、[deploy/](deploy/) | 脚本、应用配置和环境、部署模板 |
+| 接口维护与生成位置 | [接口规约](specs/api-contract-conventions.md) | Python 路由与模型位于 `aperag/views/`、`aperag/schema/`；前端生成代码位于 `web/src/api/generated/`，导出文档位于本地 `.run/openapi/` |
+| 私有资料与临时产物 | 项目旁的 `../SAPilot-data/`；项目内的 `.run/` | 前者保存私有语料、原始评测和模型权重，后者保存临时运行与生成产物；均不随仓库提交。`models/` 保存配置目录，不是模型权重 |
+
 [快速开始](#快速开始)
 - [核心特性](#核心特性)
 - [Docker Compose 部署](#docker-compose-部署)
