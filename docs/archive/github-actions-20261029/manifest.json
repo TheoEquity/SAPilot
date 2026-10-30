@@ -1,0 +1,111 @@
+{
+  "archivedOn": "2026-10-29",
+  "sourceCommit": "0aa67050890fddd66f669a23ea035c37ed586532",
+  "hashNote": "sha256AtMove verifies byte-preserving local moves; gitBlobOid verifies original Git content independently of checkout line endings.",
+  "files": [
+    {
+      "originalPath": ".github/workflows/auto-approve.yml",
+      "archivePath": "docs/archive/github-actions-20261029/auto-approve.yml",
+      "sha256AtMove": "ae9a22c66f8577ef47546ee3317d13a7d1f573db576c88709535c4026146fe05",
+      "gitBlobOid": "684e9fc7b96a250fee7842234d212ab5fd2c9554",
+      "remoteWorkflowId": 280985762,
+      "remoteStateBeforeDisable": "active"
+    },
+    {
+      "originalPath": ".github/workflows/cherry-pick.yml",
+      "archivePath": "docs/archive/github-actions-20261029/cherry-pick.yml",
+      "sha256AtMove": "7cf5c3fda0ed4d949c8c89432adf50bc731861d5fa2d4911729ee8ef6c78b65a",
+      "gitBlobOid": "b12c243568c183499cdda2e6c39bbed48637a72f",
+      "remoteWorkflowId": 280985763,
+      "remoteStateBeforeDisable": "active"
+    },
+    {
+      "originalPath": ".github/workflows/cicd-pull-request.yml",
+      "archivePath": "docs/archive/github-actions-20261029/cicd-pull-request.yml",
+      "sha256AtMove": "3c1fd0d41e222432ce6b54ee4e24185614a175d497701f9c375df681d2e53f87",
+      "gitBlobOid": "0b5e414c80d0b2234b374bf6a47070ae0f8ed297",
+      "remoteWorkflowId": 280985765,
+      "remoteStateBeforeDisable": "active"
+    },
+    {
+      "originalPath": ".github/workflows/cicd-push.yml",
+      "archivePath": "docs/archive/github-actions-20261029/cicd-push.yml",
+      "sha256AtMove": "9f1683746d6bc83f66ad5e1a0085f3885959eeca6ac3e5db3cd85fd34330c41b",
+      "gitBlobOid": "2f28c992c773ada3e3a5458e4e1c7471e7a42521",
+      "remoteWorkflowId": 280985766,
+      "remoteStateBeforeDisable": "active"
+    },
+    {
+      "originalPath": ".github/workflows/e2e-aperag-test.yml",
+      "archivePath": "docs/archive/github-actions-20261029/e2e-aperag-test.yml",
+      "sha256AtMove": "92b4ada5ed6240396deaa0ac333ee4bf1de679bb23ab4aa2c0b9902512f903b2",
+      "gitBlobOid": "04a0d836a1246b1aadd85a4a179a19ac6be6b207",
+      "remoteWorkflowId": 280985767,
+      "remoteStateBeforeDisable": "active"
+    },
+    {
+      "originalPath": ".github/workflows/e2e-aperag.yml",
+      "archivePath": "docs/archive/github-actions-20261029/e2e-aperag.yml",
+      "sha256AtMove": "d7a35637fb5434ae3a146a450f900a265a66beae92d4a95692948b8dcf697a5b",
+      "gitBlobOid": "8da780611a24464fcc5906fb866a37224e938d1d",
+      "remoteWorkflowId": 280985768,
+      "remoteStateBeforeDisable": "active"
+    },
+    {
+      "originalPath": ".github/workflows/issues-tagstale.yml",
+      "archivePath": "docs/archive/github-actions-20261029/issues-tagstale.yml",
+      "sha256AtMove": "22ddbf673c8a8ce66e534d85a849ede9e3e760aa85d61d936d0033e9fe987371",
+      "gitBlobOid": "be04c77ab0e9dc500a4001878f6ed872a2dd3077",
+      "remoteWorkflowId": 280985773,
+      "remoteStateBeforeDisable": "disabled_inactivity"
+    },
+    {
+      "originalPath": ".github/workflows/pull-request-check.yml",
+      "archivePath": "docs/archive/github-actions-20261029/pull-request-check.yml",
+      "sha256AtMove": "f6eaf8767631dbc988b287042f1e941a2b2d2477ea0c821da282a0c9a87e7cc2",
+      "gitBlobOid": "65981f0daa48c6cc07d21cfa2dd4055966cbcbf7",
+      "remoteWorkflowId": 280985778,
+      "remoteStateBeforeDisable": "active"
+    },
+    {
+      "originalPath": ".github/workflows/pull-request-label-size.yaml",
+      "archivePath": "docs/archive/github-actions-20261029/pull-request-label-size.yaml",
+      "sha256AtMove": "4632296806095f84a2dcd0283d2377ba9c46a6fd9d73c1d657c57cb8346e5817",
+      "gitBlobOid": "b1c5999e380d21cb1a5aa78140dd2e925f4f01a8",
+      "remoteWorkflowId": 280985781,
+      "remoteStateBeforeDisable": "active"
+    },
+    {
+      "originalPath": ".github/workflows/pull-request-stats.yml",
+      "archivePath": "docs/archive/github-actions-20261029/pull-request-stats.yml",
+      "sha256AtMove": "feef89d8992cf3b8e28311234a9543adc18115865b75953296e1636de581bcfa",
+      "gitBlobOid": "60032dbebc798088ca33758448d0b90c7f1a35fe",
+      "remoteWorkflowId": 280985783,
+      "remoteStateBeforeDisable": "disabled_inactivity"
+    },
+    {
+      "originalPath": ".github/workflows/release-chart.yml",
+      "archivePath": "docs/archive/github-actions-20261029/release-chart.yml",
+      "sha256AtMove": "e2d494d336f84fb7910be5358ac1543996a12f380c65437b9ce2ef4c1612bac2",
+      "gitBlobOid": "4231eef2f41c93c62ed2a0489b940200c6b50e2e",
+      "remoteWorkflowId": 280985791,
+      "remoteStateBeforeDisable": "active"
+    },
+    {
+      "originalPath": ".github/workflows/release-create.yml",
+      "archivePath": "docs/archive/github-actions-20261029/release-create.yml",
+      "sha256AtMove": "faf71fa329977f5ae3343b5850eb23e619ab1fe6ba9c4639f7cc9d2c48487361",
+      "gitBlobOid": "85dfc603e0e5b98a3638b2e07f204ad055950b3e",
+      "remoteWorkflowId": 280985793,
+      "remoteStateBeforeDisable": "active"
+    },
+    {
+      "originalPath": ".github/workflows/release-image.yml",
+      "archivePath": "docs/archive/github-actions-20261029/release-image.yml",
+      "sha256AtMove": "857a14365cb48105953cea2588327136c3565af82bd85c32ed79103ce2ef0df7",
+      "gitBlobOid": "6dab03b39744a850da10525cadf1fbfbc3b9c0e5",
+      "remoteWorkflowId": 280985794,
+      "remoteStateBeforeDisable": "active"
+    }
+  ]
+}

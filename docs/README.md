@@ -14,6 +14,7 @@
 | 当前平台分层与存储 | [当前平台架构](zh-CN/design/current/platform-architecture.md) | 依据源码提炼当前组件与边界；专题入口见当前说明目录 |
 | 接口、组件与配置的实际对应 | [契约盘点](zh-CN/reference/api-component-config-inventory.md)、[HTTP 调用表](zh-CN/reference/http-api-component-matrix.md) | 实施前静态基线与核心字段差异；后续修正见实施记录，运行验收仍待验证 |
 | 架构整理的实际实施与审核 | [实施记录](zh-CN/development/architecture-implementation-record.md) | 按批记录候选提交、独立审核、集成与验证；与原静态盘点区分 |
+| CI/CD 当前状态与历史定义 | [工作流归档](archive/github-actions-20261029/README.md) | 用户决定暂时全部停用；13 个旧定义原样归档，远端对应项已停用，日常验证仍在本地进行 |
 | 本地开发启动 | [轻量开发部署](zh-CN/deployment/local-lite-business-guide.md) | 本地开发与热重载操作，不等同于团队云部署说明 |
 | 开发与构建 | [开发指南](zh-CN/development/development-guide.md)、[镜像构建](zh-CN/deployment/build-docker-image.md) | 既有操作说明，执行前核对环境 |
 
