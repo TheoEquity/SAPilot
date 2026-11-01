@@ -17,7 +17,7 @@ ApeRAG Tracing Module
 
 Simplified OpenTelemetry integration for ApeRAG with support for:
 - Basic tracing with console output
-- Jaeger integration (future)
+- Langfuse OTLP/HTTP export
 - FastAPI and SQLAlchemy instrumentation
 - MCP Agent trace injection
 """
@@ -47,11 +47,14 @@ __all__ = [
 def init_tracing(
     service_name: str = "aperag",
     service_version: str = "1.0.0",
-    jaeger_endpoint: Optional[str] = None,
     enable_console: bool = True,
     enable_fastapi: bool = True,
     enable_sqlalchemy: bool = True,
     enable_mcp: bool = True,
+    langfuse_enabled: bool = False,
+    langfuse_base_url: Optional[str] = None,
+    langfuse_public_key: Optional[str] = None,
+    langfuse_secret_key: Optional[str] = None,
 ) -> bool:
     """
     Initialize complete tracing for ApeRAG.
@@ -61,7 +64,6 @@ def init_tracing(
     Args:
         service_name: Name of the service
         service_version: Version of the service
-        jaeger_endpoint: Jaeger collector endpoint (None for console-only mode)
         enable_console: Whether to enable console output
         enable_fastapi: Whether to instrument FastAPI
         enable_sqlalchemy: Whether to instrument SQLAlchemy
@@ -74,8 +76,11 @@ def init_tracing(
     if not init_telemetry(
         service_name=service_name,
         service_version=service_version,
-        jaeger_endpoint=jaeger_endpoint,
         enable_console=enable_console,
+        langfuse_enabled=langfuse_enabled,
+        langfuse_base_url=langfuse_base_url,
+        langfuse_public_key=langfuse_public_key,
+        langfuse_secret_key=langfuse_secret_key,
     ):
         return False
 

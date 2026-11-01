@@ -1,4 +1,4 @@
-// Real generated requests and Axios interceptors; only the network and Next APIs are substituted.
+// Real generated requests, Axios interceptors and logger; framework APIs/network are substituted and logs captured.
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -8,6 +8,7 @@ const ts = require(path.join(root, 'web/node_modules/typescript'));
 const axios = require(path.join(root, 'web/node_modules/axios/dist/node/axios.cjs'));
 const captures = [];
 const notices = [];
+const logs = [];
 let rejectNext = false;
 
 const transport = {
@@ -43,6 +44,8 @@ function load(relative) {
   }).outputText;
   const requireLocal = (name) => {
     if (name === 'axios') return transport;
+    if (name === './logging') return load('web/src/lib/api/logging.ts');
+    if (name === '../logger') return load('web/src/lib/logger.ts');
     if (name === '@/api/generated/bots/bots') return load('web/src/api/generated/bots/bots.ts');
     if (name === '@/api') return new Proxy({}, { get: () => class LegacyApi {} });
     if (name === 'sonner') return { toast: { error: text => notices.push(text) } };
@@ -52,7 +55,9 @@ function load(relative) {
   };
   vm.runInNewContext(output, {
     require: requireLocal, module, exports: module.exports,
-    process: { env: { NEXT_PUBLIC_BASE_PATH: '/sapilot', API_SERVER_ENDPOINT: 'http://backend.test', API_SERVER_BASE_PATH: '/api/v1' } },
+    process: { env: { NODE_ENV: 'development', NEXT_PUBLIC_BASE_PATH: '/sapilot', API_SERVER_ENDPOINT: 'http://backend.test', API_SERVER_BASE_PATH: '/api/v1' } },
+    performance, URL, Error,
+    console: Object.fromEntries(['debug', 'info', 'warn', 'error'].map(level => [level, text => logs.push(JSON.parse(text))])),
   }, { filename: relative });
   return module.exports;
 }
@@ -76,5 +81,11 @@ function load(relative) {
   assert.equal(captures[3].headers.Lang, 'zh-CN');
   assert.equal(captures[3].headers.Cookie, 'sessionid=test-session');
   assert.deepEqual(notices, ['denied']);
+  assert.deepEqual(logs.map(log => log.event), [
+    'http.request.completed', 'http.request.completed', 'http.request.completed',
+    'http.request.completed', 'http.request.failed',
+  ]);
+  assert.deepEqual(logs.map(log => log.level), ['DEBUG', 'INFO', 'INFO', 'DEBUG', 'WARNING']);
+  assert.equal(logs[4].status_code, 403);
   process.stdout.write(JSON.stringify({ requests: captures.length, browserAndServer: true, preservedPayloadAndErrors: true }));
 })().catch(error => { console.error(error); process.exitCode = 1; });

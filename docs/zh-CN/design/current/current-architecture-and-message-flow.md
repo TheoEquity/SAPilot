@@ -38,7 +38,7 @@
 
 - **文档摄取：** Collection 文档上传和确认由 `DocumentService` 处理（`aperag/service/document_service.py`），再由 reconciler 和 Celery 文档任务调度解析、建立索引（`aperag/tasks/reconciler.py`、`aperag/tasks/document.py`）。`config/celery.py` 配置 worker 任务及 Beat 周期任务。源码链路显示了任务编排，但各格式的结构保留、解析质量和索引完整性仍需按[项目背景第 4、9 节](../../../SAPILOT_PROJECT_CONTEXT.md)逐项验收。
 - **检索：** `CollectionService.execute_search_flow` 根据请求组合向量、全文、图谱、摘要或视觉等检索节点，并可合并、去重及重排（`aperag/service/collection_service.py`）。源码中存在这些路径不等于其对 SAP 场景的召回质量已达标；应按[项目背景第 9 节](../../../SAPILOT_PROJECT_CONTEXT.md)指标验证。
-- **默认部署组成：** `docker-compose.yml` 包含 API、Web、Celery worker/beat、Flower、PostgreSQL、Redis、Qdrant 和 Elasticsearch。Docker 环境覆盖配置及模板见 `envs/docker.env.overrides`、`envs/env.template`。当前配置将对象存储指向共享目录 `/shared/objects`，图存储配置使用 `PGOpsSyncGraphStorage`。Neo4j、DocRay/GPU DocRay 和 Jaeger 由可选 Compose profile 提供；服务定义存在不代表它们是默认启用或当前运行中的依赖。
+- **默认部署组成：** `docker-compose.yml` 包含 API、Web、Celery worker/beat、Flower、PostgreSQL、Redis、Qdrant 和 Elasticsearch。Docker 环境覆盖配置及模板见 `envs/docker.env.overrides`、`envs/env.template`。当前配置将对象存储指向共享目录 `/shared/objects`，图存储配置使用 `PGOpsSyncGraphStorage`。Neo4j、DocRay/GPU DocRay 由可选 Compose profile 提供；调用链通过 OpenTelemetry 向配置的 Langfuse 项目导出。服务定义存在不代表它们是默认启用或当前运行中的依赖。
 - **状态与消息：** Agent 聊天消息历史使用 Redis 支持的历史存储；Agent 服务另有实例内存中的 Skill 上下文缓冲（`aperag/service/chat_service.py`、`aperag/service/agent_chat_service.py`）。多进程、重启及并发场景下两类状态的一致性和持久性尚未运行验证。
 
 ### SAPilot 定制入口与配置

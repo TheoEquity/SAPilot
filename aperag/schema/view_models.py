@@ -2322,6 +2322,11 @@ class AuditLog(BaseModel):
             'flow',
             'search',
             'index',
+            'config',
+            'invitation',
+            'auth',
+            'chat_completion',
+            'system',
         ]
     ] = Field(None, description='Type of resource')
     resource_id: Optional[str] = Field(

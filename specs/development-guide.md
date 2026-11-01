@@ -7,6 +7,35 @@ description: SAPilot 开发环境设置和工作流程
 
 本指南重点介绍如何为 SAPilot 设置开发环境和开发工作流程。这是为希望为 SAPilot 做贡献或在本地运行它进行开发的开发人员设计的。
 
+## 本地日志查看与排查
+
+日志字段、打点和脱敏遵循[全栈日志规约](logging-and-diagnostics.md)。浏览器事件在开发者工具的控制台查看，请求状态在网络面板查看；Next.js 服务端日志在运行 Next.js 的终端或容器查看，不能用浏览器控制台代替。
+
+日志配置统一在 `config/logging/`，默认输出到项目旁 `../SAPilot-data/logs/`：`api.log`、`worker.log`、`frontend.log`，每个主文件默认 10 MB，最多保留 3 份备份。设置 `SAPILOT_LOG_DIR` 可覆盖目录；相对路径以项目根为基准。浏览器控制台的诊断导出和页面截图放在 `logs/browser/`，原始验证日志归档放在 `logs/verification/`。浏览器日志不会自动上传，导出时仍须遵循脱敏要求。
+
+API 使用 `config/logging/api.yaml`，worker 复用 Python 的公共配置；本地前端的 `yarn dev` / `yarn start` 通过 `scripts/run-with-logs.mjs` 保存标准输出和错误，同时保留控制台输出。Docker Compose 将 API/worker 的日志目录挂载为 `/logs`；容器内设置 `SAPILOT_LOG_DIR=/logs`。其他启动方式需要使用同一配置与挂载。Docker 自身日志仍可用 `docker logs --since 10m <实际容器名>` 查看，不把本机容器名写死在业务代码里。
+
+前端统一调用 `@/lib/logger`；API 和 worker 使用 Python `logging`，由 `aperag/logging.py` 提供 JSON 格式和上下文。排查时先按 `event`、`document_id` 或 `message_id` 筛选，再看阶段、状态、耗时与异常链中的代码位置。HTTP 响应存在有效追踪时返回 `X-Trace-ID`，前端请求日志复用该值；后台阶段可按同一个文档 ID 关联不同追踪，不要求它们共用一个 trace。
+
+日志基础检查：后端运行 `pytest tests/contract/test_application_logging.py tests/contract/test_stage2_tracing.py`；前端在 `web/` 下运行 `yarn test:logs`。这些检查覆盖日志行为，不代替实际页面操作、模型调用或摄取验收。
+
+排查先确定时间范围和请求/文档/消息标识，再检查页面操作、接口结果、后台阶段与重试，最后关联下节的 Langfuse 追踪。浏览器日志需从用户侧获取或通过受控入口采集；缺少某段日志或追踪时明确标注，不能据此推断该环节成功。私有日志和诊断导出按[目录约定](project-layout.md)保存到项目旁的数据目录，不提交 Git。
+
+## 本地 Langfuse 监控
+
+复用已有的 Langfuse 实例与项目，在本机不提交 Git 的 `.env` 中填写项目 API keys。配置示例见 [`envs/env.monitoring-local.template`](../envs/env.monitoring-local.template)。
+
+- `OTEL_ENABLED=True`、`LANGFUSE_ENABLED=True`：启用应用追踪与 Langfuse 导出。
+- `LANGFUSE_BASE_URL`：Langfuse 实例根地址，本机示例为 `http://localhost:3300`。
+- `LANGFUSE_PUBLIC_KEY`、`LANGFUSE_SECRET_KEY`：同一 Langfuse 项目的公钥和密钥，保持私有。
+- `OPIK_SENTRY_ENABLE=False`：关闭 Opik 的可选 Sentry 错误上报，避免第三方初始化覆盖应用的追踪采样。
+
+应用使用现有 OpenTelemetry SDK，通过 OTLP/HTTP 向 Langfuse 导出；API 与文档 worker 共用接入配置，`OTEL_SERVICE_NAME` 可分别设置。MCP 模型追踪复用应用 Provider，记录用量；对话追踪按会话 ID 关联，文档任务按文档 ID 关联。
+
+本机 Python 进程直接使用上述 localhost 地址。Docker Desktop 下，`envs/docker.env.overrides` 将地址设为 `http://host.docker.internal:3300`；其他部署环境填写容器实际可访问的 Langfuse 地址。容器环境修改后重新创建相应 API / worker 进程。
+
+检查接入时，在 Langfuse 对应项目中确认真实问答和文档任务已产生记录，核对阶段名称、耗时、模型、Token 用量、会话或文档标识和错误状态。具体模型没有价格配置时，费用可能为空，不把空值当作零费用。业务用例是否通过与监控是否收数分别判断。
+
 ## 🚀 开发环境设置
 
 按照以下步骤从源代码设置 SAPilot 进行开发：
@@ -42,6 +71,8 @@ cp envs/env.dev-lite.template .env
 
 *   **Node.js**：前端接口生成工具需要 22.18 或更高版本，本地开发可使用 Node.js 24。[下载 Node.js](https://nodejs.org/)
 *   **Docker & Docker Compose**：本地运行数据库服务所需。[下载 Docker](https://docs.docker.com/get-docker/)
+
+文档 worker 需要 LibreOffice Writer（`soffice`）转换旧 `.doc`，以及 Tesseract 和 `chi_sim`、`eng` 语言数据提取 PDF 截图文字；中文文档转换还需要 CJK 字体。PDF 本地解析保留原文字层，并将页图和 OCR 补充文字关联到同一页，不需要新增外部模型服务；OCR 结果仍需核对原图。项目 Docker 镜像已声明这些系统依赖，修改镜像后需重建并重新创建 worker。直接运行 Python worker 时，应在所在系统安装相同工具，并确认 `soffice`、`tesseract` 可通过 PATH 找到。
 
 **注意**：需要 Python 3.11，但将在下一步中通过 `uv` 自动管理。
 

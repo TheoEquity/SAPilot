@@ -21,7 +21,7 @@ FROM python:3.11.13-slim
 
 # Install minimal system dependencies in one layer and clean up
 RUN apt update && \
-    apt install --no-install-recommends -y curl && \
+    apt install --no-install-recommends -y curl libreoffice-writer fonts-noto-cjk tesseract-ocr tesseract-ocr-chi-sim && \
     apt clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/*
 

@@ -13,6 +13,7 @@ import { getBots } from '@/api/generated/bots/bots';
 import { getLocale } from '@/services/cookies';
 import axios from 'axios';
 import { cookies } from 'next/headers';
+import { attachRequestLogging } from './logging';
 
 const configuration = new Configuration();
 
@@ -40,6 +41,8 @@ request.interceptors.request.use(
     return Promise.reject(error);
   },
 );
+
+attachRequestLogging(request);
 
 const api = {
   bots: getBots(request),

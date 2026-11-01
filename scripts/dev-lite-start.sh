@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_DIR="$ROOT_DIR/.run"
-LOG_DIR="$RUN_DIR/logs"
+LOG_DIR="$(cd "$ROOT_DIR" && python -c 'from aperag.logging import log_settings; print(log_settings()["directory"])')"
 
 mkdir -p "$RUN_DIR" "$LOG_DIR"
 
@@ -22,7 +22,7 @@ start_process() {
   local workdir="$2"
   local command_text="$3"
   local pid_file="$RUN_DIR/$name.pid"
-  local log_file="$LOG_DIR/$name.log"
+  local log_file="$LOG_DIR/$name-launcher.log"
 
   if [ -f "$pid_file" ]; then
     local existing_pid

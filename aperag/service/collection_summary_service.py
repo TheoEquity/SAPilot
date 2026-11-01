@@ -34,6 +34,8 @@ from aperag.db.ops import db_ops
 from aperag.index.summary_index import SummaryIndexer
 from aperag.llm.completion.base_completion import get_collection_completion_service_sync
 from aperag.schema.utils import parseCollectionConfig
+from aperag.schema.view_models import Collection as CollectionView
+from aperag.schema.view_models import CollectionConfig
 from aperag.tasks.reconciler import CollectionSummaryCallbacks
 
 logger = logging.getLogger(__name__)
@@ -45,7 +47,7 @@ class CollectionSummaryService:
     def __init__(self):
         self.summary_indexer = SummaryIndexer()
 
-    async def trigger_collection_summary_generation(self, collection: Collection) -> bool:
+    async def trigger_collection_summary_generation(self, collection: Collection | CollectionView) -> bool:
         """
         Trigger collection summary generation based on collection config.
         If enable_summary is true, create/update CollectionSummary.
@@ -56,7 +58,11 @@ class CollectionSummaryService:
             bool: True if task was triggered or state changed, False otherwise.
         """
         async for session in get_async_session():
-            config = parseCollectionConfig(collection.config)
+            config = (
+                collection.config
+                if isinstance(collection.config, CollectionConfig)
+                else parseCollectionConfig(collection.config)
+            )
 
             record = await self._get_summary_by_collection_id(session, collection.id)
 

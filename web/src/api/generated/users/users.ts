@@ -16,6 +16,7 @@ import type {
   DeleteUserViewApiV1UsersUserIdDeleteParams,
   GetUserViewApiV1UserGetParams,
   ListUsersViewApiV1UsersGetParams,
+  User,
   UserList
 } from '../models';
 
@@ -29,7 +30,7 @@ import type {
  */
 const getUserViewApiV1UserGet = (
     params?: GetUserViewApiV1UserGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<User>> => {
     return axiosInstance.get(
       `/user`,{
     ...options,
@@ -99,6 +100,6 @@ const getDeleteUserViewApiV1UsersUserIdDeleteUrl = (userId: string,
   });
 }
 return {getUserViewApiV1UserGet,listUsersViewApiV1UsersGet,deleteUserViewApiV1UsersUserIdDelete,getGetUserViewApiV1UserGetUrl,getListUsersViewApiV1UsersGetUrl,getDeleteUserViewApiV1UsersUserIdDeleteUrl}};
-export type GetUserViewApiV1UserGetResult = AxiosResponse<unknown>
+export type GetUserViewApiV1UserGetResult = AxiosResponse<User>
 export type ListUsersViewApiV1UsersGetResult = AxiosResponse<UserList>
 export type DeleteUserViewApiV1UsersUserIdDeleteResult = AxiosResponse<unknown>

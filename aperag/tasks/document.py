@@ -17,6 +17,8 @@ import logging
 from aperag.db.models import DocumentIndexType
 from aperag.tasks.models import IndexTaskResult, LocalDocumentInfo, ParsedDocumentData
 from aperag.tasks.utils import parse_document_content
+from aperag.trace.document import trace_document_operation
+from aperag.trace.utils import add_trace_attributes
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ class DocumentIndexTask:
     Document index task orchestrator
     """
 
+    @trace_document_operation("parse")
     def parse_document(self, document_id: str) -> ParsedDocumentData:
         """
         Parse document content
@@ -41,6 +44,7 @@ class DocumentIndexTask:
         from aperag.tasks.utils import get_document_and_collection
 
         document, collection = get_document_and_collection(document_id)
+        add_trace_attributes(collection_id=collection.id)
         content, doc_parts, local_doc = parse_document_content(document, collection)
 
         local_doc_info = LocalDocumentInfo(path=local_doc.path, is_temp=getattr(local_doc, "is_temp", False))
@@ -54,6 +58,7 @@ class DocumentIndexTask:
             local_doc_info=local_doc_info,
         )
 
+    @trace_document_operation("index.create")
     def create_index(self, document_id: str, index_type: str, parsed_data: ParsedDocumentData) -> IndexTaskResult:
         """
         Create a single index for a document using parsed data
@@ -72,6 +77,7 @@ class DocumentIndexTask:
         from aperag.tasks.utils import get_document_and_collection
 
         _, collection = get_document_and_collection(document_id)
+        add_trace_attributes(collection_id=collection.id)
 
         try:
             if index_type == DocumentIndexType.VECTOR.value:
@@ -172,9 +178,10 @@ class DocumentIndexTask:
 
         except Exception as e:
             error_msg = f"Failed to create {index_type} index: {str(e)}"
-            logger.error(f"Document {document_id}: {error_msg}")
+            logger.exception("document.index.error", extra={"stage": "index.create", "status": "failed"})
             return IndexTaskResult.failed_result(index_type=index_type, document_id=document_id, error=error_msg)
 
+    @trace_document_operation("index.delete")
     def delete_index(self, document_id: str, index_type: str) -> IndexTaskResult:
         """
         Delete a single index for a document
@@ -191,6 +198,7 @@ class DocumentIndexTask:
         from aperag.tasks.utils import get_document_and_collection
 
         _, collection = get_document_and_collection(document_id, ignore_deleted=False)
+        add_trace_attributes(collection_id=collection.id)
 
         try:
             if index_type == DocumentIndexType.VECTOR.value:
@@ -241,9 +249,10 @@ class DocumentIndexTask:
 
         except Exception as e:
             error_msg = f"Failed to delete {index_type} index: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.exception("document.index.error", extra={"stage": "index.delete", "status": "failed"})
             return IndexTaskResult.failed_result(index_type=index_type, document_id=document_id, error=error_msg)
 
+    @trace_document_operation("index.update")
     def update_index(self, document_id: str, index_type: str, parsed_data: ParsedDocumentData) -> IndexTaskResult:
         """
         Update a single index for a document using parsed data
@@ -262,6 +271,7 @@ class DocumentIndexTask:
         from aperag.tasks.utils import get_document_and_collection
 
         _, collection = get_document_and_collection(document_id)
+        add_trace_attributes(collection_id=collection.id)
 
         try:
             if index_type == DocumentIndexType.VECTOR.value:
@@ -362,7 +372,7 @@ class DocumentIndexTask:
 
         except Exception as e:
             error_msg = f"Failed to update {index_type} index: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.exception("document.index.error", extra={"stage": "index.update", "status": "failed"})
             return IndexTaskResult.failed_result(index_type=index_type, document_id=document_id, error=error_msg)
 
 

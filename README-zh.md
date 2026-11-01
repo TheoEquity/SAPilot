@@ -18,6 +18,7 @@ SAPilot 是一个面向 SAP 运维场景的企业级 AI 智能助手。基于 [a
 | 开发环境与目录说明 | [开发环境说明](specs/development-guide.md)、[项目目录约定](specs/project-layout.md) | 查本地环境、运行方式及各类文件的归属 |
 | 具体实现与处理链路 | [当前实现说明](docs/zh-CN/design/current/) | 解释消息处理、摄取、检索和存储等实现，供深入查阅 |
 | 讨论稿与备选方案 | [discussions/](docs/zh-CN/design/discussions/) | 保留思路、理由和备选方案，讨论内容不自动成为开发决定 |
+| 手动取用的开发 Prompt | [开发需求启动模板](prompts/development-task.md) | 需求明确后查看、复制填写的启动提示词，不是默认开发流程的必读文件 |
 | 项目大步骤 | [开发路线记录](records/development-roadmap.md) | 回顾整体推进步骤、阶段关注点和待明确事项 |
 | 实施、审核与验证记录 | [records/](records/) | 查某一轮改了什么、验证了什么、还剩什么；过程材料与架构、规约分开 |
 | 部署、集成与其他资料 | [文档目录](docs/README.md) | 汇集部署说明、钉钉与 MCP 集成、测试手册及参考资料 |
