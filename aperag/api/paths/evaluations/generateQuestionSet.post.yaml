@@ -1,0 +1,20 @@
+/question-sets/generate:
+  post:
+    tags:
+    - evaluation
+    summary: Generate a question set from a collection
+    security:
+    - BearerAuth: []
+    operationId: generate_question_set_api_v1_question_sets_generate_post
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/evaluation.yaml#/QuestionSetGenerate
+    responses:
+      '200':
+        description: Successful Response
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/evaluation.yaml#/QuestionSetDetail

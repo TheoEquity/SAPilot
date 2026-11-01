@@ -9,6 +9,7 @@
   "mention_a_collection": "输入@关联相关知识库...",
 
   "display_empty_title": "新会话",
+  "connection_interrupted": "连接已断开，本次回答未完成。请在连接恢复后重试。",
 
   "no_collection_was_found": "未找到相关知识库",
 

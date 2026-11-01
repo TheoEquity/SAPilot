@@ -1,0 +1,36 @@
+/bots/{bot_id}/chats/{chat_id}:
+  get:
+    summary: Get chat details
+    description: Get details of a specific chat
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: bot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: chat_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Chat details
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/chat.yaml#/chatDetails
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Chat not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

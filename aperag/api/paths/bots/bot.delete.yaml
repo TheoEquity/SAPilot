@@ -1,0 +1,15 @@
+/bots/{bot_id}:
+  delete:
+    summary: Delete a bot
+    description: Delete a bot (idempotent operation)
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: bot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '204':
+        description: Bot deleted successfully (or already deleted)

@@ -1,0 +1,35 @@
+version: 1
+disable_existing_loggers: false
+formatters:
+  simple:
+    (): aperag.logging.JsonFormatter
+    service: api
+handlers:
+  console:
+    class: aperag.logging.SafeStreamHandler
+    formatter: simple
+    level: INFO
+    stream: ext://sys.stdout
+  file:
+    (): aperag.logging.file_handler
+    service: api
+loggers:
+  uvicorn:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  uvicorn.access:
+    level: WARNING
+    handlers: [console, file]
+    propagate: false
+  uvicorn.error:
+    level: INFO
+    handlers: [console, file]
+    propagate: false
+  LiteLLM:
+    level: WARNING  # Default level, can be overridden by env var
+    handlers: [console, file]
+    propagate: false
+root:
+  level: INFO
+  handlers: [console, file]

@@ -1,0 +1,7 @@
+/logout:
+  post:
+    summary: Logout a user
+    description: Logout a user
+    responses:
+      '200':
+        description: Logout successful

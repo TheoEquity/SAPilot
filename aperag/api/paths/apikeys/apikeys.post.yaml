@@ -1,0 +1,25 @@
+/apikeys:
+  post:
+    summary: Create API key
+    description: Create API key
+    security:
+    - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/apikey.yaml#/apiKeyCreate
+    responses:
+      '200':
+        description: API key created successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/apikey.yaml#/apiKey
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

@@ -1,0 +1,77 @@
+/marketplace/collections/{collection_id}/graph:
+  get:
+    summary: Get knowledge graph for MarketplaceCollection (read-only)
+    description: Get knowledge graph data for a subscribed Collection (read-only mode)
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      description: Collection ID
+      schema:
+        type: string
+    - name: label
+      in: query
+      description: Node label filter
+      schema:
+        type: string
+        default: '*'
+    - name: max_nodes
+      in: query
+      description: Maximum number of nodes
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 10000
+        default: 1000
+    - name: max_depth
+      in: query
+      description: Graph traversal depth
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 10
+        default: 3
+    responses:
+      '200':
+        description: Knowledge graph data (read-only)
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nodes:
+                  type: array
+                  items:
+                    type: object
+                edges:
+                  type: array
+                  items:
+                    type: object
+                collection_id:
+                  type: string
+                read_only:
+                  type: boolean
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '403':
+        description: Access denied (need subscription)
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

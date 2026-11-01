@@ -1,0 +1,19 @@
+/prompts/user:
+  put:
+    summary: Update user prompts
+    description: Batch update user's prompt configurations
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/prompt.yaml#/updateUserPromptsRequest
+    responses:
+      '200':
+        description: Prompts updated successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/prompt.yaml#/updateUserPromptsResponse
+      '400':
+        description: Invalid request

@@ -9,9 +9,11 @@ import {
   GraphApi,
   QuotasApi,
 } from '@/api';
+import { getBots } from '@/api/generated/bots/bots';
 import axios from 'axios';
 
 import { toast } from 'sonner';
+import { attachRequestLogging } from './logging';
 
 const configuration = new Configuration();
 
@@ -19,6 +21,8 @@ const request = axios.create({
   baseURL: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/v1`,
   timeout: 1000 * 5,
 });
+
+attachRequestLogging(request);
 
 request.interceptors.response.use(
   function (response) {
@@ -46,6 +50,7 @@ request.interceptors.response.use(
 );
 
 export const apiClient = {
+  bots: getBots(request),
   defaultApi: new DefaultApi(configuration, undefined, request),
   graphApi: new GraphApi(configuration, undefined, request),
   quotasApi: new QuotasApi(configuration, undefined, request),

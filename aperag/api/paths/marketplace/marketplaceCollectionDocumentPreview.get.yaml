@@ -1,0 +1,48 @@
+/marketplace/collections/{collection_id}/documents/{document_id}/preview:
+  get:
+    summary: Preview document in MarketplaceCollection (read-only)
+    description: Get document preview for a subscribed Collection (read-only mode)
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      description: Collection ID
+      schema:
+        type: string
+    - name: document_id
+      in: path
+      required: true
+      description: Document ID
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Document preview (read-only)
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/document.yaml#/documentPreview
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '403':
+        description: Access denied (need subscription)
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Document not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

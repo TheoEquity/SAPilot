@@ -46,7 +46,7 @@ import _ from 'lodash';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import * as z from 'zod';
@@ -103,7 +103,10 @@ export const BotForm = () => {
   const page_bot = useTranslations('page_bot');
   const common_tips = useTranslations('common.tips');
   const common_action = useTranslations('common.action');
-  const botConfig = (bot.config || {}) as BotConfigWithOrchestration;
+  const botConfig = useMemo<BotConfigWithOrchestration>(
+    () => bot.config || {},
+    [bot.config],
+  );
 
   const agentConfig = botConfig.agent;
   const completion = agentConfig?.completion;
@@ -167,8 +170,15 @@ export const BotForm = () => {
         description: values.description,
         is_default: values.is_default,
         config: {
+          ...botConfig,
           agent: {
-            completion: values.config.agent.completion,
+            ...agentConfig,
+            completion: values.config.agent.completion
+              ? {
+                  ...agentConfig?.completion,
+                  ...values.config.agent.completion,
+                }
+              : values.config.agent.completion,
             welcome_title: values.config.agent.welcome_title,
             welcome_subtitle: values.config.agent.welcome_subtitle,
             system_prompt_template: values.config.agent.system_prompt_template,
@@ -204,7 +214,7 @@ export const BotForm = () => {
       toast.success(common_tips('update_success'));
       loadBot();
     },
-    [bot?.id, botConfig.flow, botConfig.orchestration, common_tips, loadBot],
+    [bot?.id, botConfig, agentConfig, common_tips, loadBot],
   );
 
   const handleSubmit = useCallback(

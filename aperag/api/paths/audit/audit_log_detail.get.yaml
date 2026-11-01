@@ -1,0 +1,25 @@
+/audit-logs/{audit_id}:
+  get:
+    tags:
+    - audit
+    summary: Get audit log detail
+    description: Get a specific audit log by ID
+    operationId: get_audit_log
+    parameters:
+    - name: audit_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Audit log ID
+    responses:
+      '200':
+        description: Audit log retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/audit.yaml#/auditLog
+      '403':
+        description: Admin access required
+      '404':
+        description: Audit log not found

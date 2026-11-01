@@ -1,0 +1,24 @@
+/llm_providers/{provider_name}/models:
+  get:
+    summary: Get models for a specific provider
+    description: Get all models for a specific provider
+    parameters:
+    - name: provider_name
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Provider name
+    responses:
+      '200':
+        description: List of provider models
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/model.yaml#/llmProviderModelList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

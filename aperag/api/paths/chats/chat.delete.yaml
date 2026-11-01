@@ -1,0 +1,26 @@
+/bots/{bot_id}/chats/{chat_id}:
+  delete:
+    summary: Delete a chat
+    description: Delete a chat (idempotent operation)
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: bot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: chat_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '204':
+        description: Chat deleted successfully (or already deleted)
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

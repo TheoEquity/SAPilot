@@ -16,13 +16,17 @@ from dataclasses import dataclass
 from typing import Callable, List
 
 from aperag.docparser.base import Part
+from aperag.logging import log_stage
 
 
 def rechunk(
     parts: list[Part], chunk_size: int, chunk_overlap: int, tokenizer: Callable[[str], List[int]]
 ) -> list[Part]:
-    rechunker = Rechunker(chunk_size, chunk_overlap, tokenizer)
-    return rechunker(parts)
+    with log_stage("document.chunk") as outcome:
+        rechunker = Rechunker(chunk_size, chunk_overlap, tokenizer)
+        result = rechunker(parts)
+        outcome["chunk_count"] = len(result)
+        return result
 
 
 @dataclass
@@ -117,8 +121,8 @@ class Rechunker:
                 title_level = part.level
                 title = part.content or ""
 
-            # FAQ entries must be their own independent groups
-            if part.metadata.get("chunk_type") == "faq_entry":
+            # Keep FAQ entries and page images with their own source context.
+            if part.metadata.get("chunk_type") in {"faq_entry", "pdf_page"}:
                 # Close current group if exists
                 if curr_group is not None:
                     result.append(curr_group)
@@ -172,10 +176,10 @@ class Rechunker:
                 # (e.g., merging content under a main heading into a sub-heading)
                 can_merge = False
             
-            # Don't merge FAQ entries with other parts
+            # Don't merge different FAQ/page source contexts.
             if last_part is not None and (
-                last_part.metadata.get("chunk_type") == "faq_entry" or
-                any(p.metadata.get("chunk_type") == "faq_entry" for p in group.items)
+                last_part.metadata.get("chunk_type") in {"faq_entry", "pdf_page"} or
+                any(p.metadata.get("chunk_type") in {"faq_entry", "pdf_page"} for p in group.items)
             ):
                 can_merge = False
             

@@ -1,0 +1,34 @@
+/collections/{collection_id}/graphs/labels:
+  get:
+    summary: Get knowledge graph labels
+    description: Get all available node labels in the collection's knowledge graph
+    tags:
+    - graph
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Collection ID
+    responses:
+      '200':
+        description: Available graph labels retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/graph.yaml#/graphLabelsResponse
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

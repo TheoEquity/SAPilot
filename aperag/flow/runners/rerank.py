@@ -168,29 +168,36 @@ class RerankNodeRunner(BaseNodeRunner):
         """
         Apply fallback rerank strategy:
         1. Graph search results first (better quality, typically 1 result)
-        2. Sort remaining vector and fulltext results by score in descending order
+        2. Interleave source ranks; scores from different indexes are not comparable
         """
         if not docs:
             return docs
 
         graph_results = []
-        other_results = []
+        source_results = {}
 
         for doc in docs:
             recall_type = doc.metadata.get("recall_type", "")
             if recall_type == "graph_search":
                 graph_results.append(doc)
             else:
-                other_results.append(doc)
+                source_results.setdefault(recall_type, []).append(doc)
 
-        # Sort other results by score in descending order
-        other_results.sort(key=lambda x: x.score if x.score is not None else 0.0, reverse=True)
+        for source_docs in source_results.values():
+            source_docs.sort(key=lambda x: x.score if x.score is not None else 0.0, reverse=True)
+
+        other_results = [
+            source_docs[rank]
+            for rank in range(max((len(items) for items in source_results.values()), default=0))
+            for source_docs in source_results.values()
+            if rank < len(source_docs)
+        ]
 
         result = graph_results + other_results
 
         logger.info(
             f"Applied fallback rerank strategy: {len(graph_results)} graph results, "
-            f"{len(other_results)} other results sorted by score"
+            f"{len(other_results)} other results interleaved by source rank"
         )
 
         return result

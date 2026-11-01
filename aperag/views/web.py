@@ -20,9 +20,9 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from aperag.config import settings
 from aperag.db.models import User
 from aperag.db.ops import async_db_ops
-from aperag.config import settings
 from aperag.schema.view_models import (
     WebReadRequest,
     WebReadResponse,

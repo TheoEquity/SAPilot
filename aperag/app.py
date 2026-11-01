@@ -24,7 +24,10 @@ if settings.otel_enabled:
     init_tracing(
         service_name=settings.otel_service_name,
         service_version=settings.otel_service_version,
-        jaeger_endpoint=settings.jaeger_endpoint if settings.jaeger_enabled else None,
+        langfuse_enabled=settings.langfuse_enabled,
+        langfuse_base_url=settings.langfuse_base_url,
+        langfuse_public_key=settings.langfuse_public_key,
+        langfuse_secret_key=settings.langfuse_secret_key,
         enable_console=settings.otel_console_enabled,
         enable_fastapi=settings.otel_fastapi_enabled,
         enable_sqlalchemy=settings.otel_sqlalchemy_enabled,
@@ -37,6 +40,7 @@ from aperag.agent.agent_event_listener import agent_event_listener  # noqa: E402
 from aperag.agent.agent_session_manager_lifecycle import agent_session_manager_lifespan  # noqa: E402
 from aperag.exception_handlers import register_exception_handlers
 from aperag.llm.litellm_track import register_custom_llm_track
+from aperag.logging import RequestLoggingMiddleware
 from aperag.mcp import mcp_server
 from aperag.service.dingtalk_stream_service import dingtalk_stream_consumer  # noqa: E402
 from aperag.views.api_key import router as api_key_router
@@ -99,6 +103,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=combined_lifespan,  # Combined lifecycle management
 )
+
+app.add_middleware(RequestLoggingMiddleware)
 
 # Register global exception handlers
 register_exception_handlers(app)

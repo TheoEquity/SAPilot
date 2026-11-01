@@ -1,0 +1,40 @@
+/export-tasks/{task_id}/download:
+  get:
+    summary: Download export ZIP
+    description: Stream the completed export ZIP file to the client.
+    operationId: downloadExport
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: task_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Export task ID
+    responses:
+      '200':
+        description: ZIP file stream
+        content:
+          application/zip:
+            schema:
+              type: string
+              format: binary
+      '400':
+        description: Export task is not ready for download
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Export task not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '410':
+        description: Export file has expired
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

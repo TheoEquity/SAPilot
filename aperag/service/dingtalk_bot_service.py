@@ -28,8 +28,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import UploadFile
-from starlette.datastructures import Headers
 from sqlalchemy import and_, select
+from starlette.datastructures import Headers
 
 from aperag.config import settings
 from aperag.db import models as db_models

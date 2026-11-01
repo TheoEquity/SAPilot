@@ -6,6 +6,10 @@ botConfig:
       properties:
         completion:
           $ref: './model.yaml#/modelSpec'
+        welcome_title:
+          type: [string, 'null']
+        welcome_subtitle:
+          type: [string, 'null']
         system_prompt_template:
           type: string
         query_prompt_template:
@@ -16,6 +20,10 @@ botConfig:
             $ref: './collection.yaml#/collection'
     flow:
       $ref: './flow.yaml#/components/schemas/WorkflowDefinition'
+    orchestration:
+      anyOf:
+        - $ref: './orchestration.yaml#/OrchestrationConfig'
+        - type: 'null'
 
 
 botCreate:
@@ -35,6 +43,12 @@ botCreate:
       example: knowledge
     config:
       $ref: '#/botConfig'
+    is_default:
+      type: [boolean, 'null']
+      default: false
+    is_protected:
+      type: [boolean, 'null']
+      default: false
 
 botUpdate:
   type: object
@@ -47,6 +61,10 @@ botUpdate:
       type: string
     config:
       $ref: '#/botConfig'
+    is_default:
+      type: [boolean, 'null']
+    is_protected:
+      type: [boolean, 'null']
 
 bot:
   type: object
@@ -73,6 +91,14 @@ bot:
     updated:
       type: string
       format: date-time
+    is_default:
+      type: [boolean, 'null']
+      default: false
+      description: Whether this is the default bot
+    is_protected:
+      type: [boolean, 'null']
+      default: false
+      description: Whether this bot is protected from deletion
 
 botList:
   type: object

@@ -1,0 +1,5 @@
+{
+  "directory": "../SAPilot-data/logs",
+  "max_bytes": 10485760,
+  "backup_count": 3
+}

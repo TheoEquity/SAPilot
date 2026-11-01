@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["bots"])
 
 
-@router.post("/bots")
+@router.post("/bots", operation_id="createBot", summary="Create a bot")
 @audit(resource_type="bot", api_name="CreateBot")
 async def create_bot_view(
     request: Request,
@@ -38,17 +38,17 @@ async def create_bot_view(
     return await bot_service.create_bot(str(user.id), bot_in)
 
 
-@router.get("/bots")
+@router.get("/bots", operation_id="listBots", summary="List bots")
 async def list_bots_view(request: Request, user: User = Depends(required_user)) -> view_models.BotList:
     return await bot_service.list_bots(str(user.id))
 
 
-@router.get("/bots/{bot_id}")
+@router.get("/bots/{bot_id}", operation_id="getBot", summary="Get a bot")
 async def get_bot_view(request: Request, bot_id: str, user: User = Depends(required_user)) -> view_models.Bot:
     return await bot_service.get_bot(str(user.id), bot_id)
 
 
-@router.put("/bots/{bot_id}")
+@router.put("/bots/{bot_id}", operation_id="updateBot", summary="Update a bot")
 @audit(resource_type="bot", api_name="UpdateBot")
 async def update_bot_view(
     request: Request,
@@ -59,7 +59,7 @@ async def update_bot_view(
     return await bot_service.update_bot(str(user.id), bot_id, bot_in)
 
 
-@router.delete("/bots/{bot_id}")
+@router.delete("/bots/{bot_id}", operation_id="deleteBot", status_code=204, summary="Delete a bot")
 @audit(resource_type="bot", api_name="DeleteBot")
 async def delete_bot_view(request: Request, bot_id: str, user: User = Depends(required_user)):
     await bot_service.delete_bot(str(user.id), bot_id)

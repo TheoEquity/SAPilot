@@ -1,0 +1,44 @@
+/llm_providers/{provider_name}/models/{api}/{model}:
+  delete:
+    summary: Delete a provider model
+    description: Delete a specific model of a provider
+    parameters:
+    - name: provider_name
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Provider name
+    - name: api
+      in: path
+      required: true
+      schema:
+        type: string
+        enum:
+        - completion
+        - embedding
+        - rerank
+      description: API type
+    - name: model
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Model name (supports names with slashes, will be URL decoded)
+      style: simple
+      explode: false
+    responses:
+      '200':
+        description: Model deleted successfully
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Model not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

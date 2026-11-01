@@ -1,0 +1,26 @@
+/collections/{collection_id}/searches/{search_id}:
+  delete:
+    summary: Delete a search
+    description: Delete a search
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: search_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Search deleted successfully
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

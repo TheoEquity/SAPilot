@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot } from '@/api';
+import type { Bot } from '@/api/generated/models/bot';
 import { FormatDate } from '@/components/format-date';
 import {
   AlertDialog,
@@ -59,9 +59,7 @@ export const BotList = ({ bots }: { bots: Bot[] }) => {
     if (!pendingDeleteBot?.id) return;
 
     try {
-      await apiClient.defaultApi.botsBotIdDelete({
-        botId: pendingDeleteBot.id,
-      });
+      await apiClient.bots.deleteBot(pendingDeleteBot.id);
       toast.success(common_tips('delete_success'));
       router.refresh();
     } catch {

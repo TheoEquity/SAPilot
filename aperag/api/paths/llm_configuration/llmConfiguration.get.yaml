@@ -1,0 +1,17 @@
+/llm_configuration:
+  get:
+    summary: Get complete LLM configuration
+    description: Get complete LLM configuration including providers and models
+    responses:
+      '200':
+        description: Complete LLM configuration
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/model.yaml#/llmConfigurationResponse
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

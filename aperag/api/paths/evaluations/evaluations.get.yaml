@@ -1,0 +1,31 @@
+/evaluations:
+  get:
+    tags:
+    - evaluation
+    summary: List all evaluation tasks
+    security:
+    - BearerAuth: []
+    operationId: list_evaluations_api_v1_evaluations_get
+    parameters:
+    - name: collection_id
+      in: query
+      required: false
+      schema:
+        type: string
+    - name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    - name: page_size
+      in: query
+      schema:
+        type: integer
+        default: 10
+    responses:
+      '200':
+        description: Successful Response
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/evaluation.yaml#/EvaluationList

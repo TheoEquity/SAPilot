@@ -15,8 +15,10 @@
 from logging.config import dictConfig
 
 from celery import Celery
-from celery.signals import worker_process_init, worker_process_shutdown
+from celery.signals import setup_logging, worker_process_shutdown
+
 from aperag.config import settings
+from aperag.logging import logging_config
 
 # Create celery app instance
 app = Celery("aperag")
@@ -40,7 +42,7 @@ app.conf.update(
     worker_log_format='[%(asctime)s: %(levelname)s/%(processName)s] %(name)s - %(message)s',
     worker_task_log_format='[%(asctime)s: %(levelname)s/%(processName)s] %(name)s - %(message)s',
     # Let our custom logging configuration handle the root logger
-    worker_hijack_root_logger=True,
+    worker_hijack_root_logger=False,
 )
 
 app.conf.beat_schedule = {
@@ -69,63 +71,14 @@ if settings.local_queue_name:
     }
 
 
-# Simple logging configuration for Celery workers
-CELERY_LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'console': {
-            'format': '[%(asctime)s: %(levelname)s/%(processName)s] %(name)s - %(message)s'
-        }
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'console',
-            'level': 'INFO',
-        }
-    },
-    'loggers': {
-        'LiteLLM': {
-            'level': 'WARNING',
-            'handlers': ['console'],
-            'propagate': False,
-        },
-        # Configure all aperag loggers
-        'aperag': {
-            'level': 'INFO',
-            'handlers': ['console'],
-            'propagate': False,
-        },
-        # Configure celery loggers
-        'celery': {
-            'level': 'INFO',
-            'handlers': ['console'],
-            'propagate': False,
-        },
-        'celery.task': {
-            'level': 'INFO',
-            'handlers': ['console'],
-            'propagate': False,
-        },
-        'celery.worker': {
-            'level': 'INFO',
-            'handlers': ['console'],
-            'propagate': False,
-        },
-    },
-    # Configure root logger to ensure all logs have timestamps
-    'root': {
-        'level': 'INFO',
-        'handlers': ['console'],
-    },
-}
+# Configure the main worker too, including the local solo pool.
+CELERY_LOGGING_CONFIG = logging_config("worker")
 
-@worker_process_init.connect
-def setup_worker(**kwargs):
-    """Setup logging and other worker initialization"""
-    # Configure logging for this worker process
+
+@setup_logging.connect
+def setup_worker_logging(**kwargs):
     dictConfig(CELERY_LOGGING_CONFIG)
+
 
 @worker_process_shutdown.connect
 def shutdown_worker(**kwargs):

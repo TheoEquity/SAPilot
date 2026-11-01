@@ -1,0 +1,17 @@
+/invitations:
+  get:
+    summary: Get all invitations
+    description: Get all invitations
+    responses:
+      '200':
+        description: Invitations fetched successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/auth.yaml#/invitationList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

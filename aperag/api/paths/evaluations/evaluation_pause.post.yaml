@@ -1,0 +1,21 @@
+/evaluations/{eval_id}/pause:
+  post:
+    tags:
+    - evaluation
+    summary: Pause an evaluation task
+    security:
+    - BearerAuth: []
+    operationId: pause_evaluation_api_v1_evaluations__eval_id__pause_post
+    parameters:
+    - name: eval_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Successful Response
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/evaluation.yaml#/Evaluation

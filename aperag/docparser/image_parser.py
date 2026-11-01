@@ -14,6 +14,8 @@
 
 import base64
 import json
+import shutil
+import subprocess
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -41,15 +43,29 @@ class ImageParser(BaseParser):
         return SUPPORTED_EXTENSIONS
 
     def parse_file(self, path: Path, metadata: dict[str, Any] = {}, **kwargs) -> list[Part]:
-        if not settings.paddleocr_host:
-            raise FallbackError("PADDLEOCR_HOST is not set")
-
         content = self.read_image_text(path)
         metadata = metadata.copy()
         metadata["md_source_map"] = [0, content.count("\n") + 1]
         return [TextPart(content=content, metadata=metadata)]
 
     def read_image_text(self, path: Path) -> str:
+        if not settings.paddleocr_host:
+            tesseract = shutil.which("tesseract")
+            if tesseract is None:
+                raise FallbackError("Image OCR requires PADDLEOCR_HOST or local tesseract with chi_sim and eng data")
+            try:
+                result = subprocess.run(
+                    [tesseract, "stdin", "stdout", "-l", "chi_sim+eng"],
+                    input=path.read_bytes(),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=True,
+                    timeout=120,
+                )
+            except (OSError, subprocess.SubprocessError) as exc:
+                raise FallbackError("Local tesseract image OCR failed") from exc
+            return result.stdout.decode("utf-8").strip()
+
         def image_to_base64(image_path: str):
             with Image.open(image_path) as image:
                 if image.mode == "RGBA":

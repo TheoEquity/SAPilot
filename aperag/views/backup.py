@@ -16,7 +16,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from aperag.db.models import User
@@ -80,7 +80,6 @@ async def export_backup(
         result["prompts"] = {k: v["content"] for k, v in prompts_data.items() if v.get("content")}
 
     if "bots" in payload.scope:
-        from aperag.db import models as db_models
         from aperag.db.ops import async_db_ops
 
         bot_configs = await async_db_ops.query_bots([user_id])
@@ -125,7 +124,7 @@ async def import_settings(
 
     imported_count = len(payload.settings)
     return {
-        "message": f"Settings imported successfully",
+        "message": "Settings imported successfully",
         "imported_count": imported_count,
     }
 

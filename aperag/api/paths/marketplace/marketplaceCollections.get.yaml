@@ -1,0 +1,39 @@
+/marketplace/collections:
+  get:
+    summary: List all published Collections in marketplace
+    description: Returns all Collections that are published to marketplace with current user's subscription status
+    parameters:
+    - name: page
+      in: query
+      description: Page number
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    - name: page_size
+      in: query
+      description: Page size
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 12
+    responses:
+      '200':
+        description: List of published Collections
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/marketplace.yaml#/SharedCollectionList
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

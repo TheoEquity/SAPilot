@@ -1,4 +1,4 @@
-import { Bot } from '@/api';
+import type { Bot } from '@/api/generated/models/bot';
 import {
   PageContainer,
   PageContent,
@@ -29,10 +29,7 @@ export default async function Page() {
 
   let bots: Bot[] = [];
   try {
-    const res = await serverApi.defaultApi.botsGet({
-      page: 1,
-      pageSize: 100,
-    });
+    const res = await serverApi.bots.listBots();
     bots = res.data.items || [];
   } catch (err) {
     console.log(err);
@@ -40,14 +37,10 @@ export default async function Page() {
 
   return (
     <PageContainer>
-      <PageHeader
-        breadcrumbs={[{ title: page_bot('metadata.title') }]}
-      />
+      <PageHeader breadcrumbs={[{ title: page_bot('metadata.title') }]} />
       <PageContent>
         <PageTitle>{page_bot('metadata.title')}</PageTitle>
-        <PageDescription>
-          {page_bot('metadata.description')}
-        </PageDescription>
+        <PageDescription>{page_bot('metadata.description')}</PageDescription>
         <BotList bots={toJson(bots)} />
       </PageContent>
     </PageContainer>

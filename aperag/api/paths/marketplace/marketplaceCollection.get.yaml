@@ -1,0 +1,42 @@
+/marketplace/collections/{collection_id}:
+  get:
+    summary: Get MarketplaceCollection details (read-only)
+    description: Get details of a subscribed Collection (read-only access)
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      description: Collection ID
+      schema:
+        type: string
+    responses:
+      '200':
+        description: MarketplaceCollection details
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/marketplace.yaml#/SharedCollection
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '403':
+        description: Access denied (need subscription)
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

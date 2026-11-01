@@ -1,0 +1,32 @@
+/collections/{collection_id}/documents/{document_id}:
+  delete:
+    summary: Delete a document
+    description: Delete a document
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '204':
+        description: Document deleted successfully
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Document not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

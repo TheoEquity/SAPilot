@@ -3,15 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "api:build": "yarn api:clean && yarn api:bundle && openapi-generator-cli generate && yarn api:clear",
-    "api:bundle": "redocly bundle ../aperag/api/openapi.yaml > ./src/api/openapi.merged.yaml",
-    "api:clean": "rm -rf ./src/api/*",
-    "api:clear": "rm -rf ./src/api/.openapi-generator && rm -rf ./src/api/.gitignore && rm -rf ./src/api/.npmignore && rm -rf ./src/api/.openapi-generator-ignore && rm -rf ./src/api/git_push.sh",
+    "api:build": "yarn api:export && yarn api:generate",
+    "api:bundle": "yarn api:export",
+    "api:export": "python ../scripts/export_openapi.py",
+    "api:generate": "orval --config orval.config.ts",
     "build": "yarn install && next build && ts-node scripts/build.mjs",
-    "dev": "cp ./deploy/env.local.template ./.env && yarn install && next dev --turbopack",
+    "dev": "node -e \"const fs = require('node:fs'); if (!fs.existsSync('.env')) fs.copyFileSync('./deploy/env.local.template', '.env');\" && yarn install && node ../scripts/run-with-logs.mjs frontend -- node node_modules/next/dist/bin/next dev --turbopack",
+    "dev:mock": "tsx scripts/dev-mock.ts",
+    "test:mock": "tsx --test tests/mock-api.test.ts",
+    "test:logs": "tsx --test tests/logger.test.ts tests/log-output.test.ts",
     "lint": "next lint",
     "prettier": "prettier --cache --write ./ && yarn lint",
-    "start": "next start",
+    "start": "node ../scripts/run-with-logs.mjs frontend -- node node_modules/next/dist/bin/next start",
     "i18n:watch": "ts-node scripts/i18n-watch.mjs"
   },
   "dependencies": {
@@ -100,10 +103,12 @@
     "typewriter-effect": "^2.22.0",
     "use-local-storage-state": "^19.5.0",
     "vaul": "^1.1.2",
-    "zod": "^4.0.17"
+    "zod": "^4.0.17",
+    "axios": "1.16.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@faker-js/faker": "10.6.0",
     "@redocly/cli": "^1.34.3",
     "@tailwindcss/postcss": "^4",
     "@types/async": "^3.2.25",
@@ -122,6 +127,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.4.8",
     "eslint-config-prettier": "^10.1.8",
+    "msw": "2.14.6",
     "prettier": "^3.6.2",
     "prettier-plugin-organize-imports": "^4.2.0",
     "prettier-plugin-packagejson": "^2.5.19",
@@ -129,10 +135,12 @@
     "shadcn": "^2.10.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "4.23.15",
     "tw-animate-css": "^1.3.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "orval": "8.45.0"
   },
   "engines": {
-    "node": ">=20.16.0"
+    "node": ">=22.18.0"
   }
 }

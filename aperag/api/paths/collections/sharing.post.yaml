@@ -1,0 +1,46 @@
+/collections/{collection_id}/sharing:
+  post:
+    summary: Publish collection to marketplace
+    description: Publish a collection to the public marketplace (owner only)
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Collection ID
+    responses:
+      '204':
+        description: Collection published successfully
+      '400':
+        description: Bad request (e.g., collection already published)
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '403':
+        description: Permission denied (not collection owner)
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

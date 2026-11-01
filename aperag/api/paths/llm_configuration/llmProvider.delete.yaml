@@ -1,0 +1,26 @@
+/llm_providers/{provider_name}:
+  delete:
+    summary: Delete an LLM provider
+    description: Delete an LLM provider (soft delete)
+    parameters:
+    - name: provider_name
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Provider name
+    responses:
+      '200':
+        description: LLM provider deleted successfully
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Provider not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

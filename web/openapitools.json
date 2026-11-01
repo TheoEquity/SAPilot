@@ -7,12 +7,11 @@
     "generators": {
       "v3.0": {
         "generatorName": "typescript-axios",
-        "output": "#{cwd}/src/api",
-        "inputSpec": "#{cwd}/src/api/openapi.merged.yaml",
+        "output": "#{cwd}/../.run/openapi/sdk",
+        "inputSpec": "#{cwd}/../.run/openapi/openapi.yaml",
         "apiPackage": "apis",
         "modelPackage": "models",
         "modelNamePrefix": "",
-        "skipValidateSpec": true,
         "additionalProperties": {
           "enumPropertyNaming": "original",
           "supportsES6": true,

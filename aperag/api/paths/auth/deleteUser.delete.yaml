@@ -1,0 +1,13 @@
+/users/{user_id}:
+  delete:
+    summary: Delete a user
+    description: Delete a user
+    parameters:
+    - name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: User deleted successfully

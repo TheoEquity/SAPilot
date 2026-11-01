@@ -433,6 +433,7 @@
     "rag_description": "SAPilot is an intelligent assistant for SAP operations, helping consultants diagnose issues, analyze causes, and provide resolution suggestions based on enterprise knowledge and operational experience.",
     "mention_a_collection": "Type @ to mention a collection...",
     "display_empty_title": "New chat",
+    "connection_interrupted": "Connection lost. This answer is incomplete. Please retry once reconnected.",
     "no_collection_was_found": "No collection was found",
     "web_search": "Web search",
     "current_skill_label": "Current skill",

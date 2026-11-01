@@ -50,6 +50,13 @@ class CompletionService:
     def is_vision_model(self) -> bool:
         return self.vision
 
+    def _request_options(self) -> Dict[str, Any]:
+        # This hybrid model otherwise spends the output budget thinking even
+        # for OCR/source observations. Use its documented direct-answer mode.
+        if self.model == 'qwen3.8-flash':
+            return {'extra_body': {'enable_thinking': False}}
+        return {}
+
     def _validate_inputs(self, prompt: Optional[str], images: Optional[List[str]] = None) -> None:
         """Validate input parameters."""
         if not self.vision:
@@ -109,6 +116,7 @@ class CompletionService:
                 messages=messages,
                 stream=False,
                 caching=self.caching,
+                **self._request_options(),
             )
 
             return self._extract_content_from_response(response)
@@ -138,6 +146,7 @@ class CompletionService:
                 messages=messages,
                 stream=True,
                 caching=self.caching,
+                **self._request_options(),
             )
 
             # Process the raw stream and yield clean text chunks
@@ -180,6 +189,7 @@ class CompletionService:
                 messages=messages,
                 stream=False,
                 caching=self.caching,
+                **self._request_options(),
             )
 
             return self._extract_content_from_response(response)

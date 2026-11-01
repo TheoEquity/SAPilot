@@ -1,0 +1,17 @@
+/prompts/validate:
+  post:
+    summary: Validate prompt template
+    description: Validate prompt template syntax (Jinja2)
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/prompt.yaml#/validateRequest
+    responses:
+      '200':
+        description: Validation result
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/prompt.yaml#/validateResponse
