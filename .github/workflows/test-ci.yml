@@ -23,6 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
@@ -42,3 +43,37 @@ jobs:
         run: yarn --cwd web typecheck
       - name: Frontend conventions
         run: yarn --cwd web lint
+      - name: Maintainability hints for changed source
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -o pipefail
+          base="${BASE_SHA:-HEAD^}"
+          if [[ "$base" =~ ^0+$ ]]; then base=HEAD^; fi
+          changed_files="$(mktemp)"
+          trap 'rm -f "$changed_files"' EXIT
+          git diff --name-only --diff-filter=ACMR -z "$base" HEAD -- aperag scripts web/src > "$changed_files"
+          python_files=()
+          frontend_files=()
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              aperag/schema/view_models.py|aperag/migration/*|aperag/migrations/*|web/src/api/*|web/src/i18n/*.d.json.ts) continue ;;
+              aperag/*.py|scripts/*.py) python_files+=("$file") ;;
+              web/src/*.ts|web/src/*.tsx) frontend_files+=("${file#web/}") ;;
+            esac
+          done < "$changed_files"
+          echo "Changed source: ${#python_files[@]} Python, ${#frontend_files[@]} TypeScript files."
+          if (( ${#python_files[@]} )); then
+            python -m ruff check --select C901 --config lint.mccabe.max-complexity=15 --force-exclude --exit-zero --output-format github -- "${python_files[@]}" |
+              sed 's/^::error /::warning /'
+          fi
+          if (( ${#frontend_files[@]} )); then
+            (
+              cd web
+              node node_modules/eslint/bin/eslint.js \
+                --rule 'complexity:["warn",15]' \
+                --rule 'max-depth:["warn",4]' \
+                --rule 'max-lines-per-function:["warn",{"max":150,"skipBlankLines":true,"skipComments":true}]' \
+                -- "${frontend_files[@]}"
+            )
+          fi
