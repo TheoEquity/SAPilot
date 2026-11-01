@@ -1,6 +1,7 @@
 'use client';
 
 import { apiClient } from '@/lib/api/client';
+import { logger } from '@/lib/logger';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Bot, Chat, ChatDetails, Collection, ModelSpec } from '@/api';
@@ -144,25 +145,35 @@ export const BotProvider = ({
   const chatRename = useCallback(
     async (chat: Chat) => {
       if (chat.title !== 'New Chat' || !chat.id || !chat.bot_id) return;
-      const titleRes = await apiClient.defaultApi.botsBotIdChatsChatIdTitlePost(
-        {
-          chatId: chat.id,
-          botId: chat.bot_id,
-          titleGenerateRequest: {
-            language: locale,
+      try {
+        const titleRes = await apiClient.defaultApi.botsBotIdChatsChatIdTitlePost(
+          {
+            chatId: chat.id,
+            botId: chat.bot_id,
+            titleGenerateRequest: {
+              language: locale,
+            },
           },
-        },
-      );
-      const title = titleRes.data.title;
-      if (title) {
-        await apiClient.defaultApi.botsBotIdChatsChatIdPut({
-          chatId: chat.id,
-          botId: chat.bot_id,
-          chatUpdate: {
-            title,
-          },
+        );
+        const title = titleRes.data.title;
+        if (title) {
+          await apiClient.defaultApi.botsBotIdChatsChatIdPut({
+            chatId: chat.id,
+            botId: chat.bot_id,
+            chatUpdate: {
+              title,
+            },
+          });
+          await chatsReload();
+        }
+      } catch (error) {
+        // Automatic naming must not turn a completed answer into a page error.
+        logger.warn('chat.title.failed', {
+          chat_id: chat.id,
+          stage: 'chat.title',
+          status: 'failed',
+          error,
         });
-        chatsReload();
       }
     },
     [chatsReload, locale],

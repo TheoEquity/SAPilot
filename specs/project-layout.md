@@ -53,6 +53,7 @@ SAPilot-data/
 │  ├─ internal/          七份内部知识测试语料与来源清单
 │  └─ external/          已下载的外部文档、图片与来源清单
 ├─ derived/             后续解析、图片、分块等派生产物
+├─ logs/                服务日志、浏览器诊断导出及原始验证日志归档
 ├─ evaluations/
 │  ├─ document-inspection/
 │  ├─ four-business-skills/

@@ -3,10 +3,11 @@
 import { ChatDetails, ChatMessage, Feedback, Reference } from '@/api';
 import { useBotContext } from '@/components/providers/bot-provider';
 import { apiClient } from '@/lib/api/client';
+import { logger } from '@/lib/logger';
 import { useWebSocket } from 'ahooks';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { animateScroll as scroll } from 'react-scroll';
 import type { ChatInputSubmitParams } from './chat-input';
 
@@ -14,12 +15,38 @@ export const useChatMessages = (chat: ChatDetails) => {
   const { chatRename } = useBotContext();
   const { botId, chatId } = useParams<{ botId: string; chatId: string }>();
   const locale = useLocale();
+  const pageChat = useTranslations('page_chat');
   const [messages, setMessages] = useState<Array<Array<ChatMessage>>>(
     chat?.history || [],
   );
   // const [messagesLoading, setMessagesLoading] = useState<boolean>(false);
 
   const [loading, setLoading] = useState<boolean>(false);
+  const activeResponse = useRef<{ id?: string; socket: WebSocket } | null>(
+    null,
+  );
+  const interruptResponse = (socket: WebSocket) => {
+    const response = activeResponse.current;
+    if (!response || response.socket !== socket) return false;
+    activeResponse.current = null;
+    setLoading(false);
+    const error: ChatMessage = {
+      id: response.id,
+      type: 'error',
+      role: 'ai',
+      data: pageChat('connection_interrupted'),
+      timestamp: Math.floor(Date.now() / 1000),
+    };
+    setMessages((msgs) => {
+      const index = msgs.findLastIndex((parts) =>
+        parts.some((part) => part.id === response.id && part.role === 'ai'),
+      );
+      return index < 0
+        ? [...msgs, [error]]
+        : msgs.map((parts, i) => (i === index ? [...parts, error] : parts));
+    });
+    return true;
+  };
   const { protocol, host } = useMemo(() => {
     if (typeof window !== 'undefined') {
       return {
@@ -37,16 +64,43 @@ export const useChatMessages = (chat: ChatDetails) => {
   const { sendMessage, readyState, disconnect, connect } = useWebSocket(
     `${protocol}${host}${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/v1/bots/${botId}/chats/${chatId}/connect`,
     {
-      onMessage: (message) => {
-        const fragment = JSON.parse(message.data) as ChatMessage;
+      onMessage: (message, socket) => {
+        let fragment: ChatMessage;
+        try {
+          fragment = JSON.parse(message.data) as ChatMessage;
+        } catch (error) {
+          logger.error('chat.response.invalid', { chat_id: chatId, error });
+          throw error;
+        }
         if (fragment.type === 'start') {
+          activeResponse.current = { id: fragment.id, socket };
+          logger.info('chat.response.started', {
+            chat_id: chatId,
+            message_id: fragment.id,
+            status: 'started',
+          });
           setLoading(true);
         }
         if (fragment.type === 'stop') {
+          activeResponse.current = null;
+          logger.info('chat.response.completed', {
+            chat_id: chatId,
+            message_id: fragment.id,
+            status: 'success',
+          });
           setLoading(false);
           if (chatRename && chat) {
             chatRename(chat);
           }
+        }
+        if (fragment.id === 'error' || fragment.type === 'error') {
+          activeResponse.current = null;
+          setLoading(false);
+          // The server error is rendered in the chat; it is a handled failure.
+          logger.warn('chat.response.failed', {
+            chat_id: chatId,
+            status: 'failed',
+          });
         }
         setMessages((msgs) => {
           const partsIndex = msgs.findLastIndex((parts) => {
@@ -109,6 +163,23 @@ export const useChatMessages = (chat: ChatDetails) => {
           return [...msgs];
         });
       },
+      onError: (_event, socket) => {
+        interruptResponse(socket);
+        logger.warn('chat.connection.failed', {
+          chat_id: chatId,
+          status: 'failed',
+        });
+      },
+      onClose: (event, socket) => {
+        const interrupted = interruptResponse(socket);
+        if (interrupted || event.code === 1006) {
+          logger.warn('chat.connection.closed', {
+            chat_id: chatId,
+            close_code: event.code,
+            status: 'failed',
+          });
+        }
+      },
     },
   );
 
@@ -127,9 +198,19 @@ export const useChatMessages = (chat: ChatDetails) => {
         return [...msgs];
       });
 
-      sendMessage(JSON.stringify(params));
+      try {
+        sendMessage(JSON.stringify(params));
+      } catch (error) {
+        logger.error('chat.message.failed', { chat_id: chatId, error });
+        throw error;
+      }
+      logger.info('chat.message.submitted', {
+        chat_id: chatId,
+        status: 'submitted',
+        file_count: params.files?.length || 0,
+      });
     },
-    [sendMessage],
+    [sendMessage, chatId],
   );
 
   const handleFaqChoice = useCallback(
@@ -146,19 +227,28 @@ export const useChatMessages = (chat: ChatDetails) => {
         return [...msgs];
       });
 
-      sendMessage(
-        JSON.stringify({
-          query: label,
-          action,
-          collections: [],
-          completion: null,
-          web_search_enabled: false,
-          language: locale,
-          files: [],
-        }),
-      );
+      try {
+        sendMessage(
+          JSON.stringify({
+            query: label,
+            action,
+            collections: [],
+            completion: null,
+            web_search_enabled: false,
+            language: locale,
+            files: [],
+          }),
+        );
+      } catch (error) {
+        logger.error('chat.message.failed', { chat_id: chatId, error });
+        throw error;
+      }
+      logger.info('chat.message.submitted', {
+        chat_id: chatId,
+        status: 'submitted',
+      });
     },
-    [locale, sendMessage],
+    [locale, sendMessage, chatId],
   );
 
   const hanldeMessageFeedback = useCallback(
@@ -188,10 +278,15 @@ export const useChatMessages = (chat: ChatDetails) => {
   );
 
   const handleCancel = useCallback(() => {
+    activeResponse.current = null;
+    logger.info('chat.message.cancelled', {
+      chat_id: chatId,
+      status: 'cancelled',
+    });
     disconnect();
     connect();
     setLoading(false);
-  }, [connect, disconnect]);
+  }, [connect, disconnect, chatId]);
 
   useEffect(() => {
     if (loading) {

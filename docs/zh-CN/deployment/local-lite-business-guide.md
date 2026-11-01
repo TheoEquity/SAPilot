@@ -1,5 +1,7 @@
 # 本地轻量部署说明
 
+> 状态：本地开发操作说明，包含联网准备及热重载步骤。当前团队部署方向见[云服务器与模型 API 讨论稿](../design/discussions/cloud-api-deployment-draft.md)，原[离线架构讨论稿](../design/discussions/offline-deployment-draft.md)已作废。本说明不等同于团队云部署说明，脚本仍使用仓库内被忽略的 `.run/` 保存 PID 和日志。
+
 这份说明适合完全不懂开发的业务同事。
 
 目标效果：

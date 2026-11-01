@@ -50,7 +50,7 @@ class QuestionSetService:
         if request.questions:
             questions_to_create = [
                 Question(
-                    question_type=q.question_type,
+                    question_type=q.question_type.root if q.question_type is not None else None,
                     question_text=q.question_text,
                     ground_truth=q.ground_truth,
                 )
@@ -88,7 +88,7 @@ class QuestionSetService:
                 question_set_id=qs_id,
                 question_text=q.question_text,
                 ground_truth=q.ground_truth,
-                question_type=q.question_type,
+                question_type=q.question_type.root if q.question_type is not None else None,
             )
             for q in request.questions
         ]
@@ -97,7 +97,10 @@ class QuestionSetService:
     async def update_question(self, q_id: str, request: view_models.QuestionUpdate) -> Question | None:
         """Updates a question."""
         return await self.db_ops.update_question(
-            q_id, request.question_text, request.ground_truth, request.question_type
+            q_id,
+            request.question_text,
+            request.ground_truth,
+            request.question_type.root if request.question_type is not None else None,
         )
 
     async def delete_question(self, q_id: str) -> bool:

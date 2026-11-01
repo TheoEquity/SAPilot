@@ -38,6 +38,8 @@
 
 ## 问答与后台摄取
 
+接口、Service、模型/工具与 worker 的关键事件、耗时、异常依据和关联上下文遵循[全栈日志规约](logging-and-diagnostics.md)。业务日志统一使用 Python 标准库 `logging`，各模块用 `logging.getLogger(__name__)` 获取 logger，业务字段通过 `extra` 传入；统一配置格式、级别与输出，业务模块不另装 handler 或用 `print` 代替。调用链复用 OpenTelemetry 和 Langfuse，保留 API 到后台任务的关联，不将日志或观测故障升级为业务失败。
+
 问答按接入、配置、路由、执行、返回与保存组织。文档摄取沿用文档服务、reconciler、Celery 和索引实现，通过上传确认、后台调度、解析、索引与状态更新协作；耗时解析和索引留在后台。
 
 任务修改核对失败、取消、重试、重复执行和状态转换；按实际证据决定是否调整机制，不预建锁、重试或新调度框架。相关实现见[摄取与索引说明](../docs/zh-CN/design/current/document-ingestion-and-indexing.md)。

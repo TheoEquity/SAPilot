@@ -19,7 +19,9 @@ from typing import Any
 from markitdown import MarkItDown
 
 from aperag.docparser.base import BaseParser, FallbackError, Part
+from aperag.docparser.faq_table_parser import FAQTableParser
 from aperag.docparser.parse_md import parse_md
+from aperag.docparser.pdf_parser import PdfParser
 from aperag.docparser.utils import convert_office_doc, get_soffice_cmd
 
 SUPPORTED_EXTENSIONS = [
@@ -59,10 +61,17 @@ class MarkItDownParser(BaseParser):
                 raise FallbackError("soffice command not found")
             with tempfile.TemporaryDirectory() as temp_dir:
                 converted = convert_office_doc(path, Path(temp_dir), target_format)
+                if extension == ".doc":
+                    try:
+                        return FAQTableParser().parse_file(converted, metadata, **kwargs)
+                    except FallbackError:
+                        pass
                 return self._parse_file(converted, metadata, **kwargs)
         return self._parse_file(path, metadata, **kwargs)
 
     def _parse_file(self, path: Path, metadata: dict[str, Any] = {}, **kwargs) -> list[Part]:
+        if path.suffix.lower() == ".pdf":
+            return PdfParser().parse_file(path, metadata, **kwargs)
         mid = MarkItDown()
         result = mid.convert_local(path, keep_data_uris=True)
         return parse_md(result.markdown, metadata)

@@ -19,6 +19,7 @@ Architecture, conventions, and environment guidance live in `specs/`. For develo
 - [High-level engineering architecture](specs/engineering-architecture.md): module responsibilities, layers, dependencies, and boundaries; endpoint details belong in OpenAPI definitions.
 - [Frontend conventions](specs/frontend-architecture-and-conventions.md): file placement, UI, state, effects, and verification.
 - [Backend conventions](specs/backend-architecture-and-conventions.md): Service, Agent, storage, and background-task maintenance.
+- [Full-stack logging and diagnostics](specs/logging-and-diagnostics.md): frontend, API, worker and model/tool events, correlation, redaction, and failure investigation.
 - [Database design and migrations](specs/database-design-conventions.md): tables, fields, constraints, indexes, and migration verification.
 - [API contract maintenance](specs/api-contract-conventions.md): Python-owned FastAPI routes and models, generated documentation and frontend clients, and protocol boundaries.
 - [Development environment guide](specs/development-guide.md): local environment setup, startup, and development commands.

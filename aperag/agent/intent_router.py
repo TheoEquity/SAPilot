@@ -100,6 +100,11 @@ async def route_intent(
             f"Authoritative candidate skills (you must choose one exact skill_id from this list):\n"
             f"{skills_desc}\n\n"
             f"Current user input:\n{agent_message.query}\n\n"
+            "Document comparison, version, scope and evidence checking are knowledge lookup tasks, "
+            "even when they are not troubleshooting questions. Route to an appropriate enabled evidence skill. "
+            "An attached image or partial screenshot is input evidence; do not choose clarification solely "
+            "because the original query has few words. Use the supplied visual observations. "
+            "Choose the fallback only when the request is actually insufficient to identify a task.\n"
             f"Output exactly one skill_id from the authoritative candidate list above."
         )
 

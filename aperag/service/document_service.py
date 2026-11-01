@@ -18,6 +18,7 @@ import mimetypes
 import os
 import re
 from typing import List
+from urllib.parse import quote
 
 from fastapi import HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -1027,9 +1028,7 @@ class DocumentService:
             # UPLOADED documents can be downloaded (before confirmation, within 24 hours)
             # Once expired or deleted, files may no longer exist in storage
             if document.status in [db_models.DocumentStatus.EXPIRED, db_models.DocumentStatus.DELETED]:
-                raise HTTPException(
-                    status_code=400, detail=f"Document status is {document.status.value}, cannot download"
-                )
+                raise HTTPException(status_code=400, detail=f"Document status is {document.status}, cannot download")
 
             # 3. Get object path from doc_metadata
             try:
@@ -1058,9 +1057,14 @@ class DocumentService:
                     content_type = "application/octet-stream"
 
                 # Set headers for file download
+                encoded_filename = quote(document.name, safe="")
+                if encoded_filename != document.name:
+                    content_disposition = f"attachment; filename*=utf-8''{encoded_filename}"
+                else:
+                    content_disposition = f'attachment; filename="{document.name}"'
                 headers = {
                     "Content-Type": content_type,
-                    "Content-Disposition": f'attachment; filename="{document.name}"',
+                    "Content-Disposition": content_disposition,
                     "Content-Length": str(file_size),
                 }
 
@@ -1071,6 +1075,8 @@ class DocumentService:
 
                 return StreamingResponse(data_stream, headers=headers)
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Failed to download document {document_id} from path {object_path}: {e}", exc_info=True)
                 raise HTTPException(status_code=500, detail="Failed to download document from storage")

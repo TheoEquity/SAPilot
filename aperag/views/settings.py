@@ -17,7 +17,6 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, Response
 from fastapi.responses import JSONResponse
 
-from aperag.db.models import User
 from aperag.schema.view_models import Settings
 from aperag.service.setting_service import setting_service
 from aperag.views.auth import get_current_admin, required_user

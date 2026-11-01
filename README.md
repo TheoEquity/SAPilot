@@ -18,6 +18,7 @@ This map helps the project owner find materials and keep track of how the projec
 | Development environment and file placement | [Environment guide](specs/development-guide.md), [project layout](specs/project-layout.md) | Local setup, running the project, and where files belong |
 | Implementation details and flows | [Current implementation explanations](docs/zh-CN/design/current/) | Message processing, ingestion, retrieval, storage, and related implementation details |
 | Discussion drafts and alternatives | [discussions/](docs/zh-CN/design/discussions/) | Ideas, rationale, and alternatives; discussion does not automatically establish a development decision |
+| On-demand development prompt | [Development task template](prompts/development-task.md) | A prompt to review, copy, and fill in once a requirement is clear; not a required step in routine development |
 | Main project steps | [Development roadmap record](records/development-roadmap.md) | Overall steps, stage priorities, and open questions |
 | Implementation, review, and verification records | [records/](records/) | What changed in a particular round, what was checked, and what remains; kept separate from architecture and conventions |
 | Deployment, integrations, and other materials | [Documentation index](docs/README.md) | Deployment explanations, DingTalk and MCP integrations, test guides, and references |

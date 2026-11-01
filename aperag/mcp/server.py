@@ -12,20 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import logging
 import os
-import json
+import re
 from typing import Any, Dict
 
 import httpx
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_headers
 
+from aperag.agent.tool_reference_extractor import _format_reference_content
 from aperag.db.ops import async_db_ops
-from aperag.service.image_search_service import image_search_service
-from aperag.service.chat_collection_service import chat_collection_service
+
 # Import view models for type safety
-from aperag.schema.view_models import Collection, CollectionViewList, SearchResult, SearchResultItem, WebReadResponse, WebSearchResponse
+from aperag.schema.view_models import (
+    Collection,
+    CollectionViewList,
+    SearchResult,
+    SearchResultItem,
+    WebReadResponse,
+    WebSearchResponse,
+)
+from aperag.service.chat_collection_service import chat_collection_service
+from aperag.service.image_search_service import image_search_service
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +44,229 @@ mcp_server = FastMCP("ApeRAG")
 
 # Base URL for internal API calls
 API_BASE_URL = "http://localhost:8000"
+
+
+def _limit_search_results(search_result: SearchResult, topk: int) -> None:
+    """Keep the documented per-index limit without dropping another index's results."""
+    counts = {}
+    items = []
+    for item in search_result.items or []:
+        source = item.recall_type or "unknown"
+        if counts.get(source, 0) >= topk:
+            continue
+        counts[source] = counts.get(source, 0) + 1
+        item.rank = len(items) + 1
+        items.append(item)
+    search_result.items = items
+
+
+def _scope_search_sources(search_result: SearchResult, collection_id: str) -> None:
+    for item in search_result.items or []:
+        metadata = item.metadata or {}
+        metadata['collection_id'] = collection_id
+        metadata['document_id'] = metadata.get('document_id') or metadata.get('doc_id')
+        if isinstance(metadata.get('page_idx'), int):
+            metadata['physical_page'] = metadata['page_idx'] + 1
+        if metadata.get('asset_id'):
+            metadata['asset_url'] = _format_reference_content('asset://' + metadata['asset_id'], metadata)
+        item.content = _format_reference_content(item.content or '', metadata)
+        item.metadata = metadata
+
+
+def _pdf_faq_page_sections(markdown: str, headings: list) -> dict:
+    """Describe explicit native FAQ boundaries; never infer them from OCR or a TOC."""
+    pages = {}
+    previous = None
+    for index, page_heading in enumerate(headings):
+        page = int(page_heading.group(1)) - 1
+        end = headings[index + 1].start() if index + 1 < len(headings) else len(markdown)
+        content = markdown[page_heading.start():end]
+        native = content.split("### 图片文字识别", 1)[0]
+        titles = list(re.finditer(r"(?m)^\d+(?:\.\d+){1,5}\.?[ \t]+[^\n]+", native))
+        markers = list(re.finditer(r"(?m)^(FAQ[A-Z0-9]+)\b[^\n]*", native))
+        explicit = []
+        for marker in markers:
+            title = next((t for t in reversed(titles) if t.start() < marker.start()), None)
+            if title is None or native[title.end():marker.start()].count("\n") > 5:
+                continue
+            next_title = next((t.start() for t in titles if t.start() > marker.start()), len(native))
+            # A directory entry lacks a native problem body. OCR repeats are excluded above.
+            if not re.search(r"问题描述[：:]", native[marker.end():next_title]):
+                continue
+            explicit.append({"faq_id": marker.group(1), "relation": "starts_on_page",
+                             "source_start": title.start(), "source_end": next_title,
+                             "heading_page_idx": page})
+        if explicit:
+            sections = []
+            prefix = native[:explicit[0]["source_start"]]
+            continuation = re.search(r"(?m)^(?:解决方案|问题描述)[：:]", prefix)
+            if previous and continuation:
+                sections.append({"faq_id": previous[0], "relation": "continues_previous_page",
+                                 "source_start": continuation.start(), "source_end": len(prefix),
+                                 "heading_page_idx": previous[1]})
+            sections.extend(explicit)
+            pages[page] = sections
+            previous = (explicit[-1]["faq_id"], page)
+        else:
+            previous = None
+    return pages
+
+
+def _mark_pdf_faq_sections(text: str, source_length: int, offset: int, sections: list) -> tuple:
+    """Add clearly separate display markers while retaining raw-source offset mapping."""
+    parts, markers = [], []
+    cursor = 0
+    display_length = 0
+    for section in sections:
+        if section["source_end"] <= offset or section["source_start"] >= offset + len(text):
+            continue
+        position = max(0, section["source_start"] - offset)
+        fragment = text[cursor:position]
+        parts.append(fragment)
+        display_length += len(fragment)
+        label = "续上页：" if section["relation"] == "continues_previous_page" else "新条目："
+        marker = ("\n【上下文边界（系统标识，非原文）：" + label + section["faq_id"]
+                  + f"；本页原文字符[{section['source_start']},{section['source_end']})】\n")
+        markers.append({"text": marker, "display_start": display_length,
+                        "display_end": display_length + len(marker), "source_offset": offset + position})
+        parts.append(marker)
+        display_length += len(marker)
+        cursor = position
+    parts.append(text[cursor:])
+    return "".join(parts), {"basis": "explicit_native_section_heading_and_faq_marker",
+                            "source_characters": source_length, "returned_source_offset": offset,
+                            "sections": sections, "display_markers": markers}
+
+
+async def _read_document_context(
+    api_key: str,
+    collection_id: str,
+    document_id: str,
+    query: str,
+    page_idx: int | None,
+    offset: int,
+    image_asset_ids: list[str] | None = None,
+) -> Dict[str, Any]:
+    # Reuse the preview API's authenticated document+collection+owner check. Never
+    # accept an object-store path from the caller or read the store directly.
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        response = await client.get(
+            f"{API_BASE_URL}/api/v1/collections/{collection_id}/documents/{document_id}/preview",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+    if response.status_code != 200:
+        return {"error": f"Document context unavailable: {response.status_code}"}
+
+    preview = response.json()
+    markdown = preview.get("markdown_content") or ""
+    chunks = preview.get("chunks") or []
+    source = preview.get("doc_filename") or ""
+    available_assets = set(re.findall(r"asset://([^?\s)]+)", markdown))
+    available_assets.update((chunk.get("metadata") or {}).get("asset_id") for chunk in chunks)
+    if image_asset_ids and (
+        len(image_asset_ids) > 6
+        or any(
+            not re.fullmatch(r"[A-Za-z0-9_.-]+", asset_id) or asset_id not in available_assets
+            for asset_id in image_asset_ids
+        )
+    ):
+        return {"error": "image_asset_ids must contain at most six asset IDs present in this document preview"}
+    sections = []
+    faq_sections = {}
+    if page_idx is not None:
+        # These headings are emitted by PdfParser; physical page indexes stay
+        # separate even when a FAQ continues onto the next page.
+        headings = list(re.finditer(r"(?m)^## PDF 第 (\d+) 页\s*$", markdown))
+        if headings:
+            faq_sections = _pdf_faq_page_sections(markdown, headings)
+            if page_idx not in {int(heading.group(1)) - 1 for heading in headings}:
+                return {"error": "Requested physical page does not exist in this document"}
+            for index, heading in enumerate(headings):
+                page = int(heading.group(1)) - 1
+                if abs(page - page_idx) > 1:
+                    continue
+                end = headings[index + 1].start() if index + 1 < len(headings) else len(markdown)
+                metadata = next(
+                    (
+                        dict(c.get("metadata") or {})
+                        for c in chunks
+                        if (c.get("metadata") or {}).get("page_idx") == page
+                    ),
+                    {},
+                )
+                metadata["page_idx"] = page
+                sections.append((markdown[heading.start() : end], metadata))
+        else:
+            if not any((chunk.get("metadata") or {}).get("page_idx") == page_idx for chunk in chunks):
+                return {"error": "Requested physical page does not exist in this document"}
+            for chunk in chunks:
+                metadata = dict(chunk.get("metadata") or {})
+                page = metadata.get("page_idx")
+                if isinstance(page, int) and abs(page - page_idx) <= 1:
+                    sections.append((chunk.get("text") or "", metadata))
+            sections.sort(key=lambda section: section[1]["page_idx"])
+        if not sections:
+            return {"error": "No indexed physical page context found for the requested page"}
+    else:
+        # The original parsed markdown retains section/table order, which cannot
+        # be reconstructed reliably from scored or deduplicated search hits.
+        if not markdown:
+            markdown = "\n\n".join(c.get("text") or "" for c in chunks)
+        sections = [(markdown, {})]
+
+    total_chars = sum(len(content) for content, _ in sections)
+    if offset > total_chars:
+        return {"error": "context_offset exceeds the document context length"}
+    remaining = 48000
+    skipped = 0
+    returned_chars = 0
+    items = []
+    for content, metadata in sections:
+        section_start = max(0, offset - skipped)
+        skipped += len(content)
+        if section_start >= len(content) or remaining <= 0:
+            continue
+        text = content[section_start : section_start + remaining]
+        source_chars = len(text)
+        if faq_sections.get(metadata.get("page_idx")):
+            text, metadata["faq_context"] = _mark_pdf_faq_sections(
+                text, len(content), section_start, faq_sections[metadata["page_idx"]]
+            )
+        # Do not expose internal storage paths through the context interface.
+        metadata.pop("object_path", None)
+        metadata.update(collection_id=collection_id, document_id=document_id, source=source, document_context=True)
+        if metadata.get("chunk_type") == "pdf_page" and metadata.get("asset_id"):
+            metadata["mimetype"] = "image/png"
+        items.append(
+            SearchResultItem(
+                rank=len(items) + 1, content=text, source=source, recall_type="fulltext_search", metadata=metadata
+            )
+        )
+        remaining -= source_chars
+        returned_chars += source_chars
+    next_offset = offset + returned_chars
+    source_result = SearchResult(query=query, items=items)
+    _scope_search_sources(source_result, collection_id)
+    result = source_result.model_dump()
+    result["context"] = {
+        "document_id": document_id,
+        "page_idx": page_idx,
+        "page_radius": 1 if page_idx is not None else None,
+        "offset": offset,
+        "total_chars": total_chars,
+        "truncated": next_offset < total_chars,
+        "next_offset": next_offset if next_offset < total_chars else None,
+    }
+    if image_asset_ids:
+        from aperag.service.visual_context_service import describe_document_images
+
+        api_key_record = await async_db_ops.get_api_key_by_key(api_key)
+        if not api_key_record:
+            return {"error": "Unauthorized API key"}
+        result["context"]["visual_observations"] = await describe_document_images(
+            api_key_record.user, collection_id, document_id, query, image_asset_ids
+        )
+    return result
 
 
 def _is_image_filename(name: str) -> bool:
@@ -136,6 +369,10 @@ async def search_collection(
     rerank: bool = True,
     topk: int = 5,
     query_keywords: list[str] = None,
+    document_id: str | None = None,
+    page_idx: int | None = None,
+    context_offset: int = 0,
+    image_asset_ids: list[str] | None = None,
 ) -> Dict[str, Any]:
     """Search for knowledge in a persistent collection/knowledge base using vector, full-text, graph, and/or summary search.
 
@@ -155,6 +392,18 @@ async def search_collection(
         use_vision_index: Whether to use vision search (default: True)
         rerank: Whether to enable reranking of search results for better relevance (default: True)
         topk: Maximum number of results to return per search type (default: 5)
+        document_id: Set a document ID from a search hit to read original document context instead of running a search.
+            Use this to verify cross-page continuations, full enumerations, and split sections before answering.
+            With no page_idx, returns the original parsed text in document order (useful for DOCX and code).
+        page_idx: Optional zero-based physical PDF page. In document context mode, returns that page and its immediate
+            neighbors separately, with original page metadata. Neighboring pages may contain DIFFERENT FAQ entries;
+            inspect the headings and continuation text rather than assigning them all to the matched FAQ.
+        context_offset: Character offset in document context (default: 0). Each call returns at most 48000 characters.
+            If context.truncated is true, continue with context.next_offset before claiming complete coverage.
+        image_asset_ids: Optional list of at most six asset IDs already present in the document preview. Only in
+            document context mode: explicitly request actual image-pixel inspection by the configured vision model.
+            For PDF use page image asset IDs; for DOCX use the asset IDs in its markdown. Returns
+            context.visual_observations. An asset link or OCR alone does not mean the image was visually inspected.
 
     Returns:
         Search results with relevant documents and metadata (SearchResult format)
@@ -216,6 +465,17 @@ async def search_collection(
     try:
         api_key = get_api_key()
 
+        if document_id is not None:
+            if not re.fullmatch(r"[A-Za-z0-9_-]+", collection_id) or not re.fullmatch(r"[A-Za-z0-9_-]+", document_id):
+                return {"error": "Invalid collection or document ID"}
+            if (page_idx is not None and page_idx < 0) or context_offset < 0:
+                return {"error": "page_idx and context_offset must be non-negative"}
+            return await _read_document_context(
+                api_key, collection_id, document_id, query, page_idx, context_offset, image_asset_ids
+            )
+        if page_idx is not None or context_offset or image_asset_ids:
+            return {"error": "document_id is required to read document context"}
+
         # Build search request based on enabled search types
         search_data = {"query": query, "rerank": rerank}
 
@@ -236,7 +496,7 @@ async def search_collection(
             search_data["vision_search"] = {"topk": topk, "similarity": 0.2}
 
         # Ensure at least one search type is enabled
-        if not any([use_vector_index, use_fulltext_index, use_graph_index, use_summary_index]):
+        if not any([use_vector_index, use_fulltext_index, use_graph_index, use_summary_index, use_vision_index]):
             return {"error": "At least one search type must be enabled"}
 
         # Use longer timeout for search operations (graph search can be time-consuming)
@@ -251,14 +511,8 @@ async def search_collection(
                     # Parse response using view model for type safety
                     search_result = SearchResult.model_validate(response.json())
 
-                    # Ensure returned results don't exceed topk limit
-                    # This provides additional protection in case HTTP API doesn't apply global limit
-                    if search_result.items and len(search_result.items) > topk:
-                        search_result.items = search_result.items[:topk]
-                        # Update ranks if they exist
-                        for i, item in enumerate(search_result.items):
-                            if item.rank is not None:
-                                item.rank = i + 1
+                    _limit_search_results(search_result, topk)
+                    _scope_search_sources(search_result, collection_id)
 
                     return search_result.model_dump()
                 except Exception as e:
@@ -350,14 +604,7 @@ async def search_chat_files(
                     # Parse response using view model for type safety
                     search_result = SearchResult.model_validate(response.json())
 
-                    # Ensure returned results don't exceed topk limit
-                    # This provides additional protection in case HTTP API doesn't apply global limit
-                    if search_result.items and len(search_result.items) > topk:
-                        search_result.items = search_result.items[:topk]
-                        # Update ranks if they exist
-                        for i, item in enumerate(search_result.items):
-                            if item.rank is not None:
-                                item.rank = i + 1
+                    _limit_search_results(search_result, topk)
 
                     return search_result.model_dump()
                 except Exception as e:

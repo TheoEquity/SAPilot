@@ -245,12 +245,13 @@ def test_intent_provider_configuration_and_request_parameters(harness, max_token
     assert h.message.model_dump() == original
     assert [msg["content"] for msg in h.llm.history] == ["2", "3", "4", "5"]
     description = "- selected: Selected - SAP"
-    assert prompt == (
+    assert prompt.startswith(
         f"Classify SAP query\n{description}\n\n"
         "Authoritative candidate skills (you must choose one exact skill_id from this list):\n"
         f"{description}\n\nCurrent user input:\nSAP query\n\n"
-        "Output exactly one skill_id from the authoritative candidate list above."
     )
+    assert 'Document comparison, version, scope and evidence checking are knowledge lookup tasks' in prompt
+    assert prompt.endswith('Output exactly one skill_id from the authoritative candidate list above.')
     assert_routed(h, "selected")
 
 
@@ -473,10 +474,12 @@ def test_whitespace_prompt_retains_original_default_and_authoritative_suffix(har
     h.router.prompt_template = "   "
     run(h)
     description = "- selected: Selected - SAP"
-    assert h.llm.generate_str.await_args.args[0] == (
+    prompt = h.llm.generate_str.await_args.args[0]
+    assert prompt.startswith(
         f"Classify into one skill:\n{description}\n\nQuery: SAP query\nReply with skill_id only.\n\n"
         "Authoritative candidate skills (you must choose one exact skill_id from this list):\n"
         f"{description}\n\nCurrent user input:\nSAP query\n\n"
-        "Output exactly one skill_id from the authoritative candidate list above."
     )
+    assert 'An attached image or partial screenshot is input evidence' in prompt
+    assert prompt.endswith('Output exactly one skill_id from the authoritative candidate list above.')
     assert_routed(h, "selected")

@@ -116,7 +116,7 @@ from aperag.tasks.utils import TaskConfig
 from aperag.utils.constant import IndexAction
 from config.celery import app
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 def _validate_task_relevance(document_id: str, index_type: str, target_version: int, expected_status: "DocumentIndexStatus"):
     """
@@ -174,9 +174,32 @@ class BaseIndexTask(Task):
 
     abstract = True
 
+    def _log_task_outcome(self, event, status, exc, task_id, args, kwargs):
+        document_id = kwargs.get("document_id") or (args[0] if args and isinstance(args[0], str) else None)
+        logger.log(
+            logging.WARNING if status == "retrying" else logging.ERROR,
+            event,
+            extra={
+                "document_id": document_id,
+                "task_id": task_id,
+                "retry_count": self.request.retries,
+                "status": status,
+                "error_type": type(exc).__name__,
+            },
+        )
+
+    def on_retry(self, exc, task_id, args, kwargs, einfo):
+        self._log_task_outcome("document.task.retrying", "retrying", exc, task_id, args, kwargs)
+        return super().on_retry(exc, task_id, args, kwargs, einfo)
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        self._log_task_outcome("document.task.failed", "failed", exc, task_id, args, kwargs)
+        return super().on_failure(exc, task_id, args, kwargs, einfo)
+
     def _handle_index_success(self, document_id: str, index_type: str, target_version: int, index_data: dict = None):
         try:
             from aperag.tasks.reconciler import index_task_callbacks
+
             index_data_json = json.dumps(index_data) if index_data else None
             index_task_callbacks.on_index_created(document_id, index_type, target_version, index_data_json)
             logger.info(f"Index success callback executed for {index_type} index of document {document_id} (v{target_version})")

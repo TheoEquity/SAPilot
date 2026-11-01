@@ -21,7 +21,7 @@ from aperag.views.auth import required_user
 router = APIRouter(tags=["openai"])
 
 
-@router.post("/chat/completions")
+@router.post("/chat/completions", status_code=501)
 async def openai_chat_completions_view(request: Request, user: User = Depends(required_user)):
     """OpenAI-compatible chat completions endpoint - Not implemented for agent-type bots"""
     return OpenAIFormatter.format_error(

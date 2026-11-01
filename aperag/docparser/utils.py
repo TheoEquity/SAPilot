@@ -15,10 +15,12 @@
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from urllib.parse import quote_plus
 
 from aperag.docparser.base import AssetBinPart
+from aperag.logging import log_stage
 
 
 def get_soffice_cmd() -> str | None:
@@ -26,14 +28,20 @@ def get_soffice_cmd() -> str | None:
 
 
 def convert_office_doc(input_path: Path, output_dir: Path, target_format: str) -> Path:
+    with log_stage("document.convert", dependency="soffice"):
+        return _convert_office_doc(input_path, output_dir, target_format)
+
+
+def _convert_office_doc(input_path: Path, output_dir: Path, target_format: str) -> Path:
     soffice_cmd = get_soffice_cmd()
     if soffice_cmd is None:
         raise RuntimeError("soffice command not found")
 
-    if not input_path.exists:
+    if not input_path.is_file():
         raise FileNotFoundError(f"input file {input_path} not exist")
 
     os.makedirs(output_dir, exist_ok=True)
+    target_format = target_format.lstrip(".")
 
     cmd = [
         soffice_cmd,
@@ -46,13 +54,20 @@ def convert_office_doc(input_path: Path, output_dir: Path, target_format: str) -
         str(input_path),
     ]
 
-    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # Each conversion needs its own profile; parallel workers must not share a
+    # running LibreOffice instance that can exit without creating this output.
+    with tempfile.TemporaryDirectory() as profile:
+        cmd.insert(1, f"-env:UserInstallation={Path(profile).as_uri()}")
+        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
     if process.returncode != 0:
         raise RuntimeError(
             f'convert failed, cmd: "{" ".join(cmd)}", output: {process.stdout.decode()}, error: {process.stderr.decode()}'
         )
 
-    return output_dir / f"{input_path.stem}.{target_format}"
+    output_path = output_dir / f"{input_path.stem}.{target_format}"
+    if not output_path.is_file():
+        raise RuntimeError(f"conversion produced no output: {output_path}")
+    return output_path
 
 
 def asset_bin_part_to_url(part: AssetBinPart) -> str:

@@ -397,6 +397,52 @@ def _format_reference_content(content: str, metadata: Dict[str, Any]) -> str:
     return re.sub(r"asset://([^\s)\?]+)(\?[^\s)]*)?", add_required_asset_params, content)
 
 
+def resolve_answer_asset_urls(content: str, references: List[Dict[str, Any]]) -> str:
+    """Render retrieved asset links as images with unambiguous source scope."""
+    from urllib.parse import parse_qs, urlsplit
+
+    sources = {}
+    for reference in references:
+        metadata = reference.get('metadata') or {}
+        collection_id = metadata.get('collection_id')
+        document_id = metadata.get('document_id') or metadata.get('doc_id')
+        if not collection_id or not document_id or document_id == 'None':
+            continue
+        assets, conflicting_assets = set(), set()
+        for url in re.findall(r'asset://[^\s)]+', reference.get('text') or ''):
+            asset = url[len('asset://'):].split('?')[0]
+            scope = parse_qs(urlsplit(url).query, keep_blank_values=True)
+            if (('collection_id' in scope and scope['collection_id'] != [collection_id])
+                    or ('document_id' in scope and scope['document_id'] != [document_id])):
+                conflicting_assets.add(asset)
+            else:
+                assets.add(asset)
+        if metadata.get('asset_id'):
+            assets.add(metadata['asset_id'])
+        for asset in assets - conflicting_assets:
+            sources.setdefault(asset, set()).add((collection_id, document_id))
+
+    def replace_image(match):
+        image_marker, label, url = match.groups()
+        if image_marker and 'collection_id=' in url and 'document_id=' in url:
+            return match.group(0)
+        asset = url[len('asset://'):].split('?')[0]
+        candidates = sources.get(asset, set())
+        scope = parse_qs(urlsplit(url).query, keep_blank_values=True)
+        candidates = {
+            (collection_id, document_id) for collection_id, document_id in candidates
+            if ('collection_id' not in scope or scope['collection_id'] == [collection_id])
+            and ('document_id' not in scope or scope['document_id'] == [document_id])
+        }
+        if len(candidates) != 1:
+            return f'【{label or "图片"}：图片来源未确认，请查看原文引用】'
+        collection_id, document_id = next(iter(candidates))
+        url = _format_reference_content(url, {'collection_id': collection_id, 'document_id': document_id})
+        return f'![{label}]({url})'
+
+    return re.sub(r'(!?)\[([^\]]*)\]\((asset://[^\s)]+)\)', replace_image, content)
+
+
 def _select_primary_reference_item(
     items: List[Dict[str, Any]], target_faq_ids: Optional[List[str]] = None
 ) -> tuple[Dict[str, Any], int]:

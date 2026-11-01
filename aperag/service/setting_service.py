@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from aperag.db import models as db_models
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops, db_ops
-from aperag.exceptions import ResourceNotFoundException, ValidationException
+from aperag.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
 
