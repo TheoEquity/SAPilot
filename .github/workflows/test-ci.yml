@@ -1,0 +1,50 @@
+name: Test branch checks
+
+on:
+  push:
+    branches: [test]
+  pull_request:
+    branches: [test]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Conventions and regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22.18.0"
+          cache: yarn
+          cache-dependency-path: web/yarn.lock
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: tests/contract/requirements-ci.txt
+      - name: Install test tools
+        run: python -m pip install -r tests/contract/requirements-ci.txt
+      - name: Install locked frontend dependencies
+        run: yarn --cwd web install --frozen-lockfile --non-interactive
+      - name: Backend static checks
+        run: python -m ruff check aperag scripts/export_openapi.py
+      - name: Frontend types
+        run: yarn --cwd web typecheck
+      - name: Frontend conventions
+        run: yarn --cwd web lint
+      - name: API and behavior contracts
+        run: python -m pytest tests/contract -q
+      - name: Chat, logging and Mock regressions
+        run: yarn --cwd web test:ci
