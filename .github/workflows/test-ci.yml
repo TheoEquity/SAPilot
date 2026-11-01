@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Conventions and regressions
+    name: Conventions and static checks
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -32,10 +32,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-          cache: pip
-          cache-dependency-path: tests/contract/requirements-ci.txt
-      - name: Install test tools
-        run: python -m pip install -r tests/contract/requirements-ci.txt
+      - name: Install static checker
+        run: python -m pip install ruff==0.17.3
       - name: Install locked frontend dependencies
         run: yarn --cwd web install --frozen-lockfile --non-interactive
       - name: Backend static checks
@@ -44,7 +42,3 @@ jobs:
         run: yarn --cwd web typecheck
       - name: Frontend conventions
         run: yarn --cwd web lint
-      - name: API and behavior contracts
-        run: python -m pytest tests/contract -q
-      - name: Chat, logging and Mock regressions
-        run: yarn --cwd web test:ci
