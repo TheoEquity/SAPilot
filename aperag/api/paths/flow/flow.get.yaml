@@ -1,0 +1,23 @@
+/bots/{bot_id}/flow:
+  get:
+    summary: Get flow
+    description: Get flow
+    parameters:
+    - name: bot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Get flow successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/flow.yaml#/components/schemas/WorkflowDefinition
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

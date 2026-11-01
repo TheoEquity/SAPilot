@@ -30,8 +30,8 @@ Adding More Documents:
     SYNC_WHITELIST = [
         "en-US/design/architecture.md",
         "en-US/design/document_upload_design.md",  # Uncomment to sync
-        "zh-CN/design/architecture.md",
-        "zh-CN/design/document_upload_design.md",  # Uncomment to sync
+        "zh-CN/design/pending-review/architecture.md",
+        "zh-CN/design/pending-review/document_upload_design.md",  # Uncomment to sync
     ]
 
 Important Notes:
@@ -96,10 +96,10 @@ SYNC_WHITELIST = [
     # "en-US/reference/HOW-TO-DEBUG.md",
     
     # Chinese docs - Design
-    "zh-CN/design/architecture.md",
-    "zh-CN/design/document_upload_design.md",
-    "zh-CN/design/graph_index_creation.md",
-    # "zh-CN/design/chat_history_design.md",
+    "zh-CN/design/pending-review/architecture.md",
+    "zh-CN/design/pending-review/document_upload_design.md",
+    "zh-CN/design/pending-review/graph_index_creation.md",
+    # "zh-CN/design/pending-review/chat_history_design.md",
     
     # Chinese docs - Development
     "zh-CN/development/development-guide.md",

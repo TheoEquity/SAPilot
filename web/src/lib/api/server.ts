@@ -9,9 +9,11 @@ import {
   GraphApi,
   QuotasApi,
 } from '@/api';
+import { getBots } from '@/api/generated/bots/bots';
 import { getLocale } from '@/services/cookies';
 import axios from 'axios';
 import { cookies } from 'next/headers';
+import { attachRequestLogging } from './logging';
 
 const configuration = new Configuration();
 
@@ -40,7 +42,10 @@ request.interceptors.request.use(
   },
 );
 
+attachRequestLogging(request);
+
 const api = {
+  bots: getBots(request),
   defaultApi: new DefaultApi(configuration, undefined, request),
   graphApi: new GraphApi(configuration, undefined, request),
   quotasApi: new QuotasApi(configuration, undefined, request),

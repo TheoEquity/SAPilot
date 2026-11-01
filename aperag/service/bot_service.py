@@ -80,6 +80,16 @@ class BotService:
         bot_config = None
         if bot.config:
             config_dict = json.loads(bot.config)
+            # Earlier Bot saves used Python field names instead of JSON aliases.
+            # Accept those persisted Flow schemas without rewriting user data.
+            flow_config = config_dict.get("flow") or {}
+            schema_holders = [flow_config]
+            for node in flow_config.get("nodes", []):
+                data = node.get("data", {})
+                schema_holders.extend([data.get("input", {}), data.get("output", {})])
+            for holder in schema_holders:
+                if "schema_" in holder and "schema" not in holder:
+                    holder["schema"] = holder.pop("schema_")
             bot_config = view_models.BotConfig(**config_dict)
 
         return Bot(
@@ -118,7 +128,7 @@ class BotService:
             # Serialize bot config to JSON string
             config_str = "{}"
             if bot_in.config:
-                config_str = bot_in.config.model_dump_json(exclude_none=True)
+                config_str = bot_in.config.model_dump_json(exclude_none=True, by_alias=True)
 
             bot = Bot(
                 user=user,
@@ -160,7 +170,7 @@ class BotService:
         # Serialize new config to JSON string
         new_config_str = None
         if bot_in.config:
-            new_config_str = bot_in.config.model_dump_json(exclude_none=True)
+            new_config_str = bot_in.config.model_dump_json(exclude_none=True, by_alias=True)
 
         # Get collection IDs from bot config for validation
         await self.validate_collections(user, bot_in.config)

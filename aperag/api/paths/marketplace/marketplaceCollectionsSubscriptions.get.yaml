@@ -1,0 +1,39 @@
+/marketplace/collections/subscriptions:
+  get:
+    summary: Get user's subscribed Collections
+    description: Returns all Collections that current user has subscribed to
+    parameters:
+    - name: page
+      in: query
+      description: Page number
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    - name: page_size
+      in: query
+      description: Page size
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 12
+    responses:
+      '200':
+        description: List of subscribed Collections
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/marketplace.yaml#/SharedCollectionList
+      '401':
+        description: Authentication required
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '500':
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

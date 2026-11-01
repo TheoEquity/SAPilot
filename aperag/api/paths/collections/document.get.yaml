@@ -1,0 +1,36 @@
+/collections/{collection_id}/documents/{document_id}:
+  get:
+    summary: Get document details
+    description: Get details of a specific document
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Document details
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/document.yaml#/document
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Document not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

@@ -103,6 +103,8 @@ class DocumentParser:
             # Convert PdfPart to image assets
             pdf_parts = [p for p in parts if isinstance(p, PdfPart)]
             for pdf_part in pdf_parts:
+                if pdf_part.metadata.get("page_images_extracted"):
+                    continue
                 try:
                     pdf_doc = pdfium.PdfDocument(pdf_part.data)
                     for i, page in enumerate(pdf_doc):

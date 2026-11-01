@@ -1,0 +1,33 @@
+/chats/{chat_id}/documents/{document_id}:
+  get:
+    summary: Get chat document details
+    description: Get details of a specific document in a chat session
+    tags:
+    - chat-documents
+    security:
+    - BearerAuth: []
+    - CookieAuth: []
+    parameters:
+    - name: chat_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Chat session ID
+    - name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Document ID
+    responses:
+      '200':
+        description: Document details retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/document.yaml#/document
+      '401':
+        description: Unauthorized
+      '404':
+        description: Document or chat not found

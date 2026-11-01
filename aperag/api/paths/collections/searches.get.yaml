@@ -1,0 +1,25 @@
+/collections/{collection_id}/searches:
+  get:
+    summary: Get search history
+    description: Get the history of searches
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Search history
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/collection.yaml#/searchResultList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

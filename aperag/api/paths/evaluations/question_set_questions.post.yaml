@@ -1,0 +1,28 @@
+/question-sets/{qs_id}/questions:
+  post:
+    tags:
+    - evaluation
+    summary: Add questions to a question set
+    security:
+    - BearerAuth: []
+    operationId: add_questions_api_v1_question_sets__qs_id__questions_post
+    parameters:
+    - name: qs_id
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/evaluation.yaml#/QuestionsAdd
+    responses:
+      '200':
+        description: Successful Response
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../../components/schemas/evaluation.yaml#/Question

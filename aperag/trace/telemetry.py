@@ -16,7 +16,7 @@
 Core OpenTelemetry initialization - simplified version.
 """
 
-import importlib.util
+import base64
 import logging
 import os
 from typing import Optional
@@ -48,15 +48,12 @@ class NoOpSpanExporter(SpanExporter):
         pass
 
 
-# Optional exporters (currently not used, but keep availability check for future use)
-OTLP_AVAILABLE = importlib.util.find_spec("opentelemetry.exporter.otlp.proto.grpc.trace_exporter") is not None
-
 try:
-    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-    JAEGER_AVAILABLE = True
+    OTLP_AVAILABLE = True
 except ImportError:
-    JAEGER_AVAILABLE = False
+    OTLP_AVAILABLE = False
 
 # Global initialization flag
 _telemetry_initialized = False
@@ -70,8 +67,11 @@ def is_telemetry_available() -> bool:
 def init_telemetry(
     service_name: str = "aperag",
     service_version: str = "1.0.0",
-    jaeger_endpoint: Optional[str] = None,
     enable_console: bool = True,
+    langfuse_enabled: bool = False,
+    langfuse_base_url: Optional[str] = None,
+    langfuse_public_key: Optional[str] = None,
+    langfuse_secret_key: Optional[str] = None,
 ) -> bool:
     """
     Initialize OpenTelemetry tracing.
@@ -79,8 +79,11 @@ def init_telemetry(
     Args:
         service_name: Name of the service
         service_version: Version of the service
-        jaeger_endpoint: Jaeger collector endpoint (e.g., "http://localhost:14268/api/traces")
         enable_console: Whether to enable console output
+        langfuse_enabled: Export traces to the configured Langfuse project.
+        langfuse_base_url: Langfuse instance base URL.
+        langfuse_public_key: Project public API key.
+        langfuse_secret_key: Project secret API key; never logged.
 
     Returns:
         True if initialization succeeded, False otherwise
@@ -93,6 +96,10 @@ def init_telemetry(
 
     if not OTEL_AVAILABLE:
         logger.warning("OpenTelemetry not available - tracing disabled")
+        return False
+
+    if langfuse_enabled and not (OTLP_AVAILABLE and langfuse_base_url and langfuse_public_key and langfuse_secret_key):
+        logger.error("Langfuse tracing requires the OTLP/HTTP exporter, base URL and both project API keys")
         return False
 
     try:
@@ -111,23 +118,18 @@ def init_telemetry(
         # Configure exporters
         exporters_added = 0
 
-        # Add Jaeger exporter if endpoint provided
-        if jaeger_endpoint:
-            if JAEGER_AVAILABLE:
-                try:
-                    jaeger_exporter = JaegerExporter(
-                        agent_host_name="localhost",
-                        agent_port=14268,
-                        collector_endpoint=jaeger_endpoint,
-                    )
-                    jaeger_processor = BatchSpanProcessor(jaeger_exporter)
-                    tracer_provider.add_span_processor(jaeger_processor)
-                    exporters_added += 1
-                    logger.info(f"Jaeger exporter configured: {jaeger_endpoint}")
-                except Exception as e:
-                    logger.warning(f"Failed to configure Jaeger exporter: {e}")
-            else:
-                logger.warning("Jaeger endpoint provided but Jaeger exporter not available")
+        if langfuse_enabled:
+            from .langfuse import LangfuseSpanProcessor
+
+            tracer_provider.add_span_processor(LangfuseSpanProcessor())
+            authentication = base64.b64encode(f"{langfuse_public_key}:{langfuse_secret_key}".encode()).decode()
+            exporter = OTLPSpanExporter(
+                endpoint=langfuse_base_url.rstrip("/") + "/api/public/otel/v1/traces",
+                headers={"Authorization": "Basic " + authentication, "x-langfuse-ingestion-version": "4"},
+            )
+            tracer_provider.add_span_processor(BatchSpanProcessor(exporter))
+            exporters_added += 1
+            logger.info("Langfuse OTLP/HTTP exporter configured")
 
         # Add console exporter if explicitly enabled
         if enable_console:

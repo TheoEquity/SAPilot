@@ -1,0 +1,31 @@
+/bots/{bot_id}:
+  get:
+    summary: Get bot details
+    description: Get details of a specific bot
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: bot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Bot details
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/bot.yaml#/bot
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Bot not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

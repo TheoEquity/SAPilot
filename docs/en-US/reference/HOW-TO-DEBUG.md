@@ -41,7 +41,7 @@ Name: backend
 Python interpreter: [Same uv virtual environment as Celery]
 Script path: [uvicorn executable path]
   # Get via: `which uvicorn`
-Parameters: sapilot.app:app --host 0.0.0.0 --log-config scripts/uvicorn-log-config.yaml
+Parameters: sapilot.app:app --host 0.0.0.0 --log-config config/logging/api.yaml
 Environment variables:
   PYTHONUNBUFFERED=1;
   DJANGO_SETTINGS_MODULE=config.settings;

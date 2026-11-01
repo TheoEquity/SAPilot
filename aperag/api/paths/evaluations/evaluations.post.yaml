@@ -1,0 +1,20 @@
+/evaluations:
+  post:
+    tags:
+    - evaluation
+    summary: Create and start a new evaluation task
+    security:
+    - BearerAuth: []
+    operationId: create_evaluation_api_v1_evaluations_post
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/evaluation.yaml#/EvaluationCreate
+    responses:
+      '200':
+        description: Successful Response
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/evaluation.yaml#/Evaluation

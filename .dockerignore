@@ -60,5 +60,8 @@ Thumbs.db
 .env.*
 .codex/
 .run/
+logs/
+*.log
+*.log.[0-9]*
 downloads/
 测试用例/

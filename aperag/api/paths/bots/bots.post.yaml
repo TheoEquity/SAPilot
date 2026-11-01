@@ -1,0 +1,25 @@
+/bots:
+  post:
+    summary: Create a new bot
+    description: Create a new bot
+    security:
+    - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/bot.yaml#/botCreate
+    responses:
+      '200':
+        description: Bot created successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/bot.yaml#/bot
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

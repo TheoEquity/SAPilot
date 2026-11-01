@@ -433,6 +433,7 @@
     "rag_description": "SAPilot 是面向 SAP 运维场景的智能助手，可结合企业知识库与运维经验，帮助顾问快速定位问题、分析原因并提供处理建议。",
     "mention_a_collection": "输入@关联相关知识库...",
     "display_empty_title": "新会话",
+    "connection_interrupted": "连接已断开，本次回答未完成。请在连接恢复后重试。",
     "no_collection_was_found": "未找到相关知识库",
     "web_search": "网络检索",
     "current_skill_label": "当前技能",

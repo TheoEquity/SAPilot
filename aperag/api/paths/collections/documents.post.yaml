@@ -1,0 +1,31 @@
+/collections/{collection_id}/documents:
+  post:
+    summary: Create a new document
+    description: Create a new document
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/document.yaml#/documentCreate
+    responses:
+      '200':
+        description: Document created successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/document.yaml#/documentList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

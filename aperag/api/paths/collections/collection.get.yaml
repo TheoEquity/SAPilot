@@ -1,0 +1,31 @@
+/collections/{collection_id}:
+  get:
+    summary: Get collection details
+    description: Get details of a specific collection
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Collection details
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/collection.yaml#/collection
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

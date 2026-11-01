@@ -1,0 +1,20 @@
+/question-sets:
+  post:
+    tags:
+    - evaluation
+    summary: Create a new question set
+    security:
+    - BearerAuth: []
+    operationId: create_question_set_api_v1_question_sets_post
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/evaluation.yaml#/QuestionSetCreate
+    responses:
+      '200':
+        description: Successful Response
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/evaluation.yaml#/QuestionSet

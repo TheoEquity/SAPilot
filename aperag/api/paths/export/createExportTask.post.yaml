@@ -1,0 +1,44 @@
+/collections/{collection_id}/export:
+  post:
+    summary: Create a knowledge base export task
+    description: 'Asynchronously package all object-store files under the collection
+      into a ZIP file.
+
+      Only the collection owner can initiate an export.
+
+      '
+    operationId: createExportTask
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Collection ID
+    responses:
+      '202':
+        description: Export task created and queued
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/export.yaml#/exportTaskResponse
+      '403':
+        description: Permission denied (not collection owner)
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '429':
+        description: Too many concurrent export tasks
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

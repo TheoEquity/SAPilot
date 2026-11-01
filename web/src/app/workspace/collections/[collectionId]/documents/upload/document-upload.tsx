@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/file-upload';
 import { Progress } from '@/components/ui/progress';
 import { apiClient } from '@/lib/api/client';
+import { logger } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import {
   ColumnDef,
@@ -121,7 +122,10 @@ export const DocumentUpload = () => {
         return [...staged, ...inProgress];
       });
     } catch (err) {
-      console.error('Failed to load staged documents', err);
+      logger.warn('document.staging.failed', {
+        collection_id: collection.id,
+        error: err,
+      });
     }
   }, [collection.id]);
 
@@ -188,6 +192,11 @@ export const DocumentUpload = () => {
         },
       });
     if (res.status === 200) {
+      logger.info('document.ingestion.submitted', {
+        collection_id: collection.id,
+        status: 'submitted',
+        file_count: documents.filter((doc) => doc.document_id).length,
+      });
       toast.success('Document added successfully');
       router.push(`/workspace/collections/${collection.id}/documents`);
     }
@@ -248,6 +257,12 @@ export const DocumentUpload = () => {
           }
         };
 
+        const started = performance.now();
+        logger.info('document.upload.started', {
+          collection_id: collection.id,
+          size: file.size,
+          status: 'started',
+        });
         try {
           const [res] = await Promise.all([
             apiClient.defaultApi.collectionsCollectionIdDocumentsUploadPost(
@@ -257,6 +272,12 @@ export const DocumentUpload = () => {
             networkSimulation(),
           ]);
 
+          logger.info('document.upload.completed', {
+            collection_id: collection.id,
+            document_id: res.data.document_id,
+            status: 'uploaded',
+            duration_ms: Math.round(performance.now() - started),
+          });
           setDocuments((docs) => {
             const doc = docs.find((d) => d.file && _.isEqual(d.file, file));
             if (doc && res.data.document_id) {
@@ -268,8 +289,13 @@ export const DocumentUpload = () => {
             }
             return [...docs];
           });
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
+          logger.warn('document.upload.failed', {
+            collection_id: collection.id,
+            status: 'failed',
+            error: err,
+            duration_ms: Math.round(performance.now() - started),
+          });
           setDocuments((docs) => {
             const doc = docs.find((d) => d.file && _.isEqual(d.file, file));
             if (doc) {
@@ -298,8 +324,14 @@ export const DocumentUpload = () => {
           }
         },
         (err) => {
-          if (err) console.error('Upload error:', err);
-          else console.log('Upload completed');
+          logger.info(
+            err ? 'document.upload.batch.cancelled' : 'document.upload.batch.completed',
+            {
+              collection_id: collection.id,
+              status: err ? 'cancelled' : 'completed',
+              file_count: filesToUpload.length,
+            },
+          );
           setIsUploading(false);
         },
       );

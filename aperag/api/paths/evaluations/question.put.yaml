@@ -1,0 +1,31 @@
+/question-sets/{qs_id}/questions/{q_id}:
+  put:
+    tags:
+    - evaluation
+    summary: Update a question
+    security:
+    - BearerAuth: []
+    operationId: update_question_api_v1_question_sets__qs_id__questions__q_id__put
+    parameters:
+    - name: qs_id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: q_id
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/evaluation.yaml#/QuestionUpdate
+    responses:
+      '200':
+        description: Successful Response
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/evaluation.yaml#/Question

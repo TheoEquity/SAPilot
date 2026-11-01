@@ -1,0 +1,17 @@
+/question-sets/{qs_id}:
+  delete:
+    tags:
+    - evaluation
+    summary: Delete a question set
+    security:
+    - BearerAuth: []
+    operationId: delete_question_set_api_v1_question_sets__qs_id__delete
+    parameters:
+    - name: qs_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '204':
+        description: Successful Response

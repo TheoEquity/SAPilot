@@ -20,6 +20,7 @@ from typing import List, Optional
 
 from aperag.config import settings
 from aperag.context.context import ContextManager
+from aperag.db.models import DocumentStatus
 from aperag.db.ops import async_db_ops
 from aperag.llm.embed.base_embedding import get_collection_embedding_service_sync
 from aperag.llm.llm_error_types import EmbeddingError, ProviderNotFoundError
@@ -112,6 +113,8 @@ class ImageSearchService:
         return str(metadata.get("object_path") or "")
 
     async def _is_chat_document(self, document, user_id: str, chat_id: str) -> bool:
+        if getattr(document, "status", None) == DocumentStatus.DELETED or getattr(document, "gmt_deleted", None) is not None:
+            return False
         if document.user != user_id or not document.doc_metadata:
             return False
         try:

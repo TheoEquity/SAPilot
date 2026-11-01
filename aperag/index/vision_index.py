@@ -18,7 +18,7 @@ import logging
 import time
 from typing import Any, List
 
-from llama_index.core.schema import TextNode
+from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
 from sqlalchemy import and_, select
 
 from aperag.config import get_vector_db_connector
@@ -114,7 +114,12 @@ class VisionIndexer(BaseIndexer):
                     metadata["mimetype"] = mime_type
                     metadata["indexer"] = "vision"
                     metadata["index_method"] = "multimodal_embedding"
-                    nodes.append(TextNode(text="", metadata=metadata))
+                    nodes.append(
+                        TextNode(
+                            text="", metadata=metadata,
+                            relationships={NodeRelationship.SOURCE: RelatedNodeInfo(node_id=document_id)},
+                        )
+                    )
 
                 vectors = embedding_svc.embed_documents(image_uris)
                 for i, node in enumerate(nodes):
@@ -215,7 +220,12 @@ class VisionIndexer(BaseIndexer):
                         metadata["mimetype"] = mime_type
                         metadata["indexer"] = "vision"
                         metadata["index_method"] = "vision_to_text"
-                        text_nodes.append(TextNode(text=description, metadata=metadata))
+                        text_nodes.append(
+                            TextNode(
+                                text=description, metadata=metadata,
+                                relationships={NodeRelationship.SOURCE: RelatedNodeInfo(node_id=document_id)},
+                            )
+                        )
 
                 vectors = embedding_svc.embed_documents([node.get_content() for node in text_nodes])
                 for i, node in enumerate(text_nodes):

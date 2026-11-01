@@ -1,0 +1,24 @@
+/llm_provider_models:
+  get:
+    summary: List all LLM provider models
+    description: List all LLM provider models, optionally filtered by provider
+    parameters:
+    - name: provider_name
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Optional filter by provider name
+    responses:
+      '200':
+        description: List of LLM provider models
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/model.yaml#/llmProviderModelList
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

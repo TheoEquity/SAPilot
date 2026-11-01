@@ -1,0 +1,32 @@
+/collections/{collection_id}/documents/staged:
+  get:
+    summary: List staged documents
+    description: Returns all UPLOADED (staged) documents for the collection that are
+      awaiting confirmation.
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Staged documents retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/document.yaml#/stagedDocumentsResponse
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse
+      '404':
+        description: Collection not found
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

@@ -1,0 +1,25 @@
+/collections/{collection_id}:
+  put:
+    summary: Update a collection
+    description: Update a collection
+    security:
+    - BearerAuth: []
+    parameters:
+    - name: collection_id
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/collection.yaml#/collectionUpdate
+    responses:
+      '200':
+        description: Collection updated successfully
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/collection.yaml#/collection

@@ -2,7 +2,9 @@
 
 本文记录 SAPilot 的产品目标、领域约束与开发准则。**目标描述不代表当前版本已经实现。** 当前行为以源码、配置和运行验证为准；README 或本文件中的规划不能替代实现证据。
 
-文档导航见 [文档入口](README.md)，文件放置和提交规则见 [项目目录约定](zh-CN/reference/project-layout.md)。本轮最终部署要求完全离线、8GB 显存，按 50 名使用者和高峰 20 人提问规划；这是用户指定的设计输入，容量尚未压测，具体方案见 [离线架构讨论稿](zh-CN/design/offline-deployment-draft.md)。
+文档导航见 [文档入口](README.md)，文件放置和提交规则见 [项目目录约定](../specs/project-layout.md)，当前组件与执行链路见[当前架构与消息处理流程](zh-CN/design/current/current-architecture-and-message-flow.md)。用户于 2026 年 10 月 29 日明确本轮采用 4核16GB 云机与千问 3.8 Flash API 的云部署方向，见[云部署讨论稿](zh-CN/design/discussions/cloud-api-deployment-draft.md)；此前完全离线和 8GB 显存的[离线架构讨论稿](zh-CN/design/discussions/offline-deployment-draft.md)已作废。继续按 50 名使用者和高峰 20 人提问规划，容量尚未压测；云部署方向已确认，不代表讨论稿中的所有建议均已定案或实现。
+
+开发、调试和日常验证继续在本地进行；云服务器用于后续团队部署与使用。本地开发环境与团队部署环境分开，生成模型仍按已确认的 API 选型接入。
 
 ## 状态口径
 
@@ -61,12 +63,9 @@
 
 发生冲突时必须展示冲突及适用范围，不允许由模型自行覆盖高优先级资料。模型固有知识只能辅助解释、生成检索词或提出澄清问题。
 
-系统目标同时支持：
+本轮采用云部署与模型 API。企业资料上云及发送给外部模型服务的范围需获批准；访问 SAP 官方资料仍应通过白名单代理或安全网关，并记录审计。完全离线不再是本轮部署要求。
 
-- **纯离线模式：** 不直接访问外网；官方资料经审批后离线导入。
-- **受控联网模式：** 仅通过白名单代理或安全网关访问批准的 SAP 官方来源，并记录审计。
-
-**当前已实现：** 来源排序、冲突呈现、离线边界、联网白名单和审计能力尚未核验。
+**当前已实现：** 来源排序、冲突呈现、外部访问控制和审计能力尚未核验。
 
 ## 6. Agentic RAG 行为
 
@@ -82,7 +81,7 @@
 
 **项目目标：**
 
-- 满足央企内外网隔离部署。
+- 遵守客户的网络隔离与数据访问要求；本轮部署方向为云服务器与模型 API。
 - 企业文档、代码、日志、截图和凭据不得发送到未批准的外部服务。
 - 外部访问必须可关闭、可配置、可审计。
 - 高风险生产操作必须提示验证、备份、审批和人工确认。
@@ -125,27 +124,4 @@
 
 ## 11. 当前源码架构基线（2026-09-26 扫描）
 
-本节记录本次对源码和部署配置的架构扫描，作为后续讨论的当前实现基线，不代表端到端验收。产品目标仍以本文件前述章节为准；实现状态以源码及运行验证为准。
-
-### 主要组件与请求链路
-
-- **Web 前端：** `web/` 使用 Next.js App Router。浏览器 API 客户端以 `/api/v1` 为入口，`web/src/middlewares/apiProxy.ts` 将请求代理到 FastAPI；聊天界面构造同源 WebSocket 路径（`web/src/components/chat/chat-messages.tsx`）。WebSocket 的部署代理、鉴权和完整会话链路尚未做端到端验证。
-- **API 与聊天：** `aperag/app.py` 创建 FastAPI 应用并挂载 `/api/v1` 下的业务路由，同时提供 OpenAI 兼容 `/v1` 和 MCP `/mcp`。聊天 WebSocket 入口位于 `aperag/views/chat.py`，鉴权后交给 `ChatService`（`aperag/service/chat_service.py`）。
-- **两类聊天执行路径：** `ChatService` 按 Bot 类型分发。传统知识库/通用 Bot 加载配置的 Flow，由 `aperag/flow/engine.py` 按节点 Runner 执行并流式返回；Agent Bot 进入 `AgentChatService`，由配置和路由逻辑选择 Skill，再执行其 LLM/MCP 等动作（`aperag/service/agent_chat_service.py`）。实际使用哪些模型、MCP 服务及各部署环境中的可用性由配置决定，未在本次源码扫描中验证。
-
-### 知识摄取、检索与数据层
-
-- **文档摄取：** Collection 文档上传和确认由 `DocumentService` 处理（`aperag/service/document_service.py`），再由 reconciler 和 Celery 文档任务调度解析、建立索引（`aperag/tasks/reconciler.py`、`aperag/tasks/document.py`）。`config/celery.py` 配置 worker 任务及 Beat 周期任务。源码链路显示了任务编排，但各格式的结构保留、解析质量和索引完整性仍需按本文件第 4、9 节逐项验收。
-- **检索：** `CollectionService.execute_search_flow` 根据请求组合向量、全文、图谱、摘要或视觉等检索节点，并可合并、去重及重排（`aperag/service/collection_service.py`）。源码中存在这些路径不等于其对 SAP 场景的召回质量已达标；应按第 9 节指标验证。
-- **默认部署组成：** `docker-compose.yml` 包含 API、Web、Celery worker/beat、Flower、PostgreSQL、Redis、Qdrant 和 Elasticsearch。Docker 环境覆盖配置及模板见 `envs/docker.env.overrides`、`envs/env.template`。当前配置将对象存储指向共享目录 `/shared/objects`，图存储配置使用 `PGOpsSyncGraphStorage`。Neo4j、DocRay/GPU DocRay 和 Jaeger 由可选 Compose profile 提供；服务定义存在不代表它们是默认启用或当前运行中的依赖。
-- **状态与消息：** Agent 聊天消息历史使用 Redis 支持的历史存储；Agent 服务另有实例内存中的 Skill 上下文缓冲（`aperag/service/chat_service.py`、`aperag/service/agent_chat_service.py`）。多进程、重启及并发场景下两类状态的一致性和持久性尚未运行验证。
-
-### SAPilot 定制入口与配置
-
-- **钉钉：** `aperag/views/dingtalk.py` 提供 Bot 回调入口，`aperag/service/dingtalk_bot_service.py` 校验配置/签名并复用 Agent 消息处理流程。回调及 Stream 消费的实际部署联通情况未验证。
-- **Skill 编排：** Bot 的 Skill 与 orchestration 配置模型定义在 `aperag/schema/view_models.py`，由 Agent 服务读取并执行；代码库也包含相应前端配置入口。此结构证明存在配置驱动的编排实现，不证明第 6 节列出的完整业务流程和证据规则已经满足。
-- **ABAP：** 本次扫描未发现专用 ABAP 处理器。钉钉附件扩展名白名单不包含 `.abap`，但通用 MIME 类型回退逻辑仍可能接受部分文本类型，因此仅凭白名单不能断言所有 ABAP 文件都会被拒绝；实际解析和索引支持尚待验证。
-
-### 当前验证边界
-
-第 3、5、6、7、9 节中的 SAP 术语准确性、来源优先级与冲突处理、证据不足时澄清/拒答、离线与外部访问控制、安全审计，以及 SAP Basis Golden 测试和指标阈值，均不能仅由上述架构代码确认完成。本次也未验证生产环境配置、真实模型/MCP 调用、WebSocket 端到端链路、钉钉联通、文档结构保真度或检索质量；这些状态应继续标记为待验证，直到有对应运行或评估证据。
+源码架构基线已移至[当前架构与消息处理流程](zh-CN/design/current/current-architecture-and-message-flow.md)，原扫描记录及验证边界在该文档第 1 节保留；用户消息链路与配置入口见其后各节。这里仅保留项目目标、领域约束与开发验收准则。

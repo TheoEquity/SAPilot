@@ -1,0 +1,17 @@
+/user:
+  get:
+    summary: Get user info
+    description: Get user info
+    responses:
+      '200':
+        description: User info
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/auth.yaml#/user
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: ../../components/schemas/common.yaml#/failResponse

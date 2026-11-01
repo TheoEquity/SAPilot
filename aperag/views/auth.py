@@ -31,7 +31,7 @@ from httpx_oauth.clients.google import GoogleOAuth2
 
 from aperag.config import AsyncSessionDep, settings
 from aperag.db.models import ApiKey, ApiKeyStatus, Invitation, OAuthAccount, Role, User
-from aperag.db.ops import async_db_ops
+from aperag.db.ops import AsyncDatabaseOps, async_db_ops
 from aperag.schema import view_models
 from aperag.utils.audit_decorator import audit
 from aperag.utils.utils import utc_now
@@ -509,7 +509,9 @@ async def logout_view(response: Response):
 
 
 @router.get("/user", tags=["users"])
-async def get_user_view(request: Request, session: AsyncSessionDep, user: Optional[User] = Depends(required_user)):
+async def get_user_view(
+    request: Request, session: AsyncSessionDep, user: Optional[User] = Depends(required_user)
+) -> view_models.User:
     """Get user info, return 401 if not authenticated"""
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
@@ -622,5 +624,6 @@ async def delete_user_view(
         raise HTTPException(status_code=400, detail="Cannot delete the last admin user")
     if target.id == user.id:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
-    await async_db_ops.delete_user(session, target)
+    await AsyncDatabaseOps(session).delete_user(target)
+    await session.commit()
     return {"message": "User deleted successfully"}

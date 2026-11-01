@@ -23,8 +23,11 @@ from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 
 from aperag.agent.agent_config import AgentConfig
+from aperag.agent.completion_llm import CompletionAwareOpenAILLM
 from aperag.agent.exceptions import AgentConfigurationError
 from aperag.agent.mcp_app_factory import MCPAppFactory
+from aperag.config import settings
+from aperag.trace.utils import get_tracer
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +71,11 @@ class ChatSession:
             self.mcp_running_app = await self.mcp_app_context_manager.__aenter__()
 
             self.mcp_running_app.context.session_id = self.config.chat_id
+            # Use the application's existing provider/exporter. The MCP SDK
+            # gates token usage and detailed response attributes on this flag.
+            if settings.otel_enabled:
+                self.mcp_running_app.context.tracing_enabled = True
+                self.mcp_running_app.context.tracer = get_tracer(__name__)
 
             # Create reusable agent for this chat session
             self.agent = Agent(
@@ -79,7 +87,7 @@ class ChatSession:
             await self.agent.__aenter__()
 
             # Create and cache LLM instance for this chat session
-            self.llm = await self.agent.attach_llm(OpenAIAugmentedLLM)
+            self.llm = await self.agent.attach_llm(CompletionAwareOpenAILLM)
             from mcp_agent.logging.logger import get_logger
 
             self.llm.logger = get_logger(self.llm.name, session_id=self.llm.context.session_id)

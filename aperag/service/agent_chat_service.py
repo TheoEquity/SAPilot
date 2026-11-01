@@ -21,8 +21,8 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import WebSocket
-from mcp_agent.workflows.llm.augmented_llm import RequestParams
+from fastapi import WebSocket, WebSocketDisconnect
+from mcp_agent.workflows.llm.augmented_llm import RequestParams, SimpleMemory
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aperag.agent import (
@@ -42,7 +42,6 @@ from aperag.agent import (
     format_stream_end,
     format_stream_start,
 )
-from mcp_agent.workflows.llm.augmented_llm import SimpleMemory
 from aperag.agent.agent_config import AgentConfig
 from aperag.agent.agent_event_listener import agent_event_listener
 from aperag.agent.exceptions import (
@@ -53,10 +52,13 @@ from aperag.agent.exceptions import (
     handle_agent_error,
     safe_json_parse,
 )
+from aperag.agent.intent_router import route_intent
 from aperag.agent.response_types import AgentErrorResponse, AgentToolCallResultResponse
+from aperag.agent.tool_reference_extractor import _format_reference_content, resolve_answer_asset_urls
 from aperag.chat.history.message import StoredChatMessage, create_assistant_message
 from aperag.config import settings
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops
+from aperag.llm.llm_error_types import CompletionError
 from aperag.objectstore.base import get_async_object_store
 from aperag.query.query import DocumentWithScore
 from aperag.schema import view_models
@@ -64,7 +66,7 @@ from aperag.service.chat_collection_service import chat_collection_service
 from aperag.service.collection_service import collection_service
 from aperag.service.image_search_service import image_search_service
 from aperag.service.prompt_template_service import build_agent_query_prompt, prompt_template_service
-from aperag.trace import trace_async_function
+from aperag.trace import add_trace_attributes, trace_async_function
 
 logger = logging.getLogger(__name__)
 
@@ -211,9 +213,13 @@ class AgentChatService:
         resolved_system_prompt = await prompt_template_service.resolve_agent_system_prompt(bot=bot, user_id=user)
         resolved_query_prompt = await prompt_template_service.resolve_agent_query_prompt(bot=bot, user_id=user)
 
+        pending_messages = []
         while True:
             # Receive message from WebSocket
-            data = await websocket.receive_text()
+            try:
+                data = pending_messages.pop(0) if pending_messages else await websocket.receive_text()
+            except WebSocketDisconnect:
+                return
 
             # Parse WebSocket message using Go-style error handling
             agent_message, error_response = self._parse_websocket_message(data)
@@ -222,16 +228,20 @@ class AgentChatService:
                 continue
 
             # Process each message in a new trace context
-            await self._handle_single_message(
-                websocket,
-                agent_message,
-                user,
-                chat_id,
-                bot_config=bot_config,
-                default_collections=default_collections,
-                resolved_system_prompt=resolved_system_prompt,
-                resolved_query_prompt=resolved_query_prompt,
-            )
+            try:
+                await self._handle_single_message(
+                    websocket,
+                    agent_message,
+                    user,
+                    chat_id,
+                    bot_config=bot_config,
+                    default_collections=default_collections,
+                    resolved_system_prompt=resolved_system_prompt,
+                    resolved_query_prompt=resolved_query_prompt,
+                    pending_messages=pending_messages,
+                )
+            except WebSocketDisconnect:
+                return
 
     @trace_async_function("name=handle_single_websocket_message", new_trace=True)
     async def _handle_single_message(
@@ -244,11 +254,23 @@ class AgentChatService:
         default_collections=None,
         resolved_system_prompt: str = None,
         resolved_query_prompt: str = None,
+        pending_messages: Optional[List[str]] = None,
     ):
         """Handle a single WebSocket message with its own trace"""
+        add_trace_attributes(
+            **{"langfuse.session.id": chat_id, "langfuse.user.id": user, "langfuse.trace.name": "chat.message"}
+        )
         trace_id = None
+        message_id = None
+        message_tasks = []
+        if pending_messages is None:
+            pending_messages = []
+        started = time.perf_counter()
         try:
             message_id = str(uuid.uuid4())
+            logger.info(
+                "chat.message.started", extra={"message_id": message_id, "chat_id": chat_id, "status": "started"}
+            )
             message_queue = AgentMessageQueue()
             trace_id = await self.register_message_queue(agent_message.language, chat_id, message_id, message_queue)
 
@@ -275,13 +297,52 @@ class AgentChatService:
                     resolved_query_prompt=resolved_query_prompt,
                 )
             )
+            message_tasks.append(process_task)
             # Message Consumer
             consumer_task = asyncio.create_task(self._consume_messages_from_queue(message_queue, websocket))
+            message_tasks.append(consumer_task)
+
+            async def watch_disconnect():
+                # This is the only receiver while this message is being processed.
+                # Preserve early next messages for the connection's outer loop.
+                while True:
+                    pending_messages.append(await websocket.receive_text())
+
+            disconnect_task = asyncio.create_task(watch_disconnect())
+            message_tasks.append(disconnect_task)
+            pending = {process_task, consumer_task}
+            while pending:
+                done, _ = await asyncio.wait(pending | {disconnect_task}, return_when=asyncio.FIRST_COMPLETED)
+                if disconnect_task in done:
+                    await disconnect_task
+                if any(task.cancelled() for task in done):
+                    raise asyncio.CancelledError()
+                pending.difference_update(done)
+                if any(task.exception() is not None for task in done):
+                    for task in pending:
+                        task.cancel()
+                    break
             process_result, consumer_result = await asyncio.gather(process_task, consumer_task, return_exceptions=True)
+            # A disconnect may arrive while a failed task's sibling is stopping.
+            if disconnect_task.done():
+                await disconnect_task
+
+            if isinstance(consumer_result, WebSocketDisconnect):
+                raise consumer_result
 
             # Handle process_task exceptions with unified error formatting
             if isinstance(process_result, Exception):
-                logger.error(f"Process task failed: {process_result}")
+                logger.error(
+                    "chat.message.failed",
+                    extra={
+                        "message_id": message_id,
+                        "chat_id": chat_id,
+                        "stage": "chat.process",
+                        "status": "failed",
+                        "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                    },
+                    exc_info=(type(process_result), process_result, process_result.__traceback__),
+                )
                 error_response = self._format_exception_to_error_response(
                     process_result, agent_message.language or "en-US"
                 )
@@ -290,7 +351,17 @@ class AgentChatService:
 
             # Handle consumer_task exceptions
             if isinstance(consumer_result, Exception):
-                logger.error(f"Consumer task failed: {consumer_result}")
+                logger.error(
+                    "chat.message.failed",
+                    extra={
+                        "message_id": message_id,
+                        "chat_id": chat_id,
+                        "stage": "chat.stream",
+                        "status": "failed",
+                        "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                    },
+                    exc_info=(type(consumer_result), consumer_result, consumer_result.__traceback__),
+                )
                 error_response = format_processing_error(str(consumer_result), agent_message.language or "en-US")
                 await websocket.send_text(json.dumps(error_response))
                 return
@@ -304,13 +375,45 @@ class AgentChatService:
             await self._save_conversation_history(
                 chat_id, message_id, trace_id, query, ai_response, files, tool_use_list, references
             )
+            logger.info(
+                "chat.message.completed",
+                extra={
+                    "message_id": message_id,
+                    "chat_id": chat_id,
+                    "status": "success",
+                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                },
+            )
 
+        except (asyncio.CancelledError, WebSocketDisconnect):
+            logger.info(
+                "chat.message.cancelled",
+                extra={
+                    "message_id": message_id,
+                    "chat_id": chat_id,
+                    "status": "cancelled",
+                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                },
+            )
+            raise
         except Exception as e:
             # This catches any other unexpected errors not handled above
-            logger.error(f"Unexpected error processing agent websocket message: {e}")
+            logger.exception(
+                "chat.message.failed",
+                extra={
+                    "message_id": message_id,
+                    "chat_id": chat_id,
+                    "status": "failed",
+                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                },
+            )
             error_response = format_processing_error(str(e), agent_message.language or "en-US")
             await websocket.send_text(json.dumps(error_response))
         finally:
+            for task in message_tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*message_tasks, return_exceptions=True)
             if trace_id:
                 await agent_event_listener.unregister_listener(str(trace_id))
 
@@ -407,6 +510,8 @@ class AgentChatService:
 
             return tool_call_results
 
+        except WebSocketDisconnect:
+            raise
         except Exception as e:
             logger.error(f"Error in message consumer: {e}")
             raise
@@ -534,7 +639,7 @@ class AgentChatService:
 
             # Create memory from chat history
             history = await self.history_manager.get_chat_history(chat_id)
-            memory = await self.memory_manager.create_memory_from_history(history, context_limit=4)
+            await self.memory_manager.create_memory_from_history(history, context_limit=4)
 
             if merged_agent_message.action == "faq_end":
                 end_response = self._build_faq_choice_end_response(agent_message.language)
@@ -578,82 +683,29 @@ class AgentChatService:
                 await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
                 return {"query": merged_agent_message.query, "content": error_msg, "references": []}
 
-            # NEW: Intent routing (bypass old _should_search_knowledge_base)
-            target_skill_id = None
             history_messages = await history.messages
             recent_messages = history_messages[-4:] if len(history_messages) > 4 else history_messages
+            routing_message = merged_agent_message
+            if merged_agent_message.files and self._has_image_files(merged_agent_message.files):
+                from aperag.service.visual_context_service import describe_chat_images
 
-            if merged_agent_message.force_skill_id:
-                target_skill_id = merged_agent_message.force_skill_id
-                logger.info("Forced skill route: %s -> %s", merged_agent_message.query, target_skill_id)
-
-            # Step 1: Hard rules matching
-            if not target_skill_id and intent_router.mode == 'rules+llm' and intent_router.rules:
-                # Convert Pydantic models to dicts for try_hard_rules_match
-                rules_dict = [rule.model_dump() for rule in intent_router.rules]
-                matched = self.try_hard_rules_match(
-                    query=merged_agent_message.query,
-                    rules=rules_dict
+                image_observations = await describe_chat_images(
+                    user, chat_id, merged_agent_message.files, merged_agent_message.completion,
+                    merged_agent_message.query,
                 )
-                if matched:
-                    target_skill_id = matched
-                    logger.info("Hard rule matched: %s -> %s", merged_agent_message.query, target_skill_id)
-
-            # Step 2: LLM intent classification
-            if not target_skill_id:
-                session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
-                llm = await session.get_llm(intent_router.llm.model)
-                
-                # Intent router only needs the last 1-2 turns for coreference resolution
-                # Take the most recent 4 messages (2 user + 2 assistant) max
-                import re as _re
-                intent_memory = SimpleMemory()
-                for msg in recent_messages:
-                    for openai_msg in msg.to_openai_format(include_tool_results=True):
-                        intent_memory.append(openai_msg)
-                
-                llm.history = intent_memory
-
-                candidate_skills = intent_router.candidate_skills
-                skills_desc = "\n".join([
-                    f"- {s.skill_id}: {s.label or ''} - {s.description or ''}"
-                    for s in candidate_skills if s.enabled
-                ])
-
-                prompt_template = intent_router.prompt_template or ""
-                prompt = prompt_template.replace("{{query}}", merged_agent_message.query)
-                prompt = prompt.replace("{{skills}}", skills_desc)
-                if not prompt.strip():
-                    prompt = (
-                        f"Classify into one skill:\n{skills_desc}\n\n"
-                        f"Query: {merged_agent_message.query}\nReply with skill_id only."
-                    )
-
-                # Always append the authoritative candidate skill list and exact-output rule.
-                # This keeps routing correct even if the saved prompt uses legacy aliases.
-                prompt = (
-                    f"{prompt.strip()}\n\n"
-                    f"Authoritative candidate skills (you must choose one exact skill_id from this list):\n"
-                    f"{skills_desc}\n\n"
-                    f"Current user input:\n{merged_agent_message.query}\n\n"
-                    f"Output exactly one skill_id from the authoritative candidate list above."
-                )
-
-                params = RequestParams(
-                    maxTokens=512, model=intent_router.llm.model, use_history=False,
-                    max_iterations=1, temperature=float(intent_router.llm.temperature or 0),
-                    user=user, tool_filter={"aperag": set()},
-                )
-                resp = await llm.generate_str(prompt, params)
-                classified = (resp or "").strip()
-
-                valid_ids = {s.skill_id for s in candidate_skills if s.enabled}
-                if classified in valid_ids:
-                    target_skill_id = classified
-                else:
-                    target_skill_id = intent_router.fallback_skill_id
-
-                logger.info("Intent classified: %s -> %s", merged_agent_message.query, target_skill_id)
+                routing_message = merged_agent_message.model_copy(update={
+                    'query': f'{merged_agent_message.query}\n\n{image_observations}',
+                })
+                resolved_query_prompt = f'{resolved_query_prompt or ""}\n\n{image_observations}'
+            target_skill_id = await route_intent(
+                routing_message,
+                intent_router,
+                recent_messages,
+                user=user,
+                chat_id=chat_id,
+                resolved_system_prompt=resolved_system_prompt,
+                get_agent_session=self._get_agent_session,
+            )
 
             # Step 2.5: Manage skill-scoped context isolation
             # If switching skills, initialize a new buffer with recent history for continuity
@@ -675,107 +727,6 @@ class AgentChatService:
                 resolved_query_prompt, resolved_system_prompt=resolved_system_prompt, orchestration=orchestration,
             )
             return result
-
-            # Knowledge base search mode: full MCP agent with search tools
-
-            # Only allow expansion mode when triggered by expansion confirmation
-            is_expert_expansion_confirmed = search_trigger == "expansion"
-
-            # Get chat session using merged agent message and resolved system prompt
-            session = await self._get_agent_session(merged_agent_message, user, chat_id, resolved_system_prompt)
-            llm = await session.get_llm(final_completion.model)
-
-            llm.history = memory
-
-            original_user_query = merged_agent_message.query
-            llm_agent_message = merged_agent_message
-
-            if search_trigger == "kb_existence":
-                llm_agent_message = merged_agent_message.model_copy(
-                    update={"query": self._build_knowledge_base_existence_query(original_user_query)}
-                )
-
-            # Pre-execute image search only to identify the matched FAQ question text.
-            image_search_results: List[DocumentWithScore] = []
-            has_image_files = self._has_image_files(merged_agent_message.files)
-            if has_image_files:
-                image_search_results = await self._execute_image_search(
-                    user=user,
-                    chat_id=chat_id,
-                    files=merged_agent_message.files,
-                    collections=final_collections or [],
-                )
-                top_chunk = image_search_results[0] if image_search_results else None
-                if not top_chunk or not self._is_confirmed_image_search_hit(top_chunk):
-                    logger.info(
-                        "Image search did not find a confirmed hit: score=%s threshold=%s",
-                        top_chunk.score if top_chunk else None,
-                        settings.dingtalk_image_search_confirmed_similarity,
-                    )
-                    unmatched_response = self._build_unmatched_image_response(agent_message.language)
-                    await message_queue.put(format_stream_content(message_id, unmatched_response))
-                    await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=target_skill_id or ""))
-                    return {
-                        "query": original_user_query,
-                        "content": unmatched_response,
-                        "references": [],
-                    }
-
-                chunk_text = (top_chunk.text or "").strip()
-                faq_title = self._extract_faq_title(top_chunk.metadata, chunk_text)
-                if not faq_title:
-                    unmatched_response = self._build_unmatched_image_response(agent_message.language)
-                    await message_queue.put(format_stream_content(message_id, unmatched_response))
-                    await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=target_skill_id or ""))
-                    return {
-                        "query": original_user_query,
-                        "content": unmatched_response,
-                        "references": [],
-                    }
-
-                llm_agent_message = merged_agent_message.model_copy(
-                    update={"query": self._build_image_search_text_query(original_user_query, faq_title, agent_message.language)}
-                )
-
-            comprehensive_prompt = build_agent_query_prompt(
-                chat_id, agent_message=llm_agent_message, user=user, template=resolved_query_prompt, is_search_confirmed=False
-            )
-            if is_expert_expansion_confirmed:
-                comprehensive_prompt = self._build_expert_expansion_prompt(agent_message.query)
-
-            request_params = RequestParams(
-                maxTokens=8192,
-                model=final_completion.model,
-                use_history=True,
-                max_iterations=10,
-                parallel_tool_calls=True,
-                temperature=0.7,
-                user=user,
-            )
-            response = await llm.generate_str(comprehensive_prompt, request_params)
-            full_content = response if response else "No response generated"
-            faq_choice = self._extract_faq_choice(full_content)
-            if faq_choice:
-                full_content = faq_choice["content"]
-
-            await asyncio.sleep(0.1)  # Allow time for the message to be processed in listener
-
-            await message_queue.put(format_stream_content(message_id, full_content, skill_id=skill_id))
-
-            tool_references = extract_tool_call_references(llm.history)
-
-            urls = []
-
-            if faq_choice:
-                await message_queue.put(self._format_faq_choice_message(message_id, faq_choice["label"]))
-
-            await message_queue.put(format_stream_end(message_id, references=tool_references, urls=urls))
-
-            return {
-                "query": original_user_query,
-                "content": full_content,
-                "references": tool_references,
-            }
 
         finally:
             queue_close = getattr(message_queue, "close", None)
@@ -857,52 +808,6 @@ class AgentChatService:
         if any(trigger in normalized for trigger in search_triggers):
             logger.info("KB search triggered: explicit search request '%s'", query)
             return "explicit"
-
-        return None
-
-    @staticmethod
-    def try_hard_rules_match(
-        query: str,
-        rules: list,
-    ) -> Optional[str]:
-        """Try to match hard rules against the query. Returns target_skill_id or None."""
-        def normalize_keyword_text(text: str) -> str:
-            normalized = (text or "").lower()
-            normalized = re.sub(r"[\s\t\r\n]+", "", normalized)
-            normalized = re.sub(r"[!！?？。,.，；;:：~～]", "", normalized)
-            normalized = re.sub(r"(查|看|搜|问)一下", r"\1", normalized)
-            normalized = re.sub(r"(查|看|搜|问)下", r"\1", normalized)
-            return normalized
-
-        normalized_query = normalize_keyword_text(query)
-
-        for rule in rules:
-            if not rule.get('enabled', True):
-                continue
-
-            rule_type = rule.get('rule_type', 'keyword')
-            value = rule.get('value', '')
-            target_skill_id = rule.get('target_skill_id', '')
-
-            if not value or not target_skill_id:
-                continue
-
-            matched = False
-            if rule_type == 'keyword':
-                normalized_value = normalize_keyword_text(value)
-                matched = (
-                    value in query
-                    or value.lower() in query.lower()
-                    or (normalized_value and normalized_value in normalized_query)
-                )
-            elif rule_type == 'regex':
-                try:
-                    matched = bool(re.search(value, query, re.IGNORECASE | re.UNICODE))
-                except re.error:
-                    continue
-
-            if matched:
-                return target_skill_id
 
         return None
 
@@ -1189,8 +1094,47 @@ class AgentChatService:
         comprehensive_prompt = build_agent_query_prompt(
             chat_id, agent_message=agent_message, user=user, template=node_query_prompt, is_search_confirmed=False
         )
+        comprehensive_prompt += (
+            '\n\n证据与回答要求：先逐项核对用户的全部问题和条件，再完整作答；精简检索过程说明，'
+            '把篇幅留给答案、原文依据和必要限制，不以未展开的标题结束。'
+            '不能从局部未检索到推断全文不存在；枚举、跨页续文或条件不足时，'
+            '用search_collection(collection_id,query,document_id=已返回的文档ID,page_idx=零基物理页)'
+            '核对同文档邻页，Word等无页文档省略page_idx读取全文。context.truncated为真时按next_offset继续。'
+            '涉及截图字段、图中表格或图文归属时，用原文已返回的asset_id作为image_asset_ids参数（最多6张）'
+            '再次读取上下文以取得实际视觉观察，不能仅凭图片URI或OCR声称已看图。'
+            '跨页上方续文不自动归到下方新标题，样例值不能当当前值。'
+            '静态代码只证明文本和控制流，不把字符串里的表达式当已验证运行效果。'
+            '文本与图片读值冲突时并列呈现，不能用正文或常识把图片标识纠正成另一个值；看不清就标明未知。'
+            '物理页码以physical_page为准；page_idx从0开始，页脚印刷页码可能不同。'
+            '图片引用复制工具返回的完整asset_url，不省略collection_id和document_id。'
+            '得到足够证据后立即完整作答，不反复扩搜同源副本，不要求穷尽全库；'
+            '只有具体缺口才补读相应原文或图，不把检索计划当作最终答案。'
+            '说明无法从已核验证据确认的部分，不编造缺失步骤或版本审批。'
+        )
         response = await llm.generate_str(comprehensive_prompt, request_params)
-        text = response if response else "No response generated"
+        finish_reason = getattr(llm, 'last_finish_reason', None)
+        if finish_reason in {'length', 'tool_calls', 'function_call'}:
+            logger.warning('chat.answer.output_limited', extra={'chat_id': chat_id, 'status': 'continuing'})
+            continuation_params = request_params.model_copy(update={
+                'tool_filter': {'aperag': set()}, 'max_iterations': 1, 'use_history': True,
+            })
+            if finish_reason == 'length':
+                final_prompt = (
+                    '上一条回答因输出上限被截断。请从中断位置准确接续，补全未完成的句子和剩余问题，'
+                    '不要重复已经写出的内容，不再调用工具，不补无依据的事实。'
+                )
+            else:
+                final_prompt = (
+                    '检索预算已结束。现在只根据已取得的证据完整回答用户全部问题，不再调用工具。'
+                    '证据不足的具体部分明确说明未确认，不编造，不再只输出检索计划。'
+                )
+            continuation = await llm.generate_str(final_prompt, continuation_params)
+            if getattr(llm, 'last_finish_reason', None) in {'length', 'tool_calls', 'function_call'}:
+                raise CompletionError('Model response exceeded its output limit after continuation')
+            response = ((response or '') + (continuation or '')) if finish_reason == 'length' else continuation
+        if not response:
+            raise CompletionError('Model did not return a final answer')
+        text = response
         history_after = llm.history.get() if hasattr(llm.history, "get") else []
         current_turn_messages = history_after[history_before_len:]
         references = extract_tool_call_references_from_messages(current_turn_messages)
@@ -1273,60 +1217,42 @@ class AgentChatService:
                 )
 
         effective_query_prompt = resolved_query_prompt
-        if (
-            skill_id == "Skill-002"
-            and self._has_image_files(effective_agent_message.files)
-            and not self._skill_has_tool(skill_config, "search_faq_by_chat_image")
-        ):
-            logger.info(
-                "FAQ image presearch chat=%s message=%s files=%s collections=%s",
-                chat_id,
-                message_id,
-                [getattr(file, "id", None) for file in (effective_agent_message.files or [])],
-                [getattr(collection, "id", None) for collection in (effective_agent_message.collections or [])],
-            )
-            image_search_results = await self._execute_image_search(
-                user=user,
-                chat_id=chat_id,
-                files=effective_agent_message.files,
+        image_references = []
+        if self._has_image_files(effective_agent_message.files):
+            image_results = await self._execute_image_search(
+                user=user, chat_id=chat_id, files=effective_agent_message.files,
                 collections=effective_agent_message.collections or [],
             )
-            top_chunk = image_search_results[0] if image_search_results else None
-            if not top_chunk or not self._is_confirmed_faq_image_search_hit(top_chunk):
-                logger.info(
-                    "FAQ image search did not find a confirmed hit: score=%s threshold=%s",
-                    top_chunk.score if top_chunk else None,
-                    self._get_faq_image_confirmed_similarity(),
-                )
-                unmatched_response = self._build_unmatched_image_response(agent_message.language)
-                await message_queue.put(format_stream_content(message_id, unmatched_response, skill_id=skill_id))
-                await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=skill_id))
-                return {
-                    "query": agent_message.query,
-                    "content": unmatched_response,
-                    "references": [],
-                }
-
-            chunk_text = (top_chunk.text or "").strip()
-            faq_title = self._extract_faq_title(top_chunk.metadata, chunk_text)
-            if not faq_title:
-                unmatched_response = self._build_unmatched_image_response(agent_message.language)
-                await message_queue.put(format_stream_content(message_id, unmatched_response, skill_id=skill_id))
-                await message_queue.put(format_stream_end(message_id, references=[], urls=[], skill_id=skill_id))
-                return {
-                    "query": agent_message.query,
-                    "content": unmatched_response,
-                    "references": [],
-                }
-
-            effective_agent_message = effective_agent_message.model_copy(
-                update={
-                    "query": self._build_image_search_text_query(
-                        agent_message.query,
-                        faq_title,
-                        agent_message.language,
+            candidates = []
+            per_image = {}
+            for result in image_results:
+                metadata = result.metadata or {}
+                if isinstance(metadata.get('page_idx'), int):
+                    metadata['physical_page'] = metadata['page_idx'] + 1
+                if metadata.get('asset_id'):
+                    metadata['asset_url'] = _format_reference_content(
+                        'asset://' + metadata['asset_id'], metadata,
                     )
-                }
+                position = metadata.get("query_image_position", 1)
+                per_image[position] = per_image.get(position, 0) + 1
+                if per_image[position] > 3:
+                    continue
+                image_references.append({"text": result.text, "score": result.score, "metadata": metadata})
+                candidates.append({
+                    "query_image_position": position, "score": result.score,
+                    "collection_id": metadata.get("collection_id"),
+                    "document_id": metadata.get("document_id") or metadata.get("doc_id"),
+                    "source": metadata.get("source") or metadata.get("name"),
+                    "page_idx": metadata.get("page_idx"), "asset_id": metadata.get("asset_id"),
+                    "physical_page": metadata.get("physical_page"), "asset_url": metadata.get("asset_url"),
+                    "content": (result.text or "")[:2400],
+                })
+            effective_query_prompt = (
+                f"{effective_query_prompt or ''}\n\n"
+                "以下是用实际输入图像向量检索取得的候选，不是唯一匹配结论。结合各图的视觉观察，"
+                "对多个输入图分别核验；同图在不同文档或页面重复、只有通用图标、缺少关键字段时"
+                "必须说明歧义，不能强行选第一名。用候选文档和页码读取完整上下文及必要源图后回答。\n"
+                + json.dumps(candidates, ensure_ascii=False)
             )
 
         # Resolve query prompt for building the user prompt
@@ -1466,7 +1392,7 @@ class AgentChatService:
                         maxTokens=max_tokens,
                         model=model_name,
                         use_history=True,
-                        max_iterations=10,
+                        max_iterations=4,
                         parallel_tool_calls=True,
                         temperature=temperature,
                         user=user,
@@ -1517,9 +1443,9 @@ class AgentChatService:
                 full_content = faq_choice["content"]
 
             await asyncio.sleep(0.1)
+            tool_references = (final_references or extract_tool_call_references(llm.history)) + image_references
+            full_content = resolve_answer_asset_urls(full_content, tool_references)
             await message_queue.put(format_stream_content(message_id, full_content))
-
-            tool_references = final_references or extract_tool_call_references(llm.history)
             await message_queue.put(format_stream_end(message_id, references=tool_references, urls=[], skill_id=skill_id))
 
             return {
@@ -1806,7 +1732,8 @@ class AgentChatService:
         similarity_threshold = settings.dingtalk_image_search_similarity
         contexts: List[DocumentWithScore] = []
 
-        for file in files:
+        image_files = [file for file in files if self._has_image_files([file])]
+        for image_position, file in enumerate(image_files, 1):
             try:
                 data_uri = await image_search_service._load_chat_image_as_data_uri(user, chat_id, file.id)
                 if not data_uri:
@@ -1818,6 +1745,8 @@ class AgentChatService:
                     top_k=top_k,
                     similarity_threshold=similarity_threshold,
                 )
+                for result in results:
+                    result.metadata = {**(result.metadata or {}), "query_image_position": image_position}
                 contexts.extend(results)
             except Exception:
                 logger.exception("Failed to execute image search for file=%s", file.id)
@@ -1969,6 +1898,21 @@ class AgentChatService:
         trace_id = None
 
         try:
+            # Evaluation requests have no bot_id; use this user's default Agent bot.
+            bots = await self.db_ops.query_bots([user_id])
+            bot = next((bot for bot in bots if bot.is_default and bot.type == "agent"), None)
+            bot_config = None
+            if bot and bot.config:
+                try:
+                    config_dict = json.loads(bot.config)
+                    if config_dict:
+                        bot_config = view_models.BotConfig(**config_dict)
+                except (json.JSONDecodeError, ValueError):
+                    bot_config = None
+
+            resolved_system_prompt = await prompt_template_service.resolve_agent_system_prompt(bot=bot, user_id=user_id)
+            resolved_query_prompt = await prompt_template_service.resolve_agent_query_prompt(bot=bot, user_id=user_id)
+
             message_queue = AgentMessageQueue()
             trace_id = await self.register_message_queue(agent_message.language, chat_id, message_id, message_queue)
 
@@ -1990,6 +1934,9 @@ class AgentChatService:
                     chat_id,
                     message_id,
                     message_queue,
+                    bot_config=bot_config,
+                    resolved_system_prompt=resolved_system_prompt,
+                    resolved_query_prompt=resolved_query_prompt,
                 )
             )
             consumer_task = asyncio.create_task(consume_and_collect())

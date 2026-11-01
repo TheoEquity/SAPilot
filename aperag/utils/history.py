@@ -159,7 +159,7 @@ class RedisChatMessageHistory:
             content=message,
             chat_id=self.session_id,
             message_id=message_id,
-            files=files,
+            files=[] if files is None else files,
         )
         await self.add_stored_message(stored_message)
 
