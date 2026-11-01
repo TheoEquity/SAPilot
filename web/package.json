@@ -12,6 +12,8 @@
     "dev:mock": "tsx scripts/dev-mock.ts",
     "test:mock": "tsx --test tests/mock-api.test.ts",
     "test:logs": "tsx --test tests/logger.test.ts tests/log-output.test.ts",
+    "test:ci": "node --import tsx --test tests/*.test.cjs tests/*.test.ts",
+    "typecheck": "tsc --noEmit --incremental false",
     "lint": "next lint",
     "prettier": "prettier --cache --write ./ && yarn lint",
     "start": "node ../scripts/run-with-logs.mjs frontend -- node node_modules/next/dist/bin/next start",
