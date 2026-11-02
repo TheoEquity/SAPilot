@@ -32,7 +32,7 @@ Bot 设置、意图和 Skill 普通/快捷保存保留未编辑的已有高级�
 
 意图分类创建独立的消息与 completion 副本，使用配置的意图 provider/model 查询 Provider、Key、base_url 并构造分类会话；每次请求的 maxTokens 使用 intent_router.llm.max_tokens，替换原固定 512。Skill 继续收到原合并消息，规则、指定 Skill、候选、Prompt、兜底与队列收尾保持。本批没有 schema 改动，无需重新生成。
 
-独立审核执行本批 20 项及前批 16 项，共 36 项通过；将当前测试用于基线服务源码时得到 11 失败、9 通过，复现旧 provider/default_model/token 错配。锁定 SDK wheel 的哈希与实际源码参数映射已独立核对，但未执行真实 SDK/HTTP。详细范围与可复跑方式见[意图参数验证说明](../../app/tests/contract/intent-model-parameters.md)。
+独立审核执行本批 20 项及前批 16 项，共 36 项通过；将当前测试用于基线服务源码时得到 11 失败、9 通过，复现旧 provider/default_model/token 错配。锁定 SDK wheel 的哈希与实际源码参数映射已独立核对，但未执行真实 SDK/HTTP。详细范围与可复跑方式见[意图参数验证说明](intent-model-parameters.md)。
 
 实际源码方法测试替换了外部 DB、LLM/MCP 初始化等边界。同 provider 的既有会话不会刷新旧 instruction/Key/base_url；全局环境写入、缺 Provider/Key 的异常构造问题仍属已知范围外限制，不应把本批通过概括为模型联通、全部错误处理或并发隔离已验收。
 
@@ -50,7 +50,7 @@ Skill 编辑器同目录拆为配置构造、编辑 Hook、表单分区与薄页
 
 独立审核对固定源码导出重新比较 AST，确认完整算法、精确 Prompt、候选过滤、Provider/model/maxTokens、消息复制、服务其他语句和原测试断言保持。16 项新增边界在提取前后都通过；合并原回归共 52 项独立复跑通过。新模块与测试 Ruff 通过，服务原有 lint 诊断 5→4，无新增；没有 schema 变化，无需重新生成。
 
-审核员另用自有无网络容器真实导入新模块与 Agent 服务，确认绑定新函数，使用 mcp-agent 0.2.6 与 Pydantic 2.11.7，退出码 0；该容器已自动删除。未执行真实模型、HTTP/WS 聊天、Skill/MCP、并发或 SAP 效果。完整边界见[本批验证说明](../../app/tests/contract/intent-router-extraction.md)。
+审核员另用自有无网络容器真实导入新模块与 Agent 服务，确认绑定新函数，使用 mcp-agent 0.2.6 与 Pydantic 2.11.7，退出码 0；该容器已自动删除。未执行真实模型、HTTP/WS 聊天、Skill/MCP、并发或 SAP 效果。完整边界见[本批验证说明](intent-router-extraction.md)。
 
 ## 第 5 批结果
 
@@ -60,7 +60,7 @@ Skill 编辑器同目录拆为配置构造、编辑 Hook、表单分区与薄页
 
 该历史对照工具依赖 Git 中的固定基线提交和已安装依赖，不是脱离源码历史的浏览器测试。协调者导出固定候选的 4 个前端文件到此前数据目录构建快照，4 个文件仅归一化 CRLF/LF 后与固定 Git blob 相同，其他 608 个文件原始哈希保持；完整 Next build 退出码为 0。审核员读取了这些构建与源码记录，没有再次独立构建。纯提交隔离区仍有原 search-test 六项错误，不因原工作区带既有修正的构建通过而升级为纯提交全量检查已通过。
 
-保留的既有边界：error 片段不会自动结束 loading；取消只是断开再重连；history 仅初始化状态；附件状态检查没有挂接轮询，非图片上传后可停在 uploaded 并阻挡发送；预览 URL 的已有生命周期问题、失败请求与迟到响应行为没有扩修。状态检查函数在 harness 中手动执行，不表示线上已启用轮询。详情见[本批验证说明](../../app/tests/contract/chat-attachments-extraction.md)。
+保留的既有边界：error 片段不会自动结束 loading；取消只是断开再重连；history 仅初始化状态；附件状态检查没有挂接轮询，非图片上传后可停在 uploaded 并阻挡发送；预览 URL 的已有生命周期问题、失败请求与迟到响应行为没有扩修。状态检查函数在 harness 中手动执行，不表示线上已启用轮询。详情见[本批验证说明](chat-attachments-extraction.md)。
 
 ## Docker 保存回读补验
 

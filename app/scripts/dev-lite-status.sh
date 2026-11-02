@@ -29,9 +29,12 @@ show_process frontend
 
 printf '%s\n' ""
 printf '%s\n' "Docker 容器状态"
-if command -v docker-compose >/dev/null 2>&1; then
+if docker compose version >/dev/null 2>&1; then
+  cd "$ROOT_DIR"
+  docker compose -f docker-compose.yml ps postgres redis qdrant es || true
+elif command -v docker-compose >/dev/null 2>&1; then
   cd "$ROOT_DIR"
   docker-compose -f docker-compose.yml ps postgres redis qdrant es || true
 else
-  printf '%s\n' "当前环境缺少 docker-compose，无法展示容器状态。"
+  printf '%s\n' "当前环境缺少 Docker Compose，无法展示容器状态。"
 fi

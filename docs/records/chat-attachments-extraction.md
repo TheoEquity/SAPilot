@@ -4,8 +4,8 @@
 
 ## 改动与保留行为
 
-- [use-chat-messages.ts](../../web/src/components/chat/use-chat-messages.ts)承接原组件的连接、消息/加载状态、发送、FAQ、反馈、取消和滚动 effects；[ChatMessages](../../web/src/components/chat/chat-messages.tsx)保留原 JSX 与展示判断。原内联实现迁出，没有第二套业务实现。
-- [use-chat-attachments.ts](../../web/src/components/chat/use-chat-attachments.ts)承接附件 state/refs、选择、拒绝、重复校验、上传、状态函数、删除与粘贴；[ChatInput](../../web/src/components/chat/chat-input.tsx)保留输入、发送载荷和原 JSX，`Attachment` 类型继续由原入口导出。FileUpload 原内联回调移为 Hook 回调，仅增加 File[] 参数注解；保持每次 render 的新函数身份，因为现有 FileUpload 的 store useMemo 依赖此回调。
+- [use-chat-messages.ts](../../app/web/src/components/chat/use-chat-messages.ts)承接原组件的连接、消息/加载状态、发送、FAQ、反馈、取消和滚动 effects；[ChatMessages](../../app/web/src/components/chat/chat-messages.tsx)保留原 JSX 与展示判断。原内联实现迁出，没有第二套业务实现。
+- [use-chat-attachments.ts](../../app/web/src/components/chat/use-chat-attachments.ts)承接附件 state/refs、选择、拒绝、重复校验、上传、状态函数、删除与粘贴；[ChatInput](../../app/web/src/components/chat/chat-input.tsx)保留输入、发送载荷和原 JSX，`Attachment` 类型继续由原入口导出。FileUpload 原内联回调移为 Hook 回调，仅增加 File[] 参数注解；保持每次 render 的新函数身份，因为现有 FileUpload 的 store useMemo 依赖此回调。
 - `handleSendMessage` 依赖数组显式补上 Hook 返回的原生稳定 `setAttachments`，避免拆分后新增 lint 警告；发送函数体不变。其他现有回调/effect 依赖保持。仅移除搬迁后无用的命名导入和原未用 useInterval 导入。
 - 保留消息 mutation/clone、part_id 累加和顺序；stop 仍添加 references 与 stop 片段；error 不自动结束 loading；malformed JSON 仍抛错。取消仍仅 disconnect → connect → setLoading(false)，不代表后端任务取消。history 仅作为初始 state，prop 改变不自动回放替换。
 - 未挂接的 `checkAttachmentStatus` 原样迁移，仍没有调用或轮询。非图片上传后可停在 uploaded 并阻挡发送；没有补状态轮询或吞异常。图片上传成功仍立即 success，粘贴与上传各生成一次 URL；删除仅撤销当前 URL，发送清空仍不撤销 URL。既有生命周期资源问题仅记录，没有扩修。
@@ -28,7 +28,7 @@ git diff --check
 node node_modules/eslint/bin/eslint.js --no-ignore src/components/chat/chat-input.tsx src/components/chat/chat-messages.tsx src/components/chat/use-chat-attachments.ts src/components/chat/use-chat-messages.ts
 ```
 
-[Node harness](chat_attachments_callbacks.cjs)通过 git show 读取固定基线与当前真实 TS/TSX，并由现有 TypeScript 转译器执行相同场景。只在组件/Hook 外层 return 前注入本地变量捕获，不替换业务回调算法。原始基线源码、两边观察和命令输出存于被忽略的 `.run/chat-attachments/`。
+[Node harness](../../app/tests/contract/chat_attachments_callbacks.cjs)通过 git show 读取固定基线与当前真实 TS/TSX，并由现有 TypeScript 转译器执行相同场景。只在组件/Hook 外层 return 前注入本地变量捕获，不替换业务回调算法。原始基线源码、两边观察和命令输出存于被忽略的 `.run/chat-attachments/`。
 
 7项通过：1组 AST 对照与6组前后行为差分。AST 比较消息完整 setup 与 JSX、附件完整 state/ref/上传/effect setup、原有回调及依赖、原 FileUpload 回调体；输入 JSX 仅规范化回调引用，忽略 JSDoc 与 CRLF/LF 差异。发送函数只允许上述稳定 setter 依赖适配。行为涵盖消息流/多个 turn/引用/工具、异常 JSON/error、发送/FAQ/反馈失败与非200、readyState/取消顺序、附件选择/重复/单文件、图片粘贴/预览/撤销、上传/状态、发送阻挡/清空及请求失败/迟到响应。
 

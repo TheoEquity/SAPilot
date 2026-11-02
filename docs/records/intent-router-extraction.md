@@ -4,8 +4,8 @@
 
 ## 改动与边界
 
-- 新增 [intent_router.py](../../aperag/agent/intent_router.py)：`route_intent` 按原顺序处理强制 Skill、首条命中规则、模型分类和非法输出兜底；`try_hard_rules_match` 从服务迁入本模块。
-- [Agent 服务](../../aperag/service/agent_chat_service.py)保留接入和编排，以绑定的 `_get_agent_session` 回调提供原会话获取能力。原内联路由和旧规则方法删除，未保留第二套实现。全仓源码调用搜索未发现旧规则方法的其他业务调用。
+- 新增 [intent_router.py](../../app/aperag/agent/intent_router.py)：`route_intent` 按原顺序处理强制 Skill、首条命中规则、模型分类和非法输出兜底；`try_hard_rules_match` 从服务迁入本模块。
+- [Agent 服务](../../app/aperag/service/agent_chat_service.py)保留接入和编排，以绑定的 `_get_agent_session` 回调提供原会话获取能力。原内联路由和旧规则方法删除，未保留第二套实现。全仓源码调用搜索未发现旧规则方法的其他业务调用。
 - 服务仍先合并/校验 completion，发送 start、读取历史并创建 memory，再处理 FAQ 结束旁路，然后校验 orchestration/router/必填字段。强制 Skill 仍不能跳过这些校验。最近四条历史的选择、Skill 上下文切换、`_execute_skill` 调用与队列 finally 留在原位置。
 - 第2批 provider/model 消息复制与 max_tokens 修正保留；temperature、启用候选、完整 Prompt、历史转 OpenAI 格式、分类调用次数及异常传播沿用基线。未新增强制/规则目标的候选校验。
 - 未拆 Skill 执行器、FAQ、MCP、缓存、凭据、历史、数据库、渠道或传统 Flow；未补 confidence_threshold、启停、IO、重试。未清理该服务其他遗留死代码。

@@ -3,14 +3,40 @@ title: 文档上传设计
 position: 3
 ---
 
-> 历史网站文档副本：部分架构、路径和命令已过时，不作为当前实现或生产验收依据。当前说明和开发规范请参阅 [SAPilot 仓库文档入口](https://github.com/TheoEquity/SAPilot/tree/main/docs) 与 [工程规范](https://github.com/TheoEquity/SAPilot/tree/main/specs)。
+# SAPilot 文档上传架构设计
 
+> 分类：待核对设计；已补本轮源码核对。核对日期：2026 年 10 月 29 日。
+> 状态：上传、确认、去重与异步索引主链仍适用；调度周期、重试、错误码及跨存储事务保证需修正。
+> 使用边界：下文原稿保留供追溯；先读本次核对，再按源码与运行证据判断。静态存在不等于已验收，本次不构成设计定案或实施批准。见[核对总览](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/README%2Emd)。
 
-# ApeRAG 文档上传架构设计
+<!-- source-audit:begin -->
+## 本次源码核对（2026 年 10 月 29 日）
+
+**结论：** 上传、确认、去重与异步索引主链仍适用；调度周期、重试、错误码及跨存储事务保证需修正。
+
+核对范围为本文主要架构、接口、配置、处理流程及完成状态声明；不是逐行示例、全量安全或性能审计。依据为当前工作区源码（含既有未提交改动），详见[基线与状态说明](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/README%2Emd#核对口径)。本轮未启动服务、调用模型、执行数据库或后台任务。
+
+| 原文范围 / 声明 | 判定 | 当前源码与使用限制 | 源码依据 |
+| --- | --- | --- | --- |
+| 阶段 0–3：暂存上传、确认和直接创建 | 仍适用（静态） | upload_document 生成 UPLOADED，confirm_documents 验证用户和 Collection 后转 PENDING 并创建索引；create_documents 路径仍存在。 | [aperag/views/collections.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/views/collections.py)<br />[aperag/service/document_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/document_service.py) |
+| 阶段 1：文件限制与幂等 | 部分适用 | 默认大小 100MiB、数量 1000 的配置仍存在；上传使用名称的部分唯一索引和 ON CONFLICT，再比较内容哈希。旧记录 content_hash=None 会跳过比较，不能一概承诺所有同名同内容判定严格一致。 | [aperag/config.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/config.py)<br />[aperag/service/document_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/document_service.py)<br />[aperag/db/models.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/db/models.py) |
+| 阶段 4–5：Parser、分块与索引 | 部分适用 | 实际 DocParser 包含 FAQTableParser、Image、Audio、MarkItDown 及按配置启用的 DocRay/MinerU；FAQ 条目有不再拆分的定制。旧解析器列表不是现行完整目录，各格式结构保留仍需样例验收。 | [aperag/docparser/doc_parser.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/docparser/doc_parser.py)<br />[aperag/docparser/faq_table_parser.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/docparser/faq_table_parser.py)<br />[aperag/docparser/chunking.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/docparser/chunking.py)<br />[aperag/index/document_parser.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/index/document_parser.py) |
+| 阶段 2：对象存储与数据库模型 | 仍适用但需配置 | local/S3 适配、按用户/Collection/文档的路径及 DocumentIndex 五类枚举存在；是否启用具体存储、模型和索引不由文档决定。 | [aperag/objectstore/base.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/objectstore/base.py)<br />[aperag/config.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/config.py)<br />[aperag/db/models.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/db/models.py) |
+| 异步任务：30秒、默认并发4、指数重试 | 过时／需要限定 | 当前索引 Beat 周期为3600秒，同时服务会立即 delay 调谐；核心索引任务 max_retries=3、countdown=60，非文档所述指数退避。Worker 并发由启动配置决定，不是本文保证。 | [config/celery.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/config/celery.py)<br />[config/celery_tasks.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/config/celery_tasks.py)<br />[aperag/service/document_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/document_service.py) |
+| 错误表：配额429、确认完全幂等 | 部分过时 | 文档数量配额映射 Forbidden/403；确认非 UPLOADED 文档会记为 DOCUMENT_NOT_UPLOADED 等失败，不能承诺重复确认总成功。 | [aperag/exceptions.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/exceptions.py)<br />[aperag/service/document_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/document_service.py) |
+| 事务一致性：对象和元数据统一回滚 | 不能作为已保证行为 | upload_document 在数据库事务回调内写对象存储，但数据库 rollback 不证明已写对象也被撤回；当前路径未展示同等对象补偿。不能将异构存储描述为一个原子事务。 | [aperag/service/document_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/document_service.py)<br />[aperag/db/repositories/base.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/db/repositories/base.py) |
+| 性能、质量与恢复 | 待运行验证 | 未上传文档或执行 worker；PDF/Word/图片关系、索引结果、重复请求、失败恢复和并发需按 SAP 样例另验。 | [aperag/tasks/reconciler.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/tasks/reconciler.py)<br />[aperag/index/manager.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/index/manager.py) |
+
+以下保留原稿；其中旧的“已实现”“待完成”、接口示例和效果数字，以本节标注的适用范围为准。未单列的示例不代表已逐行验证。
+
+---
+
+## 原文（保留记录）
+<!-- source-audit:end -->
 
 ## 概述
 
-本文档详细说明 ApeRAG 项目中文档上传模块的完整架构设计，涵盖从文件上传、临时存储、文档解析、格式转换到最终索引构建的全链路流程。
+本文档详细说明 SAPilot 项目中文档上传模块的完整架构设计，涵盖从文件上传、临时存储、文档解析、格式转换到最终索引构建的全链路流程。
 
 **核心设计理念**：采用**两阶段提交**模式，将文件上传（临时存储）和文档确认（正式添加）分离，提供更好的用户体验和资源管理能力。
 
@@ -28,7 +54,7 @@ position: 3
          │ POST /documents/upload            │ POST /documents/confirm
          ▼                                   ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  View Layer: aperag/views/collections.py                    │
+│  View Layer: sapilot/views/collections.py                    │
 │  - HTTP请求处理                                              │
 │  - JWT身份验证                                               │
 │  - 参数验证                                                  │
@@ -37,7 +63,7 @@ position: 3
          │ document_service.upload_document() │ document_service.confirm_documents()
          ▼                                   ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Service Layer: aperag/service/document_service.py          │
+│  Service Layer: sapilot/service/document_service.py          │
 │  - 业务逻辑编排                                              │
 │  - 文件验证（类型、大小）                                     │
 │  - SHA-256 哈希去重                                          │
@@ -250,7 +276,7 @@ OBJECT_STORE_S3_ENDPOINT=http://127.0.0.1:9000  # MinIO/S3 地址
 OBJECT_STORE_S3_REGION=us-east-1                # AWS Region
 OBJECT_STORE_S3_ACCESS_KEY=minioadmin           # Access Key
 OBJECT_STORE_S3_SECRET_KEY=minioadmin           # Secret Key
-OBJECT_STORE_S3_BUCKET=aperag                   # Bucket 名称
+OBJECT_STORE_S3_BUCKET=sapilot                   # Bucket 名称
 OBJECT_STORE_S3_PREFIX_PATH=dev/                # 可选的路径前缀
 OBJECT_STORE_S3_USE_PATH_STYLE=true             # MinIO 需要设置为 true
 ```
@@ -1024,42 +1050,42 @@ Exception Handler 统一处理
 
 ### 核心实现
 
-- **View 层**：`aperag/views/collections.py` - HTTP 接口定义
-- **Service 层**：`aperag/service/document_service.py` - 业务逻辑
-- **数据库模型**：`aperag/db/models.py` - Document, DocumentIndex 表定义
-- **数据库操作**：`aperag/db/ops.py` - CRUD 操作封装
+- **View 层**：`sapilot/views/collections.py` - HTTP 接口定义
+- **Service 层**：`sapilot/service/document_service.py` - 业务逻辑
+- **数据库模型**：`sapilot/db/models.py` - Document, DocumentIndex 表定义
+- **数据库操作**：`sapilot/db/ops.py` - CRUD 操作封装
 
 ### 对象存储
 
-- **接口定义**：`aperag/objectstore/base.py` - AsyncObjectStore 抽象类
-- **Local 实现**：`aperag/objectstore/local.py` - 本地文件系统存储
-- **S3 实现**：`aperag/objectstore/s3.py` - S3 兼容存储
+- **接口定义**：`sapilot/objectstore/base.py` - AsyncObjectStore 抽象类
+- **Local 实现**：`sapilot/objectstore/local.py` - 本地文件系统存储
+- **S3 实现**：`sapilot/objectstore/s3.py` - S3 兼容存储
 
 ### 文档解析
 
-- **主控制器**：`aperag/docparser/doc_parser.py` - DocParser
+- **主控制器**：`sapilot/docparser/doc_parser.py` - DocParser
 - **Parser 实现**：
-  - `aperag/docparser/mineru_parser.py` - MinerU PDF 解析
-  - `aperag/docparser/docray_parser.py` - DocRay 文档解析
-  - `aperag/docparser/markitdown_parser.py` - MarkItDown 通用解析
-  - `aperag/docparser/image_parser.py` - 图片 OCR
-  - `aperag/docparser/audio_parser.py` - 音频转录
-- **文档处理**：`aperag/index/document_parser.py` - 解析流程编排
+  - `sapilot/docparser/mineru_parser.py` - MinerU PDF 解析
+  - `sapilot/docparser/docray_parser.py` - DocRay 文档解析
+  - `sapilot/docparser/markitdown_parser.py` - MarkItDown 通用解析
+  - `sapilot/docparser/image_parser.py` - 图片 OCR
+  - `sapilot/docparser/audio_parser.py` - 音频转录
+- **文档处理**：`sapilot/index/document_parser.py` - 解析流程编排
 
 ### 索引构建
 
-- **索引管理**：`aperag/index/manager.py` - DocumentIndexManager
-- **向量索引**：`aperag/index/vector_index.py` - VectorIndexer
-- **全文索引**：`aperag/index/fulltext_index.py` - FulltextIndexer
-- **知识图谱**：`aperag/index/graph_index.py` - GraphIndexer
-- **文档摘要**：`aperag/index/summary_index.py` - SummaryIndexer
-- **视觉索引**：`aperag/index/vision_index.py` - VisionIndexer
+- **索引管理**：`sapilot/index/manager.py` - DocumentIndexManager
+- **向量索引**：`sapilot/index/vector_index.py` - VectorIndexer
+- **全文索引**：`sapilot/index/fulltext_index.py` - FulltextIndexer
+- **知识图谱**：`sapilot/index/graph_index.py` - GraphIndexer
+- **文档摘要**：`sapilot/index/summary_index.py` - SummaryIndexer
+- **视觉索引**：`sapilot/index/vision_index.py` - VisionIndexer
 
 ### 任务调度
 
 - **任务定义**：`config/celery_tasks.py` - Celery 任务注册
-- **协调器**：`aperag/tasks/reconciler.py` - DocumentIndexReconciler
-- **文档任务**：`aperag/tasks/document.py` - DocumentIndexTask
+- **协调器**：`sapilot/tasks/reconciler.py` - DocumentIndexReconciler
+- **文档任务**：`sapilot/tasks/document.py` - DocumentIndexTask
 
 ### 前端实现
 
@@ -1068,7 +1094,7 @@ Exception Handler 统一处理
 
 ## 总结
 
-ApeRAG 的文档上传模块采用**两阶段提交 + 多 Parser 链式调用 + 多索引并行构建**的架构设计：
+SAPilot 的文档上传模块采用**两阶段提交 + 多 Parser 链式调用 + 多索引并行构建**的架构设计：
 
 **核心特性**：
 1. ✅ **两阶段提交**：上传（临时存储）→ 确认（正式添加），提供更好的用户体验

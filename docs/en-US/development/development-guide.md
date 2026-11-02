@@ -33,7 +33,7 @@ The database pool is also reduced to `4/4`, which fits lightweight local develop
 
 Before you begin, ensure your system has:
 
-*   **Node.js**: Version 20 or higher is recommended for frontend development. [Download Node.js](https://nodejs.org/)
+*   **Node.js**: Version 22.18 or higher is required by the frontend API tools. [Download Node.js](https://nodejs.org/)
 *   **Docker & Docker Compose**: Required for running database services locally. [Download Docker](https://docs.docker.com/get-docker/)
 
 **Note**: Python 3.11 is required but will be automatically managed by `uv` in the next steps.
@@ -323,7 +323,7 @@ make run-celery
 # Run comprehensive RAG evaluation
 make evaluate               # 📊 Runs aperag.evaluation.run module
 
-# 📈 Check evaluation reports in tests/report/
+# 📈 Reports use the evaluation config's report_dir under the project's runtime/evaluations/
 ```
 
 ### Q: 📦 How do I update dependencies safely?
@@ -401,4 +401,4 @@ make migrate                    # 🔄 Apply any new migrations
 rm -rf .venv/                   # 🗑️ Remove virtual environment
 make dev                       # ⚙️ Recreate everything
 source .venv/bin/activate      # ✅ Reactivate
-``` 
+```

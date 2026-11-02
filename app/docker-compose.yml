@@ -1,3 +1,5 @@
+name: sapilot
+
 volumes:
   aperag-postgres-data: {}
   aperag-qdrant-data: {}

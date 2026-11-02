@@ -15,6 +15,8 @@
 
 ## 使用方法
 
+以下命令从项目的 `app/` 目录执行。
+
 ```bash
 # 测试embedding模型
 python tests/model_test/test_embedding_model.py
@@ -38,10 +40,10 @@ python tests/model_test/test_completion_model.py
 
 每个脚本会生成：
 - 控制台实时输出
-- JSON格式的详细测试报告
+- JSON 格式的详细测试报告，统一写入项目 `runtime/evaluations/model-tests/`，不随当前工作目录变化
 
 ## 依赖
 
 ```bash
 pip install httpx yaml
-``` 
+```

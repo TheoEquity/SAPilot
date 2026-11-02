@@ -98,4 +98,4 @@ GitHub: https://github.com/apecloud/ApeRAG
 ## 更多信息
 
 - 详细的改进日志：[CHANGELOG-zh.md](CHANGELOG-zh.md)
-- 并发问题分析：[lightrag_concurrent_problems-zh.md](../lightrag_concurrent_problems-zh.md)
+- 并发问题分析：[lightrag_concurrent_problems-zh.md](lightrag_concurrent_problems-zh.md)

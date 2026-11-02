@@ -233,7 +233,7 @@ docker volume ls | grep sapilot
 1. 按[接口契约规约](api-contract-conventions.md)，在 `aperag/views/` 与 `aperag/schema/` 对应模块维护路由、请求模型、响应模型、状态和说明；不再手改接口 YAML。
 2. 实现对应 Service，启动本地后端；通过 `/docs` 或 `/redoc` 查阅接口。
 3. 在已激活项目 Python 环境、安装前端依赖后，从 `web/` 执行 `yarn api:build`，自动导出接口描述并由 Orval 生成前端类型和请求函数。
-4. 已有导出文件时可运行 `yarn api:generate`。需离线导出时在项目根目录运行 `python scripts/export_openapi.py --app aperag.app:app`，只导入应用而不执行 lifespan。
+4. 已有导出文件时可运行 `yarn api:generate`。需离线导出时在 `app/` 目录运行 `python scripts/export_openapi.py --app aperag.app:app`，只导入应用而不执行 lifespan。
 5. 新产物位于 `web/src/api/generated/`，通过现有 Axios 封装接入；旧 SDK 的业务调用按模块迁移，核对已有扩展，不整体覆盖。
 6. 检查相关契约、TypeScript 类型及实际请求响应；生成成功与业务运行验收分别说明。
 
@@ -365,7 +365,7 @@ make run-celery
 # 运行全面的 RAG 评估
 make evaluate               # 📊 运行 aperag.evaluation.run 模块
 
-# 📈 检查 tests/report/ 中的评估报告
+# 📈 输出由评测配置 report_dir 指定，使用项目 runtime/evaluations/ 下的目录
 ```
 
 ### Q: 📦 如何安全地更新依赖项？

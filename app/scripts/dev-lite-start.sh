@@ -44,16 +44,14 @@ printf '%s\n' "准备启动 SAPilot 低资源开发环境"
 REGISTRY_VALUE="${REGISTRY:-apecloud-registry.cn-zhangjiakou.cr.aliyuncs.com}"
 
 check_command docker "请先安装 Docker Desktop，并确认 docker 命令可用。"
-# Check for docker compose v2 (preferred) or docker-compose v1
+# The Makefile starts infrastructure with Docker Compose v2.
 if ! docker compose version >/dev/null 2>&1; then
-  if ! command -v docker-compose >/dev/null 2>&1; then
-    printf '%s\n' "缺少 Docker Compose: 请先安装 Docker Compose v2 或 v1。"
-    exit 1
-  fi
+  printf '%s\n' "缺少 Docker Compose v2: 请安装后确认 docker compose version 可用。"
+  exit 1
 fi
 check_command bash "请先安装 bash。"
 check_command git "请先安装 git。"
-check_command yarn "请先安装 Node.js 20+ 和 yarn。"
+check_command yarn "请先安装 Node.js 22.18+ 和 yarn。"
 
 if ! command -v uv >/dev/null 2>&1; then
   check_command pip "请先安装 Python 3.11+ 和 pip，用于安装 uv。"

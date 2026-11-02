@@ -1,18 +1,43 @@
 ---
 title: 图索引构建流程
-description: ApeRAG 知识图谱索引构建的完整流程与核心技术
+description: SAPilot 知识图谱索引构建的完整流程与核心技术
 keywords: 知识图谱, Graph Index, 实体提取, 关系抽取, 并发优化
 position: 2
 ---
 
-> 历史网站文档副本：部分架构、路径和命令已过时，不作为当前实现或生产验收依据。当前说明和开发规范请参阅 [SAPilot 仓库文档入口](https://github.com/TheoEquity/SAPilot/tree/main/docs) 与 [工程规范](https://github.com/TheoEquity/SAPilot/tree/main/specs)。
-
-
 # 图索引构建流程
+
+> 分类：待核对设计；已补本轮源码核对。核对日期：2026 年 10 月 29 日。
+> 状态：图谱提取、分组、合并与 workspace 链路仍适用；分组并行和摘要触发说明有实质差异，性能数据未证实。
+> 使用边界：下文原稿保留供追溯；先读本次核对，再按源码与运行证据判断。静态存在不等于已验收，本次不构成设计定案或实施批准。见[核对总览](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/README%2Emd)。
+
+<!-- source-audit:begin -->
+## 本次源码核对（2026 年 10 月 29 日）
+
+**结论：** 图谱提取、分组、合并与 workspace 链路仍适用；分组并行和摘要触发说明有实质差异，性能数据未证实。
+
+核对范围为本文主要架构、接口、配置、处理流程及完成状态声明；不是逐行示例、全量安全或性能审计。依据为当前工作区源码（含既有未提交改动），详见[基线与状态说明](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/README%2Emd#核对口径)。本轮未启动服务、调用模型、执行数据库或后台任务。
+
+| 原文范围 / 声明 | 判定 | 当前源码与使用限制 | 源码依据 |
+| --- | --- | --- | --- |
+| 第 3–5 节：构建链路与实例生命周期 | 仍适用（静态） | 图索引按 enable_knowledge_graph 开关运行；manager 为 Collection 创建 LightRAG，先分块，再提取并分组合并，并在 finally finalize_storages。空文本可返回零实体成功。 | [aperag/index/graph_index.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/index/graph_index.py)<br />[aperag/graph/lightrag_manager.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/graph/lightrag_manager.py)<br />[aperag/graph/lightrag/lightrag.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/graph/lightrag/lightrag.py) |
+| 第 4.1、8 节：1200/100、LLM并发20 | 限定路径后适用 | LightRAGConfig 确有1200/100、LLM_MODEL_MAX_ASYNC=20、批大小32；这些是图谱子路径，不是通用 Parser 或云机容量承诺，其他默认值需按具体构造参数核对。 | [aperag/graph/lightrag_manager.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/graph/lightrag_manager.py)<br />[aperag/config.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/config.py) |
+| 第 4.3–4.4、5.3：分量并行与倍数加速 | 过时／无性能证据 | BFS 分量识别存在，但 _grouping_process_chunk_results 使用 Semaphore(1)，同一实例分组合并串行进入临界段；不能声称三分量即三倍加速或2–3倍吞吐。 | [aperag/graph/lightrag/lightrag.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/graph/lightrag/lightrag.py) |
+| 第 5.4：细粒度锁与隔离 | 部分适用 | 实体与关系锁名称带 workspace，manager 默认 threading 类型；锁和命名存在不证明跨 worker 分布式隔离或多存储原子性。 | [aperag/graph/lightrag/operate.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/graph/lightrag/operate.py)<br />[aperag/concurrent_control/manager.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/concurrent_control/manager.py) |
+| 第 5.5、性能示例：超过2000 tokens触发摘要 | 过时／示例非保证 | 当前合并按描述片段数量达到 force_llm_summary_on_merge 触发，manager 默认10；2000是摘要输出上限参数，不能把它当触发阈值，也不能保证压到200 tokens且不丢信息。 | [aperag/graph/lightrag/operate.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/graph/lightrag/operate.py)<br />[aperag/graph/lightrag_manager.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/graph/lightrag_manager.py) |
+| 第 3.3：文档活跃及多存储建议 | 需修正概念 | 索引成功为 ACTIVE，文档聚合为 COMPLETE；后端由环境选择。实体规模分界、建库时长、内存和存储数字没有本轮基准证据。 | [aperag/db/models.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/db/models.py)<br />[envs/env.template](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/envs/env.template) |
+| 应用示例和自动语义归一效果 | 待效果验证 | 源码会处理实体名称、聚合同名数据，不保证自动把任意别名或 SAP 标识正确归一。需真实样例核对实体、关系、来源及检索效果。 | [aperag/graph/lightrag/operate.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/graph/lightrag/operate.py) |
+
+以下保留原稿；其中旧的“已实现”“待完成”、接口示例和效果数字，以本节标注的适用范围为准。未单列的示例不代表已逐行验证。
+
+---
+
+## 原文（保留记录）
+<!-- source-audit:end -->
 
 ## 1. 什么是图索引
 
-图索引（Graph Index）是 ApeRAG 的核心特色功能，它能从非结构化文本中自动提取出结构化的知识图谱。
+图索引（Graph Index）是 SAPilot 的核心特色功能，它能从非结构化文本中自动提取出结构化的知识图谱。
 
 ### 1.1 一个简单的例子
 
@@ -127,11 +152,11 @@ flowchart LR
 | **多跳推理** | "张三团队用的技术栈" | 图索引 ✨ |
 | **知识追溯** | "这个功能依赖哪些模块？" | 图索引 ✨ |
 
-**最佳实践**：ApeRAG 同时支持向量检索、全文检索和图索引，可以根据问题类型智能选择或组合使用。
+**最佳实践**：SAPilot 同时支持向量检索、全文检索和图索引，可以根据问题类型智能选择或组合使用。
 
 ## 3. 构建流程概览
 
-当你上传一个文档并启用图索引后，ApeRAG 会自动完成以下步骤。这里先给出一个简单的概览，具体细节在后面章节详细介绍。
+当你上传一个文档并启用图索引后，SAPilot 会自动完成以下步骤。这里先给出一个简单的概览，具体细节在后面章节详细介绍。
 
 ### 3.1 五个关键步骤
 
@@ -362,7 +387,7 @@ flowchart LR
 
 ## 5. 核心技术设计
 
-这一章介绍 ApeRAG 图索引的核心技术设计，包括数据隔离、并发控制等。
+这一章介绍 SAPilot 图索引的核心技术设计，包括数据隔离、并发控制等。
 
 > 💡 **阅读建议**：这些是系统架构和实现细节，主要面向开发者和技术决策者。
 
@@ -476,7 +501,7 @@ graph TB
 graph TD
     A[全局锁 - 传统方案] -->|太粗| B[所有实体串行处理]
     
-    C[实体锁 - ApeRAG] -->|刚好| D[只锁定需要合并的实体]
+    C[实体锁 - SAPilot] -->|刚好| D[只锁定需要合并的实体]
     
     style A fill:#ffccbc
     style B fill:#ffccbc
@@ -504,7 +529,7 @@ else:
 
 ### 5.6 多存储后端支持
 
-ApeRAG 支持两种图数据库：Neo4j 和 PostgreSQL。
+SAPilot 支持两种图数据库：Neo4j 和 PostgreSQL。
 
 **如何选择？**
 
@@ -926,7 +951,7 @@ export GRAPH_INDEX_GRAPH_STORAGE=PGOpsSyncGraphStorage
 # 数据库连接（PostgreSQL）
 export POSTGRES_HOST=127.0.0.1
 export POSTGRES_PORT=5432
-export POSTGRES_DB=aperag
+export POSTGRES_DB=sapilot
 export POSTGRES_USER=postgres
 export POSTGRES_PASSWORD=your_password
 
@@ -1042,7 +1067,7 @@ export NEO4J_PASSWORD=your_password
 
 ## 10. 总结
 
-ApeRAG 的图索引提供了生产级的知识图谱构建能力，具有高性能、高可靠性和易扩展的特点。
+SAPilot 的图索引提供了生产级的知识图谱构建能力，具有高性能、高可靠性和易扩展的特点。
 
 ### 关键特性
 
@@ -1069,7 +1094,7 @@ ApeRAG 的图索引提供了生产级的知识图谱构建能力，具有高性�
 
 ### 下一步
 
-图索引构建完成后，就可以进行图谱检索了。ApeRAG 支持三种图谱查询模式：
+图索引构建完成后，就可以进行图谱检索了。SAPilot 支持三种图谱查询模式：
 
 - **Local 模式**：查询某个实体的局部信息
 - **Global 模式**：查询整体关系和模式
@@ -1081,7 +1106,7 @@ ApeRAG 的图索引提供了生产级的知识图谱构建能力，具有高性�
 
 ## 相关文档
 
-- 📋 [系统架构](architecture.md) - ApeRAG 整体架构设计
-- 📖 [实体提取与合并机制](./lightrag_entity_extraction_and_merging.md) - 核心算法详解
-- 🔗 [连通分量优化](./connected_components_optimization.md) - 并发优化原理
-- 🌐 [索引链路架构](./indexing_architecture.md) - 完整索引流程
+- 📋 [系统架构](architecture.md) - SAPilot 整体架构设计
+- 📖 [实体提取与合并机制](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/lightrag_entity_extraction_and_merging%2Emd) - 核心算法详解
+- 🔗 [连通分量优化](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/connected_components_optimization%2Emd) - 并发优化原理
+- 🌐 [索引链路架构](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/indexing_architecture%2Emd) - 完整索引流程

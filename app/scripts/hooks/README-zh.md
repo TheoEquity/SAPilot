@@ -9,6 +9,8 @@
 - `make lint` - 代码质量检查
 - `make add-license` - 自动添加Apache许可证头
 
+以下命令从项目的 `app/` 目录执行，由安装脚本定位实际 Git hooks 目录。
+
 ## 安装方法
 
 ### 方法1：使用make命令（推荐）
@@ -23,8 +25,7 @@ make dev
 
 ### 方法3：手动安装
 ```bash
-cp scripts/hooks/* .git/hooks/
-chmod +x .git/hooks/*
+bash scripts/install-hooks.sh
 ```
 
 ## 工作流程

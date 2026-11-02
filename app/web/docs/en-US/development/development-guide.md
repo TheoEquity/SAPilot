@@ -1,10 +1,10 @@
 # 🛠️ Development Guide
 
-This guide focuses on setting up a development environment and the development workflow for ApeRAG. This is designed for developers looking to contribute to ApeRAG or run it locally for development purposes.
+This guide focuses on setting up a development environment and the development workflow for SAPilot. This is designed for developers looking to contribute to SAPilot or run it locally for development purposes.
 
 ## 🚀 Development Environment Setup
 
-Follow these steps to set up ApeRAG from source code for development:
+Follow these steps to set up SAPilot from source code for development:
 
 ### 1. 📂 Clone the Repository and Setup Environment
 
@@ -12,17 +12,28 @@ First, get the source code and configure environment variables:
 
 ```bash
 git clone https://github.com/TheoEquity/SAPilot.git
-cd SAPilot
+cd SAPilot/app
 cp envs/env.template .env
 ```
 
 Edit the `.env` file to configure your AI service settings if needed. The default settings work with the local database services started in the next step.
 
+For a machine with 8GB RAM and 20GB disk, use the lite template directly:
+
+```bash
+cp envs/env.dev-lite.template .env
+```
+
+This template reduces pool sizes, concurrency, and quota defaults while keeping the 4-container development mode.
+It also sets Elasticsearch heap to `512m`, which fits an 8GB local machine better.
+The Celery worker concurrency also defaults to `4`, which reduces background memory pressure.
+The database pool is also reduced to `4/4`, which fits lightweight local development better.
+
 ### 2. 📋 System Prerequisites
 
 Before you begin, ensure your system has:
 
-*   **Node.js**: Version 20 or higher is recommended for frontend development. [Download Node.js](https://nodejs.org/)
+*   **Node.js**: Version 22.18 or higher is required by the frontend API tools. [Download Node.js](https://nodejs.org/)
 *   **Docker & Docker Compose**: Required for running database services locally. [Download Docker](https://docs.docker.com/get-docker/)
 
 **Note**: Python 3.11 is required but will be automatically managed by `uv` in the next steps.
@@ -32,30 +43,30 @@ Before you begin, ensure your system has:
 Use Docker Compose to start the essential database services:
 
 ```bash
-# Start core databases: PostgreSQL, Redis, Qdrant, Elasticsearch
+# Start 4 core infrastructure containers: PostgreSQL, Redis, Qdrant, Elasticsearch
 make compose-infra
 ```
 
-This will start all required database services in the background. The default connection settings in your `.env` file are pre-configured to work with these services.
+This starts 4 development infrastructure containers in the background. The default development path skips Neo4j, DocRay, and GPU/CUDA-related services, which fits machines with limited memory and disk. The default connection settings in your `.env` file are pre-configured to work with these services.
 
 <details>
 <summary><strong>Advanced Database Options</strong></summary>
 
 ```bash
-# Use Neo4j instead of PostgreSQL for graph storage
+# Use Neo4j for graph storage
 make compose-infra WITH_NEO4J=1
 
-# Add advanced document parsing service (DocRay)
+# Add advanced document parsing service (DocRay / MinerU)
 make compose-infra WITH_DOCRAY=1
 
 # Combine multiple options
 make compose-infra WITH_NEO4J=1 WITH_DOCRAY=1
 
-# GPU-accelerated document parsing (requires ~6GB VRAM)
+# GPU-accelerated document parsing (requires NVIDIA CUDA and ~6GB VRAM)
 make compose-infra WITH_DOCRAY=1 WITH_GPU=1
 ```
 
-**Note**: DocRay provides enhanced document parsing for complex PDFs, tables, and formulas. CPU mode requires 4+ cores and 8GB+ RAM.
+**Note**: DocRay provides enhanced document parsing for complex PDFs, tables, and formulas. CPU mode requires 4+ cores and 8GB+ RAM. Keep the default 4-container mode on resource-constrained machines.
 
 </details>
 
@@ -124,7 +135,17 @@ make run-frontend
 ```
 This starts the frontend development server at `http://localhost:3000` with hot reload.
 
-### 8. 🌐 Access ApeRAG
+Recommended development startup sequence:
+
+```bash
+make compose-infra
+make run-backend
+make run-frontend
+```
+
+This keeps the databases containerized while the backend and frontend run from source with hot reload.
+
+### 8. 🌐 Access SAPilot
 
 With the services running, you can access:
 *   **Frontend UI**: http://localhost:3000 (if started)
@@ -157,12 +178,12 @@ make compose-down REMOVE_VOLUMES=1
 **Verify Data Removal:**
 ```bash
 # Check if volumes still exist
-docker volume ls | grep aperag
+docker volume ls | grep sapilot
 
 # Should return no results after REMOVE_VOLUMES=1
 ```
 
-Now you have ApeRAG running locally from source code, ready for development! 🎉
+Now you have SAPilot running locally from source code, ready for development! 🎉
 
 ## ❓ Common Development Tasks
 
@@ -302,7 +323,7 @@ make run-celery
 # Run comprehensive RAG evaluation
 make evaluate               # 📊 Runs aperag.evaluation.run module
 
-# 📈 Check evaluation reports in tests/report/
+# 📈 Reports use the evaluation config's report_dir under the project's runtime/evaluations/
 ```
 
 ### Q: 📦 How do I update dependencies safely?
@@ -380,4 +401,4 @@ make migrate                    # 🔄 Apply any new migrations
 rm -rf .venv/                   # 🗑️ Remove virtual environment
 make dev                       # ⚙️ Recreate everything
 source .venv/bin/activate      # ✅ Reactivate
-``` 
+```

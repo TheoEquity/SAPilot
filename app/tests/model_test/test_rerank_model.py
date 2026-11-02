@@ -38,6 +38,7 @@ Environment Variables:
 import json
 import os
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -68,7 +69,10 @@ try:
 except json.JSONDecodeError:
     RERANK_TEST_DOCS = DEFAULT_RERANK_TEST_DOCS
 
-REPORT_FILE = "rerank_model_test_report.json"
+REPORT_FILE = (
+    Path(__file__).resolve().parents[3]
+    / "runtime/evaluations/model-tests/rerank_model_test_report.json"
+)
 REQUEST_TIMEOUT = 60  # seconds
 
 # --- Helper Functions ---
@@ -309,6 +313,7 @@ def main():
 
         # Save report to file
         try:
+            REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
             with open(REPORT_FILE, "w", encoding="utf-8") as f:
                 json.dump(
                     {

@@ -5,6 +5,8 @@ keywords: SAPilot, Architecture, RAG, Knowledge Graph, LightRAG
 position: 1
 ---
 
+> Historical design reference. The SSE description below is historical; the current Web chat path uses WebSocket. See the [current source-based explanation (Chinese)](../zh-CN/current/current-architecture-and-message-flow.md); runtime acceptance is recorded separately.
+
 # SAPilot System Architecture
 
 ## 1. What is SAPilot

@@ -27,7 +27,7 @@ Ensure ApeRAG services are running:
 
 ```bash
 # Start ApeRAG services
-cd /path/to/ApeRAG
+cd /path/to/SAPilot/app
 make run-backend
 make run-celery
 ```
@@ -37,10 +37,7 @@ make run-celery
 Create `.env` file in `tests/e2e_test/` directory:
 
 ```bash
-cd tests/e2e_test
-cp .env.template .env  # If template file exists
-# Or create directly
-touch .env
+(cd tests/e2e_test && touch .env)  # Configure this local file; keep the shell in app/
 ```
 
 ### 3. Configure Environment Variables
@@ -337,7 +334,7 @@ make e2e-performance-test
 
 - [ApeRAG API Documentation](../../../docs)
 - [Project Architecture Guide](../../../README.md)
-- [Development Environment Setup](../../docs/HOW-TO-DEBUG.md)
+- [Development Environment Setup](../../../docs/en-US/reference/HOW-TO-DEBUG.md)
 
 ## 🤝 Contributing Guidelines
 

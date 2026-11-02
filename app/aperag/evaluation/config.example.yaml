@@ -29,7 +29,7 @@ evaluations:
     # Optional: limit the number of samples (useful for testing)
     max_samples: 3
     # Output directory for reports
-    report_dir: "./evaluation/threekingdoms/report"
+    report_dir: "../runtime/evaluations/legacy-ragas/threekingdoms"
     # Metrics to evaluate - all supported Ragas metrics
     metrics:
       - faithfulness          # 忠实性评估 (仅需LLM)
@@ -45,4 +45,4 @@ advanced:
   # Batch size for processing (to avoid overwhelming the API)
   batch_size: 3
   # Whether to save intermediate results
-  save_intermediate: true 
+  save_intermediate: true

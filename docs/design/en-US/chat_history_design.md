@@ -1,3 +1,11 @@
+---
+title: Chat History Message Data Flow
+description: Complete data flow of chat history messages in ApeRAG, from frontend API calls to backend storage
+keywords: [chat, history, message, redis, postgresql, websocket, part-based design]
+---
+
+> Historical design reference. See the [current source-based explanation (Chinese)](../zh-CN/current/chat-history-and-prompts.md); runtime acceptance is recorded separately.
+
 # SAPilot Chat History Message Data Flow
 
 ## Overview

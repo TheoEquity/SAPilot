@@ -30,15 +30,15 @@ Adding More Documents:
     SYNC_WHITELIST = [
         "en-US/design/architecture.md",
         "en-US/design/document_upload_design.md",  # Uncomment to sync
-        "zh-CN/design/pending-review/architecture.md",
-        "zh-CN/design/pending-review/document_upload_design.md",  # Uncomment to sync
+        "zh-CN/design/architecture.md",
+        "zh-CN/design/document_upload_design.md",  # Website paths stay stable
     ]
 
 Important Notes:
     - ../docs/ is the source of truth - always edit files there
     - web/docs/ is generated - don't edit directly
-    - Run 'make docs' after editing any documentation
-    - New documents must be added to SYNC_WHITELIST to be synced
+    - Run 'make docs' to publish the documents selected below
+    - Source paths and website paths are mapped separately
 
 File Structure:
     ../docs/                       # Source of truth
@@ -65,6 +65,7 @@ File Structure:
 import os
 import re
 import shutil
+import subprocess
 from pathlib import Path
 from typing import List, Set
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
@@ -73,6 +74,13 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 APP_ROOT = Path(__file__).resolve().parents[1]
 DOCS_ROOT = APP_ROOT.parent / "docs"
 WEB_DOCS_ROOT = APP_ROOT / "web/docs"
+SOURCE_REF = subprocess.check_output(
+    ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=APP_ROOT.parent, text=True
+).strip()
+if SOURCE_REF == "HEAD":
+    SOURCE_REF = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=APP_ROOT.parent, text=True
+    ).strip()
 
 # Whitelist: files to sync from ../docs/ to web/docs/
 # Format: website-relative paths; source design docs live in design/<locale>/.
@@ -81,7 +89,7 @@ SYNC_WHITELIST = [
     "en-US/design/architecture.md",
     "en-US/design/document_upload_design.md",
     "en-US/design/graph_index_creation.md",
-    # "en-US/design/chat_history_design.md",
+    "en-US/design/chat_history_design.md",
     
     # English docs - Development
     "en-US/development/development-guide.md",
@@ -98,13 +106,13 @@ SYNC_WHITELIST = [
     # "en-US/reference/HOW-TO-DEBUG.md",
     
     # Chinese docs - Design
-    "zh-CN/design/pending-review/architecture.md",
-    "zh-CN/design/pending-review/document_upload_design.md",
-    "zh-CN/design/pending-review/graph_index_creation.md",
-    # "zh-CN/design/pending-review/chat_history_design.md",
+    "zh-CN/design/architecture.md",
+    "zh-CN/design/document_upload_design.md",
+    "zh-CN/design/graph_index_creation.md",
+    "zh-CN/design/chat_history_design.md",
     
-    # Chinese development instructions are maintained in docs/specs/development-guide.md.
-    # Do not synchronize the removed docs/ path or copy engineering rules wholesale.
+    # Publish the navigation page; development rules remain in docs/specs/.
+    "zh-CN/development/development-guide.md",
     
     # Chinese docs - Deployment
     "zh-CN/deployment/build-docker-image.md",
@@ -118,17 +126,66 @@ SYNC_WHITELIST = [
     # "zh-CN/reference/HOW-TO-DEBUG.md",
 ]
 
+SOURCE_OVERRIDES = {
+    "zh-CN/design/architecture.md": "design/zh-CN/pending-review/architecture.md",
+    "zh-CN/design/document_upload_design.md": "design/zh-CN/pending-review/document_upload_design.md",
+    "zh-CN/design/graph_index_creation.md": "design/zh-CN/pending-review/graph_index_creation.md",
+    "zh-CN/design/chat_history_design.md": "design/zh-CN/pending-review/chat_history_design.md",
+    "zh-CN/development/development-guide.md": "zh-CN/development/README.md",
+}
+
 
 def source_relative_path(web_path: Path) -> Path:
+    override = SOURCE_OVERRIDES.get(web_path.as_posix())
+    if override is not None:
+        return Path(override)
     if len(web_path.parts) > 1 and web_path.parts[1] == "design":
         return Path("design", web_path.parts[0], *web_path.parts[2:])
     return web_path
 
 
 def web_relative_path(source_path: Path) -> Path:
+    for web_path in SYNC_WHITELIST:
+        if source_relative_path(Path(web_path)) == source_path:
+            return Path(web_path)
     if len(source_path.parts) > 1 and source_path.parts[0] == "design":
         return Path(source_path.parts[1], "design", *source_path.parts[2:])
     return source_path
+
+
+def rewrite_document_links(content: str, src_path: Path, dest_path: Path) -> str:
+    published = {
+        (DOCS_ROOT / source_relative_path(Path(web_path))).resolve(): WEB_DOCS_ROOT / web_path
+        for web_path in SYNC_WHITELIST
+    }
+
+    def replace(match):
+        reference = urlsplit(match.group(2))
+        if reference.scheme or reference.netloc:
+            if reference.netloc == "github.com":
+                # The website removes literal .md from document links. Keep GitHub source extensions.
+                path = reference.path.replace(".md", "%2Emd")
+                url = urlunsplit(reference._replace(path=path))
+                return f"{match.group(1)}{url}{match.group(3)}"
+            return match.group(0)
+        if not reference.path or reference.path.startswith("/"):
+            return match.group(0)
+        target = (src_path.parent / unquote(reference.path)).resolve()
+        if target in published:
+            relative = os.path.relpath(published[target], dest_path.parent).replace(os.sep, "/")
+            url = urlunsplit(("", "", quote(relative, safe="/"), reference.query, reference.fragment))
+        else:
+            try:
+                relative = target.relative_to(APP_ROOT.parent).as_posix()
+            except ValueError:
+                return match.group(0)
+            kind = "tree" if target.is_dir() else "blob"
+            path = quote(relative, safe="/").replace(".md", "%2Emd")
+            url = f"https://github.com/TheoEquity/SAPilot/{kind}/{SOURCE_REF}/{path}"
+            url = urlunsplit((*urlsplit(url)[:3], reference.query, reference.fragment))
+        return f"{match.group(1)}{url}{match.group(3)}"
+
+    return re.sub(r"(?<!!)(\[[^\]\n]+\]\()([^\s)]+)(\))", replace, content)
 
 
 def image_paths(doc_path: Path, image_ref: str):
@@ -191,6 +248,7 @@ def sync_file(src_path: Path, dest_path: Path) -> List[str]:
         content = content.replace(f'src="{image_ref}"', f'src="{web_ref}"')
         content = content.replace(f"src='{image_ref}'", f"src='{web_ref}'")
 
+    content = rewrite_document_links(content, src_path, dest_path)
     dest_path.write_text(content, encoding="utf-8", newline="")
     shutil.copystat(src_path, dest_path)
     print(f"✅ Synced: {src_path} -> {dest_path}")

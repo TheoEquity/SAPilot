@@ -1,20 +1,46 @@
 ---
 title: 系统架构
-description: ApeRAG 架构设计与核心组件详解
-keywords: ApeRAG, 架构, RAG, 知识图谱, LightRAG
+description: SAPilot 架构设计与核心组件详解
+keywords: SAPilot, 架构, RAG, 知识图谱, LightRAG
 position: 1
 ---
 
-> 历史网站文档副本：部分架构、路径和命令已过时，不作为当前实现或生产验收依据。当前说明和开发规范请参阅 [SAPilot 仓库文档入口](https://github.com/TheoEquity/SAPilot/tree/main/docs) 与 [工程规范](https://github.com/TheoEquity/SAPilot/tree/main/specs)。
+# SAPilot 系统架构
 
+> 分类：待核对设计；已补本轮源码核对。核对日期：2026 年 10 月 29 日。
+> 状态：总体分层仍适用；传输、存储和分块参数需按当前路径修正，性能与生产就绪声明未验证。
+> 使用边界：下文原稿保留供追溯；先读本次核对，再按源码与运行证据判断。静态存在不等于已验收，本次不构成设计定案或实施批准。见[核对总览](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/README%2Emd)。
 
-# ApeRAG 系统架构
+<!-- source-audit:begin -->
+## 本次源码核对（2026 年 10 月 29 日）
 
-## 1. 什么是 ApeRAG
+**结论：** 总体分层仍适用；传输、存储和分块参数需按当前路径修正，性能与生产就绪声明未验证。
 
-ApeRAG 是一个**开放的、Agentic 的 Graph RAG 平台**。它不仅仅是一个简单的向量检索系统，而是将知识图谱、多模态检索和智能 Agent 深度融合的生产级解决方案。
+核对范围为本文主要架构、接口、配置、处理流程及完成状态声明；不是逐行示例、全量安全或性能审计。依据为当前工作区源码（含既有未提交改动），详见[基线与状态说明](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/README%2Emd#核对口径)。本轮未启动服务、调用模型、执行数据库或后台任务。
 
-传统的 RAG 系统主要依赖向量相似度检索，虽然能找到语义相关的内容，但往往缺乏对知识之间关系的理解。ApeRAG 的核心创新在于：
+| 原文范围 / 声明 | 判定 | 当前源码与使用限制 | 源码依据 |
+| --- | --- | --- | --- |
+| 第 2、3 节：API、Service、任务与多索引分层 | 仍适用（静态） | FastAPI 路由、文档服务、reconciler、Celery 与多种索引任务均有对应实现；各索引按配置启用，不代表每份文档都建立全部索引。 | [aperag/app.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/app.py)<br />[aperag/tasks/document.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/tasks/document.py) |
+| 第 3.2 节：默认分块 1200/100 | 部分适用／混淆路径 | 普通解析配置默认 chunk_size=400、chunk_overlap_size=20；LightRAGConfig 子路径仍为 1200/100。不能把后者描述为所有文档分块的统一默认值，实际值还受配置影响。 | [aperag/config.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/config.py)<br />[aperag/graph/lightrag_manager.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/graph/lightrag_manager.py)<br />[aperag/docparser/chunking.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/docparser/chunking.py) |
+| 第 4.3 节：Web Agent 以 SSE 返回 | 过时（针对当前 Web 主路径） | 当前聊天组件连接 /bots/{bot_id}/chats/{chat_id}/connect WebSocket，后端按 Bot 类型分发；其他 HTTP 流式接口不能代替这条主路径说明。 | [web/src/components/chat/chat-messages.tsx](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/web/src/components/chat/chat-messages.tsx)<br />[aperag/views/chat.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/views/chat.py)<br />[aperag/service/chat_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/chat_service.py) |
+| 第 5 节：MinIO、Neo4j、对话历史及摘要存储 | 部分过时 | 对象存储默认 local，Docker 覆盖为 /shared/objects，S3 为可选；图后端由环境选择，模板是 PGOpsSyncGraphStorage。历史正文走 Redis；摘要检索通过向量存储按 summary 类型过滤，不能笼统归为 PostgreSQL 向量匹配。 | [aperag/config.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/config.py)<br />[envs/docker.env.overrides](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/envs/docker.env.overrides)<br />[envs/env.template](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/envs/env.template)<br />[aperag/utils/history.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/utils/history.py)<br />[aperag/flow/runners/summary_search.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/flow/runners/summary_search.py) |
+| 第 4.1、6.1 节：重排与 workspace 隔离 | 部分适用 | 检索组合及重排需满足请求与模型配置；LightRAG 按 Collection 创建实例并设置 workspace。代码隔离设计不等于并发和权限已验收。 | [aperag/service/collection_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/collection_service.py)<br />[aperag/graph/lightrag_manager.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/graph/lightrag_manager.py) |
+| 第 3、5、6 节：100ms、2–3 倍、规模阈值、生产就绪 | 待运行验证 | 源码不能证明响应时延、吞吐提升或 10万/100万实体选型阈值；保证最终成功及完整隔离等绝对表述不作为已验证结论。 | [aperag/tasks/reconciler.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/tasks/reconciler.py)<br />[docker-compose.yml](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/docker-compose.yml) |
+
+以下保留原稿；其中旧的“已实现”“待完成”、接口示例和效果数字，以本节标注的适用范围为准。未单列的示例不代表已逐行验证。
+
+---
+
+## 原文（保留记录）
+<!-- source-audit:end -->
+
+> 状态：既有通用架构与能力说明，未完成逐项实现和运行核验。当前部署方向见[云服务器与模型 API 讨论稿](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/discussions/cloud-api-deployment-draft%2Emd)；原[离线架构讨论稿](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/discussions/offline-deployment-draft%2Emd)已作废，仅作历史记录。文档导航见[文档入口](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/README%2Emd)。
+
+## 1. 什么是 SAPilot
+
+SAPilot 是一个**开放的、Agentic 的 Graph RAG 平台**。它不仅仅是一个简单的向量检索系统，而是将知识图谱、多模态检索和智能 Agent 深度融合的生产级解决方案。
+
+传统的 RAG 系统主要依赖向量相似度检索，虽然能找到语义相关的内容，但往往缺乏对知识之间关系的理解。SAPilot 的核心创新在于：
 
 - **Graph RAG**：从文档中自动提取实体（人物、地点、概念）和关系，构建知识图谱，理解知识之间的关联
 - **Agentic**：内置智能 Agent，能够自主规划、调用工具、多轮对话，提供更智能的问答体验
@@ -22,7 +48,7 @@ ApeRAG 是一个**开放的、Agentic 的 Graph RAG 平台**。它不仅仅是�
 
 ### 核心优势
 
-与传统 RAG 方案相比，ApeRAG 提供了：
+与传统 RAG 方案相比，SAPilot 提供了：
 
 - **更强的文档处理能力**：支持 PDF、Word、Excel 等多种格式，能处理复杂的表格、公式、图片
 - **多种检索方式**：向量检索、全文检索、图谱检索，三者互补，各取所长
@@ -72,7 +98,7 @@ graph TB
 
 ## 2. 系统分层架构
 
-ApeRAG 采用清晰的分层设计，每一层各司其职：
+SAPilot 采用清晰的分层设计，每一层各司其职：
 
 ```mermaid
 graph TB
@@ -157,11 +183,11 @@ graph TB
 
 ## 3. 文档处理全流程
 
-这是 ApeRAG 的核心能力之一。从一个 PDF 文件上传，到最终可以被检索，经历了一系列精心设计的处理步骤。
+这是 SAPilot 的核心能力之一。从一个 PDF 文件上传，到最终可以被检索，经历了一系列精心设计的处理步骤。
 
 ### 3.1 文档上传与解析
 
-当你上传一个文档时，ApeRAG 会自动识别格式并选择合适的解析器：
+当你上传一个文档时，SAPilot 会自动识别格式并选择合适的解析器：
 
 ```mermaid
 flowchart TD
@@ -267,7 +293,7 @@ flowchart LR
 
 ### 3.4 知识图谱构建
 
-图谱索引是 ApeRAG 的核心特色，它能从文档中提取结构化的知识。
+图谱索引是 SAPilot 的核心特色，它能从文档中提取结构化的知识。
 
 ```mermaid
 flowchart TD
@@ -314,7 +340,7 @@ flowchart TD
 
 ### 3.5 异步任务系统
 
-文档处理是一个耗时的操作，ApeRAG 采用"双链路架构"来保证用户体验：
+文档处理是一个耗时的操作，SAPilot 采用"双链路架构"来保证用户体验：
 
 ```mermaid
 graph TB
@@ -390,11 +416,11 @@ stateDiagram-v2
 
 ## 4. 检索问答全流程
 
-有了索引之后,用户就可以提问了。ApeRAG 的检索系统会智能地选择合适的检索策略。
+有了索引之后,用户就可以提问了。SAPilot 的检索系统会智能地选择合适的检索策略。
 
 ### 4.1 混合检索系统
 
-不同类型的问题适合用不同的检索方式。ApeRAG 会同时使用多种检索策略，然后融合结果：
+不同类型的问题适合用不同的检索方式。SAPilot 会同时使用多种检索策略，然后融合结果：
 
 ```mermaid
 flowchart TB
@@ -445,7 +471,7 @@ flowchart TB
 
 **结果融合策略**：
 
-不同检索方式的结果需要合并。ApeRAG 使用 Rerank 模型对所有候选结果重新打分：
+不同检索方式的结果需要合并。SAPilot 使用 Rerank 模型对所有候选结果重新打分：
 
 1. 收集所有检索结果（可能有重复）
 2. 去重，保留最相关的片段
@@ -513,7 +539,7 @@ flowchart TD
 
 ### 4.3 Agent 对话系统
 
-Agent 是 ApeRAG 的智能助手，它能调用各种工具来回答问题。
+Agent 是 SAPilot 的智能助手，它能调用各种工具来回答问题。
 
 ```mermaid
 sequenceDiagram
@@ -558,7 +584,7 @@ sequenceDiagram
 
 **MCP 协议的作用**：
 
-MCP（Model Context Protocol）是一个标准化的工具协议，让 AI 助手（如 Claude Desktop、Cursor）能够方便地调用 ApeRAG 的能力。通过 MCP，外部 AI 工具可以：
+MCP（Model Context Protocol）是一个标准化的工具协议，让 AI 助手（如 Claude Desktop、Cursor）能够方便地调用 SAPilot 的能力。通过 MCP，外部 AI 工具可以：
 - 列出你的知识库
 - 搜索知识库内容
 - 读取网页内容
@@ -567,20 +593,20 @@ MCP（Model Context Protocol）是一个标准化的工具协议，让 AI 助手
 **对话示例**：
 
 ```
-用户：ApeRAG 的图谱索引是怎么工作的？
+用户：SAPilot 的图谱索引是怎么工作的？
 
 Agent 思考：需要检索知识库
 ↓
-调用工具：search_collection(query="图谱索引工作原理", collection_id="aperag-docs")
+调用工具：search_collection(query="图谱索引工作原理", collection_id="sapilot-docs")
 ↓
 检索结果：返回关于图谱构建、实体提取、关系抽取的文档片段
 ↓
-Agent 回答：ApeRAG 的图谱索引通过以下步骤工作...（基于检索到的内容生成）
+Agent 回答：SAPilot 的图谱索引通过以下步骤工作...（基于检索到的内容生成）
 ```
 
 ## 5. 存储架构
 
-ApeRAG 采用多存储架构，为不同类型的数据选择最合适的存储方案。
+SAPilot 采用多存储架构，为不同类型的数据选择最合适的存储方案。
 
 ### 5.1 存储选型决策
 
@@ -705,7 +731,7 @@ flowchart LR
 
 **图数据库选择：PostgreSQL vs Neo4j**
 
-ApeRAG 支持两种图数据库方案：
+SAPilot 支持两种图数据库方案：
 
 **PostgreSQL**（默认，推荐用于小规模）
 
@@ -751,7 +777,7 @@ ApeRAG 支持两种图数据库方案：
 
 原版 LightRAG 使用全局状态，所有任务共享一个实例。这在多用户、多 Collection 的场景下会导致数据混乱和并发冲突。
 
-**ApeRAG 的解决方案**：
+**SAPilot 的解决方案**：
 
 - 每个任务创建独立的 LightRAG 实例
 - 通过 `workspace` 参数隔离不同 Collection 的数据
@@ -798,7 +824,7 @@ ApeRAG 支持两种图数据库方案：
 
 ### 6.4 Provider 抽象模式
 
-ApeRAG 支持 100+ 种 LLM 提供商（OpenAI、Claude、Gemini、国产大模型等）。如何统一管理？
+SAPilot 支持 100+ 种 LLM 提供商（OpenAI、Claude、Gemini、国产大模型等）。如何统一管理？
 
 **设计思路**：
 
@@ -813,7 +839,7 @@ ApeRAG 支持 100+ 种 LLM 提供商（OpenAI、Claude、Gemini、国产大模�
 
 ### 6.5 多模态索引支持
 
-除了文本，ApeRAG 也能处理图片：
+除了文本，SAPilot 也能处理图片：
 
 **Vision Index 的两条路径**：
 
@@ -828,7 +854,7 @@ ApeRAG 支持 100+ 种 LLM 提供商（OpenAI、Claude、Gemini、国产大模�
 
 ## 7. 总结
 
-ApeRAG 通过以下设计实现了生产级的 RAG 能力：
+SAPilot 通过以下设计实现了生产级的 RAG 能力：
 
 **核心优势**：
 - **强大的文档处理**：支持多格式、复杂布局、表格公式
@@ -850,4 +876,4 @@ ApeRAG 通过以下设计实现了生产级的 RAG 能力：
 - 研究论文分析
 - 任何需要理解文档并提供智能问答的场景
 
-整个系统的设计理念是：**让复杂的事情变简单，让简单的事情变自动**。用户只需要上传文档，剩下的一切都由 ApeRAG 自动完成。
+整个系统的设计理念是：**让复杂的事情变简单，让简单的事情变自动**。用户只需要上传文档，剩下的一切都由 SAPilot 自动完成。

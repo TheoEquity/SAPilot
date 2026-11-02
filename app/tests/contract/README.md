@@ -13,7 +13,7 @@
 
 ## 执行回归
 
-在仓库根目录、已安装前端依赖且 Python 有 pytest、pydantic、email-validator、PyYAML 的环境执行：
+从项目的 `app/` 目录、已安装前端依赖且 Python 有 pytest、pydantic、email-validator、PyYAML 的环境执行。下半部分保留历史生成经过，不是当前接口维护流程。
 
 ```powershell
 python -m pytest tests/contract/test_bot_config_contract.py -q
@@ -24,11 +24,13 @@ node web/node_modules/typescript/bin/tsc --project web/tsconfig.json --noEmit --
 
 Node harness 将捕获请求写到 stdout，不连接后端或模型服务。Python 测试对四条路径的载荷执行 `BotUpdate.model_validate` → `config.model_dump_json(exclude_none=True)` → `BotConfig.model_validate_json` → 再次打开编辑与保存。另覆盖显式空数组/空串、缺省与显式 null、默认值、请求失败、快捷保存失败提示及其他 Skill/候选/兜底的保持。
 
-## 隔离生成
+## 历史隔离生成（2026-10-29）
 
-本批实际使用 datamodel-code-generator 0.30.0、Pydantic 2.11.7、Redocly 1.34.14、OpenAPI Generator 7.12.0；输出均在被忽略的 `.run/contract/`。生成前创建该目录与专用工具环境，避免调用会清理 `web/src/api` 的 `api:build`。以下命令在仓库根目录执行：
+以下仅记录当时的工具、原始命令与旧路径，不应在当前工作树照抄。当前接口维护与前端生成以[接口规约](../../../docs/specs/api-contract-conventions.md)为准；Python 路由和模型是当前维护源，旧 YAML 工具保留用于历史核对与回归。
 
-```powershell
+当时使用 datamodel-code-generator 0.30.0、Pydantic 2.11.7、Redocly 1.34.14、OpenAPI Generator 7.12.0；隔离输出保存在当时的 `.run/contract/`：
+
+```text
 node -e "const fs=require('node:fs');const {bundle,createConfig,stringifyYaml}=require('./web/node_modules/@redocly/openapi-core');(async()=>{const r=await bundle({ref:'aperag/api/openapi.yaml',config:await createConfig({})});if(r.problems.some(p=>p.severity==='error'))throw Error('bundle failed');fs.writeFileSync('.run/contract/openapi.merged.yaml',stringifyYaml(r.bundle.parsed));})().catch(e=>{console.error(e);process.exitCode=1});"
 .run/contract/venv/Scripts/datamodel-codegen.exe --input .run/contract/openapi.merged.yaml --input-file-type openapi --output .run/contract/view_models.py --output-model-type pydantic_v2.BaseModel --target-python-version 3.11 --use-standard-collections --use-schema-description --enum-field-as-literal all --encoding utf-8 --strict-nullable
 java -jar .run/contract/openapi-generator-cli-7.12.0.jar generate -g typescript-axios -i .run/contract/openapi.merged.yaml -o .run/contract/sdk --api-package apis --model-package models --skip-validate-spec --additional-properties enumPropertyNaming=original,supportsES6=true,withInterfaces=true,prependFormOrBodyParameters=false,withoutPrefixEnums=false,withSeparateModelsAndApi=true,useSingleRequestParameter=true

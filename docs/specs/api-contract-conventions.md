@@ -27,7 +27,7 @@ HTTP 接口采用代码优先：FastAPI 路由和 Python 请求、响应模型�
 
 服务默认提供 `/docs`（Swagger UI）、`/redoc` 和 `/openapi.json`。开发者通过页面查阅、调试，工具读取同一份机器可读描述；查看文档不等于运行验收通过。
 
-在已激活项目 Python 环境、后端运行于默认本地端口时，从项目根目录执行：
+在已激活项目 Python 环境、后端运行于默认本地端口时，从项目的 `app/` 目录执行：
 
 ```bash
 python scripts/export_openapi.py
@@ -39,7 +39,7 @@ python scripts/export_openapi.py --app aperag.app:app
 python scripts/export_openapi.py --module bots --module collections
 ```
 
-默认输出 `.run/openapi/openapi.json`、按 tag 分组的 `.run/openapi/modules/<分组>.json`，以及 `.run/openapi/docs/index.html`、`redoc.html`。各模块带所需的公共定义；全量与模块产物数量不绑定。只选模块时只更新选定模块，不要求生成全量文件。
+默认输出项目总目录中的 `runtime/work/openapi/openapi.json`、按 tag 分组的 `runtime/work/openapi/modules/<分组>.json`，以及 `runtime/work/openapi/docs/index.html`、`redoc.html`。各模块带所需的公共定义；全量与模块产物数量不绑定。只选模块时只更新选定模块，不要求生成全量文件。
 
 `--output` 可指定产物目录。导出先检查操作标识和内部引用，输入错误时保留已有文件；产物不写入后端源目录，不通过链接重定向输出。相同输入产生稳定 JSON。浏览导出的文档需经 HTTP 服务提供，页面资源使用 Swagger/ReDoc 默认 CDN，离线环境需另行解决资源供应；后端服务自身的文档入口优先用于本地调试。
 
