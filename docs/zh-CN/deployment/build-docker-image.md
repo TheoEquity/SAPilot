@@ -44,7 +44,6 @@ description: 如何构建 SAPilot 容器镜像
 ## 部署
 
 有关常见的部署方法，请参考主 README 中的"快速开始"部分：
-*   [Kubernetes 快速开始](../README-zh.md#kubernetes-部署推荐生产环境)
-*   [Docker Compose 快速开始](../README-zh.md#快速开始)
+*   [Docker Compose 快速开始](../../../README-zh.md#快速开始)
 
 对于自定义部署，您需要调整这些方法或使用构建的容器镜像与您选择的编排平台配合使用。确保所有必需的服务（数据库、后端、前端、Celery worker）都正确配置并能够相互通信。 

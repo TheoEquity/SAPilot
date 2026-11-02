@@ -146,7 +146,7 @@ dmypy.json
 
 
 *.bin
-deploy/aperag/production.yaml
+app/deploy/aperag/production.yaml
 
 # ssl file
 ssl_file
@@ -161,7 +161,7 @@ terraform.tfstate.backup
 .terraform
 .mirrord
 requirements.txt
-/documents
+/app/documents
 magic-pdf.json
 .cursor
 .objects/
@@ -174,9 +174,19 @@ frontend/node_modules/
 
 # OpenAPI Generator CLI may create this when invoked from the repo root.
 /openapitools.json
+/app/openapitools.json
 
 # Local SAP test case documents (keep out of Git)
 /测试用例/
 
 # Machine-specific workflow configuration and local state
 /.codex/
+
+# Local datasets, credentials, logs, generated reports and tool caches.
+/data/
+/runtime/
+/app/.env
+/app/.venv/
+/app/web/.env
+/maintenance/langfuse/.env*
+!/maintenance/langfuse/.env.template

@@ -11,8 +11,8 @@ Follow these steps to set up SAPilot from source code for development:
 First, get the source code and configure environment variables:
 
 ```bash
-git clone https://github.com/apecloud/SAPilot.git
-cd SAPilot
+git clone https://github.com/TheoEquity/SAPilot.git
+cd SAPilot/app
 cp envs/env.template .env
 ```
 
@@ -98,9 +98,10 @@ Install all backend and frontend dependencies:
 
 ```bash
 make install
+(cd web && yarn install)
 ```
 
-This command will:
+These commands respectively:
 *   Install all Python backend dependencies from `pyproject.toml` into the virtual environment
 *   Install frontend Node.js dependencies using `yarn`
 
@@ -189,26 +190,15 @@ Now you have SAPilot running locally from source code, ready for development! �
 ### Q: 🔧 How do I add or modify a REST API endpoint?
 
 **Complete workflow:**
-1. Edit OpenAPI specification: `sapilot/api/paths/[endpoint-name].yaml`
-2. Regenerate backend models: 
-   ```bash
-   make generate-models  # This runs merge-openapi internally
-   ```
-3. Implement backend view: `sapilot/views/[module].py`
-4. Generate frontend TypeScript client:
-   ```bash
-   make generate-frontend-sdk  # Updates frontend/src/api/
-   ```
-5. Test the API:
-   ```bash
-   make test
-   # ✅ Check live docs: http://localhost:8000/docs
-   ```
+1. Maintain FastAPI routes in `aperag/views/` and Python request/response models in `aperag/schema/`.
+2. Implement the corresponding service and check the running API at `http://localhost:8000/docs`.
+3. From `web/`, run `yarn api:build` to export OpenAPI and generate the frontend client. New generated modules are in `web/src/api/generated/`.
+4. Verify the changed request/response behavior and its frontend callers. Legacy YAML is retained for historical comparison.
 
 ### Q: 🗃️ How do I modify database models/schema?
 
 **Database migration workflow:**
-1. Edit SQLModel classes in `sapilot/db/models.py`
+1. Edit SQLAlchemy classes in `aperag/db/models.py`
 2. Generate migration file:
    ```bash
    make makemigration  # Creates new migration in migration/versions/
@@ -217,7 +207,7 @@ Now you have SAPilot running locally from source code, ready for development! �
    ```bash
    make migrate  # Updates database schema
    ```
-4. Update related code (repositories in `sapilot/db/repositories/`, services in `sapilot/service/`)
+4. Update related code (repositories in `aperag/db/repositories/`, services in `aperag/service/`)
 5. Verify changes:
    ```bash
    make test  # ✅ Ensure everything works
@@ -227,14 +217,14 @@ Now you have SAPilot running locally from source code, ready for development! �
 
 **Feature implementation workflow:**
 1. Implement feature components:
-   - Backend logic: `sapilot/[module]/`
-   - Async tasks: `sapilot/tasks/`
-   - Database models: `sapilot/db/models.py`
+   - Backend logic: `aperag/[module]/`
+   - Async tasks: `aperag/tasks/`
+   - Database models: `aperag/db/models.py`
 2. Update API and generate code:
    ```bash
    make makemigration      # Generate migration files
    make migrate           # Apply database changes
-   make generate-models   # Update Pydantic models
+   make export-openapi   # Export the Python API contract
    make generate-frontend-sdk  # Update TypeScript client
    ```
 3. Quality assurance:
@@ -256,7 +246,7 @@ uv run pytest tests/unit_test/test_model_service.py -v
 uv run pytest tests/unit_test/test_model_service.py::TestModelService::test_get_models -v
 
 # Run tests with coverage
-uv run pytest tests/unit_test/ --cov=sapilot --cov-report=html
+uv run pytest tests/unit_test/ --cov=aperag --cov-report=html
 ```
 
 **E2E Tests (Require Running Services):**
@@ -331,7 +321,7 @@ make run-backend
 make run-celery
 
 # Run comprehensive RAG evaluation
-make evaluate               # 📊 Runs sapilot.evaluation.run module
+make evaluate               # 📊 Runs aperag.evaluation.run module
 
 # 📈 Check evaluation reports in tests/report/
 ```
@@ -347,10 +337,10 @@ make evaluate               # 📊 Runs sapilot.evaluation.run module
    ```
 
 **Frontend dependencies:**
-1. Edit `frontend/package.json`
+1. Edit `web/package.json`
 2. Update and test:
    ```bash
-   cd frontend && yarn install
+   (cd web && yarn install)
    make run-frontend      # Test frontend compilation
    make generate-frontend-sdk  # Ensure API client still works
    ```
@@ -371,7 +361,7 @@ make evaluate               # 📊 Runs sapilot.evaluation.run module
    ```
 3. API consistency:
    ```bash
-   make generate-models         # Ensure models match OpenAPI spec
+   make export-openapi         # Export the Python API contract
    make generate-frontend-sdk   # Update frontend client
    ```
 4. Database migrations:
@@ -390,7 +380,7 @@ make evaluate               # 📊 Runs sapilot.evaluation.run module
 **Nuclear reset (destroys all data):**
 ```bash
 make compose-down REMOVE_VOLUMES=1  # ⚠️ Stop services + delete ALL data
-make clean                         # 🧹 Clean temporary files
+make clean                         # WARNING: deletes Docker data volumes and local db.sqlite3; not temporary-file cleanup
 
 # Restart fresh
 make compose-infra                 # 🗄️ Fresh databases

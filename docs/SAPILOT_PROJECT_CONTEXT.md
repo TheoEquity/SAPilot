@@ -2,7 +2,7 @@
 
 本文记录 SAPilot 的产品目标、领域约束与开发准则。**目标描述不代表当前版本已经实现。** 当前行为以源码、配置和运行验证为准；README 或本文件中的规划不能替代实现证据。
 
-文档导航见 [文档入口](README.md)，文件放置和提交规则见 [项目目录约定](../specs/project-layout.md)，当前组件与执行链路见[当前架构与消息处理流程](zh-CN/design/current/current-architecture-and-message-flow.md)。用户于 2026 年 10 月 29 日明确本轮采用 4核16GB 云机与千问 3.8 Flash API 的云部署方向，见[云部署讨论稿](zh-CN/design/discussions/cloud-api-deployment-draft.md)；此前完全离线和 8GB 显存的[离线架构讨论稿](zh-CN/design/discussions/offline-deployment-draft.md)已作废。继续按 50 名使用者和高峰 20 人提问规划，容量尚未压测；云部署方向已确认，不代表讨论稿中的所有建议均已定案或实现。
+文档导航见 [文档入口](README.md)，文件放置和提交规则见 [项目目录约定](specs/project-layout.md)，当前组件与执行链路见[当前架构与消息处理流程](design/zh-CN/current/current-architecture-and-message-flow.md)。用户于 2026 年 10 月 29 日明确本轮采用 4核16GB 云机与千问 3.8 Flash API 的云部署方向，见[云部署讨论稿](design/zh-CN/discussions/cloud-api-deployment-draft.md)；此前完全离线和 8GB 显存的[离线架构讨论稿](design/zh-CN/discussions/offline-deployment-draft.md)已作废。继续按 50 名使用者和高峰 20 人提问规划，容量尚未压测；云部署方向已确认，不代表讨论稿中的所有建议均已定案或实现。
 
 开发、调试和日常验证继续在本地进行；云服务器用于后续团队部署与使用。本地开发环境与团队部署环境分开，生成模型仍按已确认的 API 选型接入。
 
@@ -124,4 +124,4 @@
 
 ## 11. 当前源码架构基线（2026-09-26 扫描）
 
-源码架构基线已移至[当前架构与消息处理流程](zh-CN/design/current/current-architecture-and-message-flow.md)，原扫描记录及验证边界在该文档第 1 节保留；用户消息链路与配置入口见其后各节。这里仅保留项目目标、领域约束与开发验收准则。
+源码架构基线已移至[当前架构与消息处理流程](design/zh-CN/current/current-architecture-and-message-flow.md)，原扫描记录及验证边界在该文档第 1 节保留；用户消息链路与配置入口见其后各节。这里仅保留项目目标、领域约束与开发验收准则。
