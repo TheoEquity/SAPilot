@@ -74,7 +74,10 @@ TEST_CONFIGS = [
     # Add more test configurations here as needed
 ]
 
-REPORT_FILE = "completion_model_test_report.json"
+REPORT_FILE = (
+    Path(__file__).resolve().parents[3]
+    / "runtime/evaluations/model-tests/completion_model_test_report.json"
+)
 REQUEST_TIMEOUT = 120  # seconds
 
 # --- Helper Functions ---
@@ -463,6 +466,7 @@ def main():
                 "configurations": all_results,
             }
 
+            REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
             with open(REPORT_FILE, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, indent=2, ensure_ascii=False)
 

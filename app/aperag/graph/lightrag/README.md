@@ -98,4 +98,4 @@ GitHub: https://github.com/apecloud/ApeRAG
 ## More Information
 
 - Detailed improvement log: [CHANGELOG.md](CHANGELOG.md)
-- Concurrency problem analysis: [lightrag_concurrent_problems.md](../lightrag_concurrent_problems.md)
+- Concurrency problem analysis: [concurrency analysis (Chinese)](lightrag_concurrent_problems-zh.md)

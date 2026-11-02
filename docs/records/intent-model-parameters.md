@@ -4,13 +4,13 @@
 
 ## 改动与依据
 
-[实际分类分支](../../aperag/service/agent_chat_service.py)原来把消息/Bot 的 completion 传给 `_get_agent_session`，该方法据此查询 Provider、用户 Key 和 base_url，并构造 AgentConfig.default_model。随后调用的 `get_llm(intent_model)` 在[会话管理器](../../aperag/agent/agent_session_manager.py)中只返回缓存实例，不据参数切换 Provider。分类 RequestParams 的 maxTokens 另固定为 512，未读取已保存的意图 max_tokens（模型默认值为 1024）。
+[实际分类分支](../../app/aperag/service/agent_chat_service.py)原来把消息/Bot 的 completion 传给 `_get_agent_session`，该方法据此查询 Provider、用户 Key 和 base_url，并构造 AgentConfig.default_model。随后调用的 `get_llm(intent_model)` 在[会话管理器](../../app/aperag/agent/agent_session_manager.py)中只返回缓存实例，不据参数切换 Provider。分类 RequestParams 的 maxTokens 另固定为 512，未读取已保存的意图 max_tokens（模型默认值为 1024）。
 
 本批在分类分支复制消息与 completion，仅覆盖 model_service_provider/model，再调用原 `_get_agent_session`；分类 maxTokens 读取 intent_router.llm.max_tokens。原消息/Bot completion 保留供 Skill 执行。规则、强制 Skill、候选过滤、Prompt、temperature 参数、兜底、异常传播和队列 finally 均沿用原逻辑。没有修改会话平台、缓存键、Skill runtime、confidence_threshold、启停、IO、重试或传统 Flow 协议。
 
 ## 可复跑的源码方法回归
 
-[回归文件](test_intent_model_parameters.py)使用 pytest、Pydantic 和 Python 标准库。可在仓库根目录执行：
+[回归文件](../../app/tests/contract/test_intent_model_parameters.py)使用 pytest、Pydantic 和 Python 标准库。可在仓库根目录执行：
 
 ```powershell
 python -m pytest tests/contract/test_intent_model_parameters.py -q

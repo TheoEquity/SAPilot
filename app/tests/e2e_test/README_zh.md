@@ -27,7 +27,7 @@ tests/e2e_test/
 
 ```bash
 # 启动 ApeRAG 服务
-cd /path/to/ApeRAG
+cd /path/to/SAPilot/app
 make run-backend
 make run-celery
 ```
@@ -37,10 +37,7 @@ make run-celery
 在 `tests/e2e_test/` 目录下创建 `.env` 文件：
 
 ```bash
-cd tests/e2e_test
-cp .env.template .env  # 如果有模板文件
-# 或者直接创建
-touch .env
+(cd tests/e2e_test && touch .env)  # 配置本地文件，当前终端仍保持在 app/
 ```
 
 ### 3. 配置环境变量
@@ -337,7 +334,7 @@ make e2e-performance-test
 
 - [ApeRAG API 文档](../../../docs)
 - [项目架构说明](../../../README.md)
-- [开发环境搭建](../../docs/HOW-TO-DEBUG-zh.md)
+- [开发环境搭建](../../../docs/zh-CN/reference/HOW-TO-DEBUG.md)
 
 ## 🤝 贡献指南
 

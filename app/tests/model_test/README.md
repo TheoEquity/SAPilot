@@ -15,6 +15,8 @@ Tests the specified completion model to verify text generation functionality. Pr
 
 ## Usage
 
+Run these commands from the project's `app/` directory.
+
 ```bash
 # Test embedding models
 python tests/model_test/test_embedding_model.py
@@ -38,7 +40,7 @@ python tests/model_test/test_completion_model.py
 
 Each script will generate:
 - Real-time console output
-- Detailed test report in JSON format
+- Detailed JSON report under the project's `runtime/evaluations/model-tests/`, independent of the working directory
 
 ## Dependencies
 

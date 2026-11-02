@@ -4,14 +4,38 @@ description: 详细说明ApeRAG项目中聊天历史消息的完整数据流程�
 keywords: [chat, history, message, redis, postgresql, websocket, part-based design]
 ---
 
-> 历史网站文档副本：部分架构、路径和命令已过时，不作为当前实现或生产验收依据。当前说明和开发规范请参阅 [SAPilot 仓库文档入口](https://github.com/TheoEquity/SAPilot/tree/main/docs) 与 [工程规范](https://github.com/TheoEquity/SAPilot/tree/main/specs)。
+# SAPilot 聊天历史消息数据流程
 
+> 分类：待核对设计；已补本轮源码核对。核对日期：2026 年 10 月 29 日。
+> 状态：历史读取和混合存储仍适用；历史响应会过滤事件，TTL、写入与会话恢复不能按旧文档泛化。
+> 使用边界：下文原稿保留供追溯；先读本次核对，再按源码与运行证据判断。静态存在不等于已验收，本次不构成设计定案或实施批准。见[核对总览](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/README%2Emd)。
 
-# 聊天历史消息数据流程
+<!-- source-audit:begin -->
+## 本次源码核对（2026 年 10 月 29 日）
+
+**结论：** 历史读取和混合存储仍适用；历史响应会过滤事件，TTL、写入与会话恢复不能按旧文档泛化。
+
+核对范围为本文主要架构、接口、配置、处理流程及完成状态声明；不是逐行示例、全量安全或性能审计。依据为当前工作区源码（含既有未提交改动），详见[基线与状态说明](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/docs/design/zh-CN/pending-review/README%2Emd#核对口径)。本轮未启动服务、调用模型、执行数据库或后台任务。
+
+| 原文范围 / 声明 | 判定 | 当前源码与使用限制 | 源码依据 |
+| --- | --- | --- | --- |
+| View → ChatService.get_chat → query_chat_messages | 仍适用（静态） | GET /bots/{bot_id}/chats/{chat_id} 先查属于当前用户/Bot 的会话，再读取并组装历史；实际源码包为 aperag，不是 sapilot。 | [aperag/views/chat.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/views/chat.py)<br />[aperag/service/chat_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/chat_service.py)<br />[aperag/db/repositories/chat.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/db/repositories/chat.py) |
+| Redis List、message_store: 与反馈拼装 | 仍适用（静态） | RedisChatMessageHistory 使用 LPUSH，读取 LRANGE 后逆序；query_chat_messages 按消息 ID 合并 PostgreSQL feedback，返回分组消息数组。 | [aperag/utils/history.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/utils/history.py)<br />[aperag/db/models.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/db/models.py) |
+| 复杂 Part 在前端全部重放的示例 | 部分过时 | StoredChatMessage 仍有 parts 和转换逻辑，但当前 query_chat_messages 仅保留 message、references、faq_choice；不能承诺工具与 thinking 事件都会在重新打开后重现。 | [aperag/chat/history/message.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/chat/history/message.py)<br />[aperag/utils/history.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/utils/history.py)<br />[web/src/components/chat/chat-messages.tsx](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/web/src/components/chat/chat-messages.tsx) |
+| Redis TTL 与持久化说明 | 需要限定 | ttl 构造参数默认 None，仅传入 TTL 时 expire；AgentHistoryManager 未在该入口指定 TTL。是否备份、落盘和重启恢复属于部署与运行证据。 | [aperag/utils/history.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/utils/history.py)<br />[aperag/agent/agent_history_manager.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/agent/agent_history_manager.py) |
+| 统一写入与消息格式示例 | 部分适用 | 当前 Agent 通过 AgentHistoryManager 保存回合，并有 FAQ 选择和 Skill 等扩展；传统 Flow 与 Agent 写入路径要分别核对，原文不能当成唯一协议。 | [aperag/agent/agent_history_manager.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/agent/agent_history_manager.py)<br />[aperag/service/agent_chat_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/agent_chat_service.py)<br />[aperag/service/chat_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/chat_service.py) |
+| 隔离、删除和错误后的完整恢复 | 待运行验证 | 查询侧有用户范围条件，但 Redis 键、实例内 Skill 缓冲及异常兜底的组合需并发与重连验证；query_chat_messages 出错会返回空数组，不能由空历史断言此前无消息。 | [aperag/utils/history.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/utils/history.py)<br />[aperag/service/agent_chat_service.py](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/app/aperag/service/agent_chat_service.py) |
+
+以下保留原稿；其中旧的“已实现”“待完成”、接口示例和效果数字，以本节标注的适用范围为准。未单列的示例不代表已逐行验证。
+
+---
+
+## 原文（保留记录）
+<!-- source-audit:end -->
 
 ## 概述
 
-本文档详细说明ApeRAG项目中聊天历史消息的完整数据流程，从前端API调用到后端存储的全链路实现。
+本文档详细说明SAPilot项目中聊天历史消息的完整数据流程，从前端API调用到后端存储的全链路实现。
 
 **核心接口**: `GET /api/v1/bots/{bot_id}/chats/{chat_id}`
 
@@ -26,7 +50,7 @@ keywords: [chat, history, message, redis, postgresql, websocket, part-based desi
          ▼
 ┌─────────────────────────────────────────────┐
 │  View Layer                                 │
-│  aperag/views/chat.py                       │
+│  sapilot/views/chat.py                       │
 │  - get_chat_view()                          │
 │  - JWT身份验证                               │
 │  - 参数验证                                  │
@@ -35,7 +59,7 @@ keywords: [chat, history, message, redis, postgresql, websocket, part-based desi
          ▼
 ┌─────────────────────────────────────────────┐
 │  Service Layer                              │
-│  aperag/service/chat_service.py             │
+│  sapilot/service/chat_service.py             │
 │  - get_chat()                               │
 │  - 业务逻辑编排                              │
 └────────┬────────────────────────────────────┘
@@ -62,7 +86,7 @@ keywords: [chat, history, message, redis, postgresql, websocket, part-based desi
 
 ### 1. View层 - HTTP请求处理
 
-**文件**: `aperag/views/chat.py`
+**文件**: `sapilot/views/chat.py`
 
 ```python
 @router.get("/bots/{bot_id}/chats/{chat_id}")
@@ -84,11 +108,11 @@ async def get_chat_view(
 
 ### 2. Service层 - 业务逻辑编排
 
-**文件**: `aperag/service/chat_service.py`
+**文件**: `sapilot/service/chat_service.py`
 
 ```python
 async def get_chat(self, user: str, bot_id: str, chat_id: str) -> view_models.ChatDetails:
-    from aperag.utils.history import query_chat_messages
+    from sapilot.utils.history import query_chat_messages
     
     # Step 1: 从PostgreSQL查询Chat基本信息
     chat = await self.db_ops.query_chat(user, bot_id, chat_id)
@@ -115,7 +139,7 @@ async def get_chat(self, user: str, bot_id: str, chat_id: str) -> view_models.Ch
 
 **表**: `chat`
 
-**文件**: `aperag/db/models.py`
+**文件**: `sapilot/db/models.py`
 
 ```python
 class Chat(Base):
@@ -137,7 +161,7 @@ class Chat(Base):
 
 #### 3.2 Redis - 聊天消息历史
 
-**文件**: `aperag/utils/history.py`
+**文件**: `sapilot/utils/history.py`
 
 **Key格式**: `message_store:{chat_id}`
 
@@ -340,7 +364,7 @@ class StoredChatMessagePart(BaseModel):
 
 ### API响应格式
 
-**ChatDetails Schema** (`aperag/api/components/schemas/chat.yaml`):
+**ChatDetails Schema** (`sapilot/api/components/schemas/chat.yaml`):
 
 ```yaml
 chatDetails:
@@ -614,13 +638,13 @@ part_id = "uuid-part-1"           # 部分级别（每个part独立）
 ## 相关文件
 
 ### 核心实现
-- `aperag/views/chat.py` - View层接口
-- `aperag/service/chat_service.py` - Service层业务逻辑
-- `aperag/utils/history.py` - Redis消息历史管理
-- `aperag/chat/history/message.py` - 消息数据结构
-- `aperag/db/models.py` - 数据库模型
-- `aperag/db/repositories/chat.py` - Chat数据库操作
-- `aperag/api/components/schemas/chat.yaml` - OpenAPI Schema
+- `sapilot/views/chat.py` - View层接口
+- `sapilot/service/chat_service.py` - Service层业务逻辑
+- `sapilot/utils/history.py` - Redis消息历史管理
+- `sapilot/chat/history/message.py` - 消息数据结构
+- `sapilot/db/models.py` - 数据库模型
+- `sapilot/db/repositories/chat.py` - Chat数据库操作
+- `sapilot/api/components/schemas/chat.yaml` - OpenAPI Schema
 
 ### 前端实现
 - `web/src/app/workspace/bots/[botId]/chats/[chatId]/page.tsx` - 聊天详情页面
@@ -628,7 +652,7 @@ part_id = "uuid-part-1"           # 部分级别（每个part独立）
 
 ## 总结
 
-ApeRAG的聊天历史消息系统采用**混合存储 + Part-Based消息设计**：
+SAPilot的聊天历史消息系统采用**混合存储 + Part-Based消息设计**：
 
 1. **PostgreSQL**存储Chat元数据和反馈（持久化、可查询）
 2. **Redis**存储消息历史（高性能、支持过期）
@@ -637,4 +661,3 @@ ApeRAG的聊天历史消息系统采用**混合存储 + Part-Based消息设计**
 5. **清晰的分层架构**（View → Service → Repository → Storage）
 
 这种设计既保证了性能，又支持复杂的AI交互场景，同时具有良好的可扩展性。
-

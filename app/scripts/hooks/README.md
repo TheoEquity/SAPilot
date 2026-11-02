@@ -10,6 +10,8 @@ Automatically executes before every `git commit`:
 - `make add-license` - Automatically adds the Apache license header.
 
 ---
+Run the following commands from the project's `app/` directory. The installer discovers the Git hook directory.
+
 ## Installation Methods
 
 ### Method 1: Using `make` (Recommended)
@@ -24,8 +26,7 @@ make dev
 
 ### Method 3: Manual Installation
 ```bash
-cp scripts/hooks/* .git/hooks/
-chmod +x .git/hooks/*
+bash scripts/install-hooks.sh
 ```
 
 ---
@@ -83,8 +84,7 @@ make dev
 
 ### Method 3: Manual Installation
 ```bash
-cp scripts/hooks/* .git/hooks/
-chmod +x .git/hooks/*
+bash scripts/install-hooks.sh
 ```
 
 ---

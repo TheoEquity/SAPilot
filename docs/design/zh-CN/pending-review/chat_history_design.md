@@ -1,3 +1,9 @@
+---
+title: 聊天历史消息数据流程
+description: 详细说明ApeRAG项目中聊天历史消息的完整数据流程，从前端API调用到后端存储的全链路实现
+keywords: [chat, history, message, redis, postgresql, websocket, part-based design]
+---
+
 # SAPilot 聊天历史消息数据流程
 
 > 分类：待核对设计；已补本轮源码核对。核对日期：2026 年 10 月 29 日。

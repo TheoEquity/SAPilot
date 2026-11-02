@@ -1,6 +1,8 @@
 # Build Guide
 
-This section covers how to build ApeRAG container images. It's primarily for users who need to create their own builds or deploy to environments other than the ones covered in "Getting Started".
+This section covers how to build SAPilot container images. It's primarily for users who need to create their own builds or deploy to environments other than the ones covered in "Getting Started".
+
+Run the build commands below from the project's `app/` directory.
 
 ## Building Container Images
 
@@ -31,14 +33,14 @@ The project uses Docker and `make` commands to build container images.
     # Build only the frontend image for multiple platforms
     make build-aperag-frontend
     ```
-    You can specify the target platforms using the `PLATFORMS` variable, for example:
+    You can specify the target platforms using the `BUILDX_PLATFORM` variable, for example:
     ```bash
-    make build PLATFORMS=linux/amd64,linux/arm64
+    make build BUILDX_PLATFORM=linux/amd64,linux/arm64
     ```
 
 ## Deployment
 
 Refer to the "Getting Started" section in the main README for common deployment methods:
-*   [Getting Started with Docker Compose](https://github.com/TheoEquity/SAPilot/blob/main/README.md#docker-compose-deployment)
+*   [Getting Started with Docker Compose](https://github.com/TheoEquity/SAPilot/blob/codex/architecture-foundation-20261029/README%2Emd#启动位置)
 
 For custom deployments, you will need to adapt these methods or use the built container images with your chosen orchestration platform. Ensure all required services (databases, backend, frontend, Celery workers) are correctly configured and can communicate with each other. 

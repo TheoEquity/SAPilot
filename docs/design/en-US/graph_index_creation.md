@@ -5,6 +5,8 @@ keywords: Knowledge Graph, Graph Index, Entity Extraction, Relationship Extracti
 position: 2
 ---
 
+> Historical design reference. See the [current source-based explanation (Chinese)](../zh-CN/current/knowledge-graph.md); runtime acceptance is recorded separately.
+
 # Graph Index Creation Process
 
 ## 1. What is Graph Index

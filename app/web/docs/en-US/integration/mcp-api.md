@@ -5,7 +5,7 @@ description: Model Context Protocol API Documentation
 
 # MCP API
 
-ApeRAG provides standardized tool interfaces through [Model Context Protocol (MCP)](https://modelcontextprotocol.io/), allowing AI assistants (Claude Desktop, Cursor, Dify, etc.) to directly access your knowledge bases.
+SAPilot provides standardized tool interfaces through [Model Context Protocol (MCP)](https://modelcontextprotocol.io/), allowing AI assistants (Claude Desktop, Cursor, Dify, etc.) to directly access your knowledge bases.
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ For Claude Desktop, add to configuration file:
 ```json
 {
   "mcpServers": {
-    "aperag": {
+    "sapilot": {
       "url": "http://localhost:8000/mcp/",
       "headers": {
         "Authorization": "Bearer your-api-key-here"
@@ -33,7 +33,7 @@ Two authentication methods supported (by priority):
 1. **HTTP Authorization Header** (Recommended): `Authorization: Bearer your-api-key`
 2. **Environment Variable** (Fallback): `APERAG_API_KEY=your-api-key`
 
-> **Get API Key**: Login to ApeRAG, create or copy your API Key from settings
+> **Get API Key**: Login to SAPilot, create or copy your API Key from settings
 
 ## Available Tools
 
@@ -170,7 +170,7 @@ Search the internet.
 
 ```python
 # Regular search
-web_search(query="ApeRAG 2025")
+web_search(query="SAPilot 2025")
 
 # Site-specific search
 web_search(query="deployment docs", source="vercel.com")
@@ -332,5 +332,5 @@ for item in kb_results.items:
 ## Related Links
 
 - **MCP Protocol**: https://modelcontextprotocol.io/
-- **ApeRAG GitHub**: https://github.com/apecloud/ApeRAG
+- **SAPilot GitHub**: https://github.com/apecloud/SAPilot
 - **API Docs**: http://localhost:8000/docs (local deployment)

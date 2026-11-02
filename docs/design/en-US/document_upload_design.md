@@ -3,6 +3,8 @@ title: Document Upload Design
 position: 3
 ---
 
+> Historical design reference. See the [current source-based explanation (Chinese)](../zh-CN/current/document-ingestion-and-indexing.md); runtime acceptance is recorded separately.
+
 # SAPilot Document Upload Architecture Design
 
 ## Overview
