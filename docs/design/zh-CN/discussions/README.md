@@ -8,6 +8,7 @@
 
 | 讨论稿 | 当前状态 |
 | --- | --- |
+| [Skill 画布路径监控](skill-flow-path-monitoring-draft.md) | 用户希望监控实际节点与连线；本轮仅整理讨论稿，交互、事件和保存方案待确认，尚未实施或运行验收 |
 | [架构整理推进计划](../../../records/architecture-implementation-plan-draft.md) | 原建议保留；用户已授权逐批实施并独立审核，当前状态见[实施记录](../../../records/architecture-implementation-record.md) |
 | [轻量需求开发流程](lightweight-development-workflow-draft.md) | 已提炼为[正式开发流程](../../../specs/development-workflow.md)，原稿保留，流程效果仍需实际需求验证 |
 | [云服务器与模型 API 部署](cloud-api-deployment-draft.md) | 云部署方向、4核16GB 与生成模型选型已确认；其余建议、预算与容量仍按稿内状态处理，尚未部署 |
