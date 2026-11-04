@@ -31,7 +31,7 @@ SAPilot 是一款具备多模态索引、AI 智能体、MCP 支持及可扩展 K
 
 ## Step 1: 准备知识库
 
-打开 SAPilot Web 界面（见[快速开始](../../../README-zh.md#快速开始)；Docker Compose 启动时一般为 http://localhost:3000/web/）。登录后选择或导入知识库。下文以「三国演义」知识库为例，点击订阅。
+打开 SAPilot Web 界面（见[快速开始](../../../README.md#启动位置)；Docker Compose 启动时一般为 http://localhost:3000/web/）。登录后选择或导入知识库。下文以「三国演义」知识库为例，点击订阅。
 
 <div align="center">
   <img src="/images/zh-CN/dify/step1-subscribe-collection.png" alt="订阅知识库" width="800" />

@@ -31,7 +31,7 @@ SAPilot is a production-grade RAG platform with multimodal indexing, AI agents, 
 
 ## Step 1: Prepare Knowledge Base
 
-Open your SAPilot web UI (see [Quick Start](../../../README.md#quick-start); with Docker Compose this is typically http://localhost:3000/web/). Sign in and select or import a knowledge base. This walkthrough uses the Romance of the Three Kingdoms example—click **Subscribe**.
+Open your SAPilot web UI (see [Quick Start](../../../README.md#启动位置); with Docker Compose this is typically http://localhost:3000/web/). Sign in and select or import a knowledge base. This walkthrough uses the Romance of the Three Kingdoms example—click **Subscribe**.
 
 <div align="center">
   <img src="/images/en-US/dify/step1-subscribe-collection.png" alt="Subscribe to Collection" width="800" />

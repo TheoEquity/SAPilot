@@ -1,67 +1,10 @@
-# Git and version control
-.git
-.gitignore
-.dockerignore
-
-# Python cache and temporary files
-*.pyc
-__pycache__/
-*.pyo
-*.pyd
-.Python
-*.so
-.pytest_cache/
-.coverage
-.tox/
-.cache/
-.mypy_cache/
-.dmypy.json
-dmypy.json
-aperag.egg-info/
-
-# Frontend development files (keep dist and deploy for production builds)
-web/node_modules
-web/.next
-web/.umi
-web/.umi-production
-web/yarn-error.log
-web/npm-debug.log*
-
-# Development and build artifacts
-*.egg-info/
-build/
-dist/
-
-# IDE and editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Database files
-*.db
-*.sqlite3
-
-# Object storage cache (runtime data)
-.objects/
-
-# Local credentials, workflow state and knowledge source material
-.env
-.env.*
-.codex/
-.run/
-logs/
-*.log
-*.log.[0-9]*
-downloads/
-测试用例/
+# Application images must use app/ as their build context.
+.git/
+data/
+runtime/
+app/.env
+app/.venv/
+app/web/.env*
+app/web/node_modules/
+app/web/.next/
+maintenance/langfuse/.env*
