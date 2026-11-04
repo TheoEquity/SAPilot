@@ -17,6 +17,7 @@ from pydantic import ValidationError
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+from aperag.schema import skill_flow  # noqa: E402
 from aperag.schema import view_models as models  # noqa: E402
 
 
@@ -107,7 +108,7 @@ def test_omitted_null_and_explicit_empty_values_remain_distinct():
     ],
 )
 def test_existing_nonnullable_fields_stay_nonnullable(class_name, field, value):
-    cls = getattr(models, class_name)
+    cls = getattr(skill_flow if class_name.startswith("ReactFlow") else models, class_name)
     fixtures = {
         "CandidateSkill": {"skill_id": "one", "label": "one"},
         "SkillConfig": {"id": "one", "name": "one"},
@@ -154,7 +155,7 @@ def test_exported_orchestration_fields_defaults_and_requiredness(api_schemas):
     ]
     for class_name in names:
         schema = api_schemas[class_name]
-        cls = getattr(models, class_name)
+        cls = getattr(skill_flow if class_name.startswith("ReactFlow") else models, class_name)
         assert set(schema["properties"]) == set(cls.model_fields), class_name
         assert set(schema.get("required", [])) == {
             name for name, field in cls.model_fields.items() if field.is_required()

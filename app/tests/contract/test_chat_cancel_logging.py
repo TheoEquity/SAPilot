@@ -23,10 +23,11 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @pytest.fixture
 def boundary(monkeypatch):
-    path = ROOT / "aperag/service/agent_chat_service.py"
+    path = ROOT / "aperag/service/agent_chat_websocket.py"
     tree = ast.parse(path.read_text(encoding="utf-8"))
-    cls = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "AgentChatService")
+    cls = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "AgentChatWebSocket")
     methods = {
+        "__init__",
         "handle_websocket_agent_chat",
         "_handle_single_message",
         "_consume_messages_from_queue",
@@ -61,11 +62,12 @@ def boundary(monkeypatch):
     )
     ast.fix_missing_locations(module)
     exec(compile(module, str(path), "exec"), namespace)
-    service = namespace["AgentChatService"]()
-    service.register_message_queue = AsyncMock(return_value="existing-trace")
-    service._save_conversation_history = AsyncMock()
-    service._format_exception_to_error_response = lambda error, language: {"type": "error", "message": str(error)}
-    service.db_ops = SimpleNamespace(query_bot=AsyncMock(return_value=SimpleNamespace(config=None)))
+    chat_service = SimpleNamespace()
+    service = namespace["AgentChatWebSocket"](chat_service)
+    service.chat_service.register_message_queue = AsyncMock(return_value="existing-trace")
+    service.chat_service._save_conversation_history = AsyncMock()
+    service.chat_service._format_exception_to_error_response = lambda error, language: {"type": "error", "message": str(error)}
+    service.chat_service.db_ops = SimpleNamespace(query_bot=AsyncMock(return_value=SimpleNamespace(config=None)))
     service._parse_websocket_message = lambda data: (SimpleNamespace(query=data, files=[], language="en-US"), None)
     return SimpleNamespace(service=service, listener=listener)
 
@@ -130,7 +132,7 @@ def test_disconnect_cancels_blocked_generation_and_cleans_listener(boundary, cap
             await started.wait()
             raise WebSocketDisconnect(1000)
 
-        service.process_agent_message = generate
+        service.chat_service.process_agent_message = generate
         if disconnect_source == "consumer":
             service._consume_messages_from_queue = disconnected_consumer
         task = asyncio.create_task(
@@ -156,7 +158,7 @@ def test_disconnect_cancels_blocked_generation_and_cleans_listener(boundary, cap
             assert socket.max_receives <= 1
             assert not asyncio.all_tasks().difference(baseline_tasks)
             assert not [frame for frame in socket.sent if frame["type"] == "websocket.send"]
-            service._save_conversation_history.assert_not_awaited()
+            service.chat_service._save_conversation_history.assert_not_awaited()
             boundary.listener.unregister_listener.assert_awaited_once_with("existing-trace")
         finally:
             task.cancel()
@@ -193,7 +195,7 @@ def test_completed_or_failed_generation_preserves_history_and_error_boundary(bou
         async def failing_consumer(*args):
             raise ValueError("stream failed")
 
-        service.process_agent_message = generate
+        service.chat_service.process_agent_message = generate
         if failure == "consumer":
             service._consume_messages_from_queue = failing_consumer
         task = asyncio.create_task(
@@ -214,10 +216,10 @@ def test_completed_or_failed_generation_preserves_history_and_error_boundary(bou
                 assert frames == [
                     {"type": "error", "message": "generation failed" if failure == "producer" else "stream failed"}
                 ]
-                service._save_conversation_history.assert_not_awaited()
+                service.chat_service._save_conversation_history.assert_not_awaited()
             else:
                 assert [frame["data"] for frame in frames] == ["ok"]
-                service._save_conversation_history.assert_awaited_once()
+                service.chat_service._save_conversation_history.assert_awaited_once()
             boundary.listener.unregister_listener.assert_awaited_once_with("existing-trace")
         finally:
             task.cancel()
@@ -244,7 +246,7 @@ def test_disconnect_during_failure_cleanup_does_not_send_error_or_save(boundary,
             await started.wait()
             raise ValueError("stream failed while closing")
 
-        service.process_agent_message = generate
+        service.chat_service.process_agent_message = generate
         service._consume_messages_from_queue = failing_consumer
         task = asyncio.create_task(
             service._handle_single_message(
@@ -260,7 +262,7 @@ def test_disconnect_during_failure_cleanup_does_not_send_error_or_save(boundary,
             except WebSocketDisconnect:
                 pass
             assert not [frame for frame in socket.sent if frame["type"] == "websocket.send"]
-            service._save_conversation_history.assert_not_awaited()
+            service.chat_service._save_conversation_history.assert_not_awaited()
             boundary.listener.unregister_listener.assert_awaited_once_with("existing-trace")
         finally:
             task.cancel()
@@ -297,8 +299,8 @@ def test_early_next_message_is_preserved_without_concurrent_receive(boundary):
             if args[3] == "second":
                 second_completed.set()
 
-        service.process_agent_message = generate
-        service._save_conversation_history.side_effect = save
+        service.chat_service.process_agent_message = generate
+        service.chat_service._save_conversation_history.side_effect = save
         task = asyncio.create_task(service.handle_websocket_agent_chat(socket.websocket, "user", "bot", "chat"))
         try:
             socket.message("first")
@@ -314,7 +316,7 @@ def test_early_next_message_is_preserved_without_concurrent_receive(boundary):
             assert socket.read_texts == ["first", "second"]
             assert socket.max_receives == 1
             assert socket.active_receives == 0
-            assert service._save_conversation_history.await_count == 2
+            assert service.chat_service._save_conversation_history.await_count == 2
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)

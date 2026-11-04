@@ -31,6 +31,8 @@ from pydantic import (
     conint,
 )
 
+from aperag.schema import skill_flow
+
 
 class ModelSpec(BaseModel):
     model: Optional[str] = Field(
@@ -494,36 +496,6 @@ class IntentRouterRule(BaseModel):
     description: Optional[str] = None
 
 
-class ReactFlowViewport(BaseModel):
-    x: float
-    y: float
-    zoom: float
-
-
-class ReactFlowNode(BaseModel):
-    id: str
-    type: str
-    position: dict[str, float]
-    data: dict[str, Any]
-
-
-class ReactFlowEdge(BaseModel):
-    id: str
-    source: str
-    target: str
-    sourceHandle: Optional[str] = None
-    targetHandle: Optional[str] = None
-    type: Optional[str] = None
-    data: Optional[dict[str, Any]] = None
-
-
-class ReactFlowSchema(BaseModel):
-    version: str
-    viewport: Optional[ReactFlowViewport] = None
-    nodes: list[ReactFlowNode] = []
-    edges: list[ReactFlowEdge] = []
-
-
 class IntentRouterConfig(BaseModel):
     id: str
     name: str
@@ -539,7 +511,7 @@ class IntentRouterConfig(BaseModel):
     fallback_skill_id: str
     candidate_skills: list[CandidateSkill] = []
     rules: list[IntentRouterRule] = []
-    flow: Optional[ReactFlowSchema] = None
+    flow: Optional[skill_flow.ReactFlowSchema] = None
     meta: Optional[dict[str, Any]] = None
 
 
@@ -597,7 +569,7 @@ class SkillConfig(BaseModel):
     prompts: Optional[SkillPrompts] = None
     tools: list[SkillToolBinding] = []
     io: Optional[SkillIOConfig] = None
-    flow: Optional[ReactFlowSchema] = None
+    flow: Optional[skill_flow.ReactFlowSchema] = None
     collections: list[SkillCollection] = []
     meta: Optional[dict[str, Any]] = None
 

@@ -15,13 +15,14 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, Optional
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from aperag.exceptions import BusinessException, ErrorCode  # noqa: E402
+from aperag.schema import skill_flow  # noqa: E402
 from aperag.schema import view_models as models  # noqa: E402
 
 
@@ -55,6 +56,12 @@ class History:
     @property
     async def messages(self):
         return self.entries
+
+
+class Memory(list):
+    @property
+    def history(self):
+        return self
 
 
 def stream_start(message_id):
@@ -110,7 +117,8 @@ def harness(monkeypatch):
     scope = {
         "view_models": models,
         "RequestParams": SimpleNamespace,
-        "SimpleMemory": list,
+        "SimpleMemory": Memory,
+        "asyncio": asyncio,
         "AgentConfig": config_scope["AgentConfig"],
         "agent_session_manager": manager,
         "AgentConfigurationError": exception_scope["AgentConfigurationError"],
@@ -126,13 +134,17 @@ def harness(monkeypatch):
         "aperag/service/agent_chat_service.py",
         {"AgentChatService"},
         scope,
-        {"AgentChatService": {"process_agent_message", "_get_agent_session", "_build_faq_choice_end_response"}},
+        {"AgentChatService": {
+            "process_agent_message", "_get_agent_session", "_ensure_aperag_api_key",
+            "_execute_skill", "_build_faq_choice_end_response",
+        }},
     )
     service = scope["AgentChatService"]()
     history = History()
     service.history_manager = SimpleNamespace(get_chat_history=AsyncMock(return_value=history))
     service.memory_manager = SimpleNamespace(create_memory_from_history=AsyncMock(return_value=[]))
     service.skill_context_buffers = {}
+    execute_skill = service._execute_skill
     service._execute_skill = AsyncMock(return_value={"content": "skill result"})
     service.db_ops = SimpleNamespace(
         query_llm_provider_by_name=AsyncMock(return_value=SimpleNamespace(base_url="https://intent.invalid/v1")),
@@ -175,6 +187,8 @@ def harness(monkeypatch):
         config_class=config_scope["AgentConfig"],
         history=history,
         rule_match=scope["try_hard_rules_match"],
+        execute_skill=execute_skill,
+        configuration_error=scope["AgentConfigurationError"],
     )
 
 
@@ -236,8 +250,9 @@ def test_intent_provider_configuration_and_request_parameters(harness, max_token
     assert params.model == "intent-model"
     assert params.maxTokens == (1024 if max_tokens is None else max_tokens)
     assert params.temperature == temperature
+    assert params.systemPrompt == "System prompt"
     assert (params.use_history, params.max_iterations, params.user, params.tool_filter) == (
-        False,
+        True,
         1,
         "user-a",
         {"aperag": set()},
@@ -252,6 +267,28 @@ def test_intent_provider_configuration_and_request_parameters(harness, max_token
     )
     assert 'Document comparison, version, scope and evidence checking are knowledge lookup tasks' in prompt
     assert prompt.endswith('Output exactly one skill_id from the authoritative candidate list above.')
+    assert_routed(h, "selected")
+
+
+def test_intent_history_excludes_tool_and_thinking_content(harness):
+    h = harness
+
+    def to_openai_format(include_tool_results):
+        messages = [{"role": "assistant", "content": "Previous answer with three steps"}]
+        if include_tool_results:
+            messages.extend([
+                {"role": "assistant", "content": "Private tool output"},
+                {"role": "assistant", "content": "Internal thinking"},
+            ])
+        return messages
+
+    h.history.entries[-1] = SimpleNamespace(to_openai_format=to_openai_format)
+    h.message.query = "What about the third step?"
+    run(h)
+    assert [msg["content"] for msg in h.llm.history] == ["2", "3", "4", "Previous answer with three steps"]
+    prompt, params = h.llm.generate_str.await_args.args
+    assert params.use_history
+    assert h.message.query in prompt
     assert_routed(h, "selected")
 
 
@@ -314,16 +351,89 @@ def test_forced_skill_and_first_matching_rule_priority(harness, forced, mode, ex
     assert_routed(h, expected)
 
 
-def test_model_exception_propagates_without_executing_skill_and_closes_queue(harness):
+@pytest.mark.parametrize("failure", [RuntimeError("synthetic provider 503"), TimeoutError()])
+def test_model_failure_executes_fallback_and_closes_queue(harness, failure):
     h = harness
-    failure = RuntimeError("synthetic classification failure")
     h.llm.generate_str.side_effect = failure
-    with pytest.raises(RuntimeError) as caught:
-        run(h)
-    assert caught.value is failure
-    h.service._execute_skill.assert_not_awaited()
+    run(h)
+    assert_routed(h, "fallback")
     h.llm.generate_str.assert_awaited_once()
+
+
+def test_default_classification_timeout_is_thirty_seconds(harness):
+    with patch.object(asyncio, "wait_for", wraps=asyncio.wait_for) as wait_for:
+        run(harness)
+    assert wait_for.await_args.kwargs["timeout"] == 30
+
+
+def test_configured_timeout_cancels_model_and_executes_fallback(harness):
+    h = harness
+    h.router.llm.timeout_ms = 10
+    cancelled = []
+
+    async def slow_model(*args):
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.append(True)
+
+    h.llm.generate_str.side_effect = slow_model
+    run(h)
+    assert cancelled == [True]
+    assert_routed(h, "fallback")
+
+
+def test_model_cancellation_propagates(harness):
+    h = harness
+    h.llm.generate_str.side_effect = asyncio.CancelledError
+    with pytest.raises(asyncio.CancelledError):
+        run(h)
+    h.service._execute_skill.assert_not_awaited()
     h.queue.close.assert_awaited_once()
+
+
+@pytest.mark.parametrize("existing", [True, False])
+def test_intent_session_uses_existing_or_creates_system_key(harness, existing):
+    h = harness
+    keys = [SimpleNamespace(key="first-key"), SimpleNamespace(key="second-key")] if existing else []
+    h.service.db_ops.query_api_keys.return_value = keys
+    h.service.db_ops.create_api_key.return_value = SimpleNamespace(key="created-key")
+    run(h)
+    h.service.db_ops.query_api_keys.assert_awaited_once_with("user-a", is_system=True)
+    assert h.initialized[0].aperag_api_key == ("first-key" if existing else "created-key")
+    if existing:
+        h.service.db_ops.create_api_key.assert_not_awaited()
+    else:
+        h.service.db_ops.create_api_key.assert_awaited_once_with(user="user-a", description="aperag", is_system=True)
+
+
+def test_intent_key_creation_failure_raises_configuration_error(harness):
+    h = harness
+    h.service.db_ops.query_api_keys.return_value = []
+    h.service.db_ops.create_api_key.side_effect = RuntimeError("private DB error")
+    with pytest.raises(h.configuration_error, match="Failed to create system API key") as error:
+        run(h)
+    assert "private DB error" not in str(error.value)
+    h.llm.generate_str.assert_not_awaited()
+    h.service._execute_skill.assert_not_awaited()
+    h.queue.close.assert_awaited_once()
+
+
+def test_skill_key_creation_failure_sends_error_and_stop(harness):
+    h = harness
+    h.service._has_image_files = lambda files: False
+    h.service._has_non_image_files = lambda files: False
+    h.bot.orchestration.skills = [models.SkillConfig(id="selected", name="Selected")]
+    h.service.db_ops.query_api_keys.return_value = []
+    h.service.db_ops.create_api_key.side_effect = RuntimeError("private DB error")
+    result = asyncio.run(h.execute_skill(
+        "selected", h.message, "user-a", "chat-a", "message-a", h.queue,
+        "Answer prompt", orchestration=h.bot.orchestration,
+    ))
+    assert result["content"] == "Failed to create aperag API key"
+    assert [call.args[0]["type"] for call in h.queue.put.await_args_list] == ["message", "stop"]
+    h.service.db_ops.create_api_key.assert_awaited_once_with(user="user-a", description="aperag", is_system=True)
+    h.manager.get_or_create_session.assert_not_awaited()
 
 
 @pytest.mark.parametrize("missing", ["provider", "key"])
@@ -483,3 +593,93 @@ def test_whitespace_prompt_retains_original_default_and_authoritative_suffix(har
     assert 'An attached image or partial screenshot is input evidence' in prompt
     assert prompt.endswith('Output exactly one skill_id from the authoritative candidate list above.')
     assert_routed(h, "selected")
+
+
+@pytest.fixture
+def skill_flow_rules():
+    return execute_definitions(
+        "aperag/agent/skill_flow_rules.py",
+        {"get_flow_start_node_id", "_normalize_condition_value", "evaluate_condition_node"},
+        {"logger": logging.getLogger(__name__)},
+    )
+
+
+def test_skill_flow_start_priority(skill_flow_rules):
+    choose = skill_flow_rules["get_flow_start_node_id"]
+    first = skill_flow.ReactFlowNode(id="first", type="action", position={}, data={})
+    start = skill_flow.ReactFlowNode(id="start", type="startEnd", position={}, data={"label": " 开始 "})
+    incoming = skill_flow.ReactFlowEdge(id="forward", source="first", target="start")
+    back = skill_flow.ReactFlowEdge(id="back", source="start", target="first")
+    flow = skill_flow.ReactFlowSchema(version="1")
+    assert choose(SimpleNamespace(flow=None)) is None
+    assert choose(SimpleNamespace(flow=flow)) is None
+
+    flow.nodes = [first, start]
+    flow.edges = [incoming]
+    assert choose(SimpleNamespace(flow=flow)) == "start"
+
+    start.data = {"label": "End"}
+    flow.edges = [back]
+    assert choose(SimpleNamespace(flow=flow)) == "start"
+
+    flow.edges = [incoming, back]
+    assert choose(SimpleNamespace(flow=flow)) == "first"
+
+
+@pytest.mark.parametrize(
+    ("operator", "expected", "outputs", "decision"),
+    [
+        ("equals", " YES ", {"found": True}, "yes"),
+        ("equals", True, {"found": "0"}, "no"),
+        ("not_equals", False, {"found": "y"}, "yes"),
+        ("exists", None, {"found": None}, "yes"),
+        ("exists", None, {}, "no"),
+    ],
+)
+def test_skill_flow_condition_decision(skill_flow_rules, operator, expected, outputs, decision):
+    condition = skill_flow.ReactFlowNode(
+        id="condition",
+        type="condition",
+        position={},
+        data={"source_node_id": "search", "field": "found", "operator": operator, "expected_value": expected},
+    )
+    assert skill_flow_rules["evaluate_condition_node"](condition, {"search": {"outputs": outputs}}) == decision
+
+
+@pytest.mark.parametrize(("found", "target"), [(True, "hit"), (False, "miss")])
+def test_skill_flow_executes_selected_branch(skill_flow_rules, found, target):
+    action = AsyncMock(side_effect=[
+        {"outputs": {"found": found}, "text": "first answer", "references": [{"text": "first source"}]},
+        {"text": "branch answer", "references": [{"text": "branch source"}]},
+    ])
+    scope = {
+        **skill_flow_rules,
+        "RequestParams": SimpleNamespace,
+        "_execute_action_node": action,
+    }
+    execute_definitions("aperag/service/skill_flow_executor.py", {"execute_skill_flow"}, scope)
+    flow = skill_flow.ReactFlowSchema(
+        version="1",
+        nodes=[
+            skill_flow.ReactFlowNode(id=node_id, type="action", position={}, data={})
+            for node_id in ("search", "hit", "miss")
+        ] + [
+            skill_flow.ReactFlowNode(
+                id="decision", type="condition", position={},
+                data={"source_node_id": "search", "field": "found", "expected_value": True},
+            ),
+        ],
+        edges=[
+            skill_flow.ReactFlowEdge(id="search-result", source="search", target="decision"),
+            skill_flow.ReactFlowEdge(id="yes", source="decision", target="hit", sourceHandle="yes"),
+            skill_flow.ReactFlowEdge(id="no", source="decision", target="miss", sourceHandle="no"),
+        ],
+    )
+    result = asyncio.run(scope["execute_skill_flow"](
+        skill_config=SimpleNamespace(flow=flow, tools=[]),
+        skill_id="test", llm=None, chat_id="chat", agent_message=SimpleNamespace(files=[]),
+        user="user", query_prompt="query", effective_system_prompt="system",
+        model_name="model", max_tokens=100, temperature=0.1, build_node_output=None,
+    ))
+    assert [call.kwargs["node"].id for call in action.await_args_list] == ["search", target]
+    assert result == ("branch answer", [{"text": "branch source"}])

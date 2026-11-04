@@ -17,12 +17,11 @@ import json
 import logging
 import os
 import re
-import time
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-from fastapi import WebSocket, WebSocketDisconnect
-from mcp_agent.workflows.llm.augmented_llm import RequestParams, SimpleMemory
+from fastapi import WebSocket
+from mcp_agent.workflows.llm.augmented_llm import SimpleMemory
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aperag.agent import (
@@ -31,13 +30,10 @@ from aperag.agent import (
     AgentMessageQueue,
     agent_session_manager,
     extract_tool_call_references,
-    extract_tool_call_references_from_messages,
     format_agent_setup_error,
-    format_invalid_json_error,
     format_invalid_model_spec_error,
     format_mcp_connection_error,
     format_processing_error,
-    format_query_required_error,
     format_stream_content,
     format_stream_end,
     format_stream_start,
@@ -46,49 +42,26 @@ from aperag.agent.agent_config import AgentConfig
 from aperag.agent.agent_event_listener import agent_event_listener
 from aperag.agent.exceptions import (
     AgentConfigurationError,
-    JSONParsingError,
     MCPAppInitializationError,
     MCPConnectionError,
-    handle_agent_error,
-    safe_json_parse,
 )
 from aperag.agent.intent_router import route_intent
-from aperag.agent.response_types import AgentErrorResponse, AgentToolCallResultResponse
+from aperag.agent.response_types import AgentErrorResponse
 from aperag.agent.tool_reference_extractor import _format_reference_content, resolve_answer_asset_urls
 from aperag.chat.history.message import StoredChatMessage, create_assistant_message
 from aperag.config import settings
 from aperag.db.ops import AsyncDatabaseOps, async_db_ops
-from aperag.llm.llm_error_types import CompletionError
 from aperag.objectstore.base import get_async_object_store
 from aperag.query.query import DocumentWithScore
 from aperag.schema import view_models
+from aperag.service.agent_chat_websocket import AgentChatWebSocket
 from aperag.service.chat_collection_service import chat_collection_service
 from aperag.service.collection_service import collection_service
 from aperag.service.image_search_service import image_search_service
-from aperag.service.prompt_template_service import build_agent_query_prompt, prompt_template_service
-from aperag.trace import add_trace_attributes, trace_async_function
+from aperag.service.prompt_template_service import prompt_template_service
+from aperag.service.skill_flow_executor import execute_skill_flow
 
 logger = logging.getLogger(__name__)
-
-
-def format_websocket_error(error: Exception, data: str) -> AgentErrorResponse:
-    try:
-        parsed = safe_json_parse(data, "language_detection")
-        language = parsed.get("language", "en-US")
-    except Exception:
-        language = "en-US"
-
-    if isinstance(error, JSONParsingError):
-        return format_invalid_json_error(str(error), language)
-
-    if isinstance(error, AgentConfigurationError):
-        error_msg = str(error).lower()
-        if "query" in error_msg:
-            return format_query_required_error(language)
-        if "completion" in error_msg or "modelspec" in error_msg:
-            return format_invalid_model_spec_error(str(error), language)
-
-    return format_processing_error(str(error), language)
 
 
 class AgentChatService:
@@ -133,289 +106,8 @@ class AgentChatService:
             pydantic_collections.append(pydantic_collection)
         return pydantic_collections
 
-    def _parse_websocket_message(
-        self, raw_data: str
-    ) -> Tuple[Optional[view_models.AgentMessage], Optional[AgentErrorResponse]]:
-        """
-        Parse WebSocket message using Go-style error handling.
-
-        Args:
-            raw_data: Raw JSON string from WebSocket
-
-        Returns:
-            Tuple of (agent_message, error_response):
-            - If successful: (agent_message, None)
-            - If failed: (None, error_response_dict)
-        """
-        try:
-            # Step 1: Safe JSON parsing using agent module utilities
-            message_data = safe_json_parse(raw_data, "websocket_message")
-
-            # Step 2: Validate required query field early
-            action = message_data.get("action")
-            if action in {"faq_expand", "faq_end"} and not message_data.get("query"):
-                message_data["query"] = "是，专业扩展" if action == "faq_expand" else "否，结束"
-
-            query = message_data.get("query", "").strip()
-            if not query:
-                from aperag.agent.exceptions import agent_config_invalid
-
-                error = agent_config_invalid("query", "Query is required and cannot be empty")
-                error_response = format_websocket_error(error, raw_data)
-                return None, error_response
-
-            # Step 3: Parse and validate AgentMessage using Pydantic
-            agent_message = view_models.AgentMessage(**message_data)
-            return agent_message, None
-
-        except (JSONParsingError, AgentConfigurationError) as e:
-            error_response = format_websocket_error(e, raw_data)
-            return None, error_response
-        except Exception as e:
-            # Handle unexpected errors
-            from aperag.agent.exceptions import agent_config_invalid
-
-            config_error = agent_config_invalid("agent_message", f"Unexpected error: {str(e)}")
-            error_response = format_websocket_error(config_error, raw_data)
-            return None, error_response
-
-    @handle_agent_error("websocket_agent_chat", reraise=False)
     async def handle_websocket_agent_chat(self, websocket: WebSocket, user: str, bot_id: str, chat_id: str):
-        """Handle WebSocket connections for agent-type bot chats with message queue architecture"""
-        # Get bot configuration once at the beginning for performance
-        bot = await self.db_ops.query_bot(user, bot_id)
-        if not bot:
-            error_response = format_processing_error("Bot not found", "en-US")
-            await websocket.send_text(json.dumps(error_response))
-            return
-
-        # Parse bot configuration and get default collections once
-        bot_config = None
-        default_collections = []
-        if bot.config:
-            try:
-                config_dict = json.loads(bot.config)
-                if config_dict:
-                    bot_config = view_models.BotConfig(**config_dict)
-            except (json.JSONDecodeError, ValueError):
-                bot_config = None
-
-        if bot_config and bot_config.agent:
-            # Get default collections once for performance
-            if bot_config.agent.collections:
-                collection_ids = [collection.id for collection in bot_config.agent.collections]
-                db_collections = await self.db_ops.query_collections_by_ids(user, collection_ids)
-                # Convert SQLAlchemy models to Pydantic models
-                default_collections = await self._convert_db_collections_to_pydantic(db_collections)
-
-        # Resolve prompts once at the beginning using prompt_template_service
-        # Priority: Bot config > User default > System default > Hardcoded
-        resolved_system_prompt = await prompt_template_service.resolve_agent_system_prompt(bot=bot, user_id=user)
-        resolved_query_prompt = await prompt_template_service.resolve_agent_query_prompt(bot=bot, user_id=user)
-
-        pending_messages = []
-        while True:
-            # Receive message from WebSocket
-            try:
-                data = pending_messages.pop(0) if pending_messages else await websocket.receive_text()
-            except WebSocketDisconnect:
-                return
-
-            # Parse WebSocket message using Go-style error handling
-            agent_message, error_response = self._parse_websocket_message(data)
-            if error_response:
-                await websocket.send_text(json.dumps(error_response))
-                continue
-
-            # Process each message in a new trace context
-            try:
-                await self._handle_single_message(
-                    websocket,
-                    agent_message,
-                    user,
-                    chat_id,
-                    bot_config=bot_config,
-                    default_collections=default_collections,
-                    resolved_system_prompt=resolved_system_prompt,
-                    resolved_query_prompt=resolved_query_prompt,
-                    pending_messages=pending_messages,
-                )
-            except WebSocketDisconnect:
-                return
-
-    @trace_async_function("name=handle_single_websocket_message", new_trace=True)
-    async def _handle_single_message(
-        self,
-        websocket: WebSocket,
-        agent_message: view_models.AgentMessage,
-        user: str,
-        chat_id: str,
-        bot_config=None,
-        default_collections=None,
-        resolved_system_prompt: str = None,
-        resolved_query_prompt: str = None,
-        pending_messages: Optional[List[str]] = None,
-    ):
-        """Handle a single WebSocket message with its own trace"""
-        add_trace_attributes(
-            **{"langfuse.session.id": chat_id, "langfuse.user.id": user, "langfuse.trace.name": "chat.message"}
-        )
-        trace_id = None
-        message_id = None
-        message_tasks = []
-        if pending_messages is None:
-            pending_messages = []
-        started = time.perf_counter()
-        try:
-            message_id = str(uuid.uuid4())
-            logger.info(
-                "chat.message.started", extra={"message_id": message_id, "chat_id": chat_id, "status": "started"}
-            )
-            message_queue = AgentMessageQueue()
-            trace_id = await self.register_message_queue(agent_message.language, chat_id, message_id, message_queue)
-
-            # Get document metadata and associate documents with message if files are provided
-            from aperag.service.chat_document_service import chat_document_service
-
-            document_ids = [file.id for file in agent_message.files or [] if file.id]
-            files = await chat_document_service.associate_documents_with_message(
-                chat_id=chat_id, message_id=message_id, files=document_ids, user=user
-            )
-
-            # Message Producer: Start background task to process agent generation message
-            process_task = asyncio.create_task(
-                self.process_agent_message(
-                    agent_message,
-                    user,
-                    chat_id,
-                    message_id,
-                    message_queue,
-                    associated_files=files,
-                    bot_config=bot_config,
-                    default_collections=default_collections,
-                    resolved_system_prompt=resolved_system_prompt,
-                    resolved_query_prompt=resolved_query_prompt,
-                )
-            )
-            message_tasks.append(process_task)
-            # Message Consumer
-            consumer_task = asyncio.create_task(self._consume_messages_from_queue(message_queue, websocket))
-            message_tasks.append(consumer_task)
-
-            async def watch_disconnect():
-                # This is the only receiver while this message is being processed.
-                # Preserve early next messages for the connection's outer loop.
-                while True:
-                    pending_messages.append(await websocket.receive_text())
-
-            disconnect_task = asyncio.create_task(watch_disconnect())
-            message_tasks.append(disconnect_task)
-            pending = {process_task, consumer_task}
-            while pending:
-                done, _ = await asyncio.wait(pending | {disconnect_task}, return_when=asyncio.FIRST_COMPLETED)
-                if disconnect_task in done:
-                    await disconnect_task
-                if any(task.cancelled() for task in done):
-                    raise asyncio.CancelledError()
-                pending.difference_update(done)
-                if any(task.exception() is not None for task in done):
-                    for task in pending:
-                        task.cancel()
-                    break
-            process_result, consumer_result = await asyncio.gather(process_task, consumer_task, return_exceptions=True)
-            # A disconnect may arrive while a failed task's sibling is stopping.
-            if disconnect_task.done():
-                await disconnect_task
-
-            if isinstance(consumer_result, WebSocketDisconnect):
-                raise consumer_result
-
-            # Handle process_task exceptions with unified error formatting
-            if isinstance(process_result, Exception):
-                logger.error(
-                    "chat.message.failed",
-                    extra={
-                        "message_id": message_id,
-                        "chat_id": chat_id,
-                        "stage": "chat.process",
-                        "status": "failed",
-                        "duration_ms": round((time.perf_counter() - started) * 1000, 2),
-                    },
-                    exc_info=(type(process_result), process_result, process_result.__traceback__),
-                )
-                error_response = self._format_exception_to_error_response(
-                    process_result, agent_message.language or "en-US"
-                )
-                await websocket.send_text(json.dumps(error_response))
-                return
-
-            # Handle consumer_task exceptions
-            if isinstance(consumer_result, Exception):
-                logger.error(
-                    "chat.message.failed",
-                    extra={
-                        "message_id": message_id,
-                        "chat_id": chat_id,
-                        "stage": "chat.stream",
-                        "status": "failed",
-                        "duration_ms": round((time.perf_counter() - started) * 1000, 2),
-                    },
-                    exc_info=(type(consumer_result), consumer_result, consumer_result.__traceback__),
-                )
-                error_response = format_processing_error(str(consumer_result), agent_message.language or "en-US")
-                await websocket.send_text(json.dumps(error_response))
-                return
-
-            # Handle history saving at WebSocket layer (better separation of concerns)
-            # process_result now contains {query, content, references} on success
-            query = process_result.get("query", "")
-            ai_response = process_result.get("content", "")
-            references = process_result.get("references", "")
-            tool_use_list = consumer_result
-            await self._save_conversation_history(
-                chat_id, message_id, trace_id, query, ai_response, files, tool_use_list, references
-            )
-            logger.info(
-                "chat.message.completed",
-                extra={
-                    "message_id": message_id,
-                    "chat_id": chat_id,
-                    "status": "success",
-                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
-                },
-            )
-
-        except (asyncio.CancelledError, WebSocketDisconnect):
-            logger.info(
-                "chat.message.cancelled",
-                extra={
-                    "message_id": message_id,
-                    "chat_id": chat_id,
-                    "status": "cancelled",
-                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
-                },
-            )
-            raise
-        except Exception as e:
-            # This catches any other unexpected errors not handled above
-            logger.exception(
-                "chat.message.failed",
-                extra={
-                    "message_id": message_id,
-                    "chat_id": chat_id,
-                    "status": "failed",
-                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
-                },
-            )
-            error_response = format_processing_error(str(e), agent_message.language or "en-US")
-            await websocket.send_text(json.dumps(error_response))
-        finally:
-            for task in message_tasks:
-                if not task.done():
-                    task.cancel()
-            await asyncio.gather(*message_tasks, return_exceptions=True)
-            if trace_id:
-                await agent_event_listener.unregister_listener(str(trace_id))
+        await AgentChatWebSocket(self).handle_websocket_agent_chat(websocket, user, bot_id, chat_id)
 
     async def register_message_queue(self, language, chat_id, message_id, message_queue):
         # Get the trace_id from the current span
@@ -436,85 +128,18 @@ class AgentChatService:
             )
         return trace_id
 
-    async def _stream_message_content(
-        self, message: Dict[str, Any], websocket: WebSocket, chunk_size: int = 5, delay: float = 0.01
-    ) -> None:
-        """
-        Stream message content in small chunks to simulate typing effect.
-
-        Args:
-            message: The message dict with type="message"
-            websocket: WebSocket connection to send chunks
-            chunk_size: Number of characters per chunk
-            delay: Delay in seconds between chunks
-        """
-        content = message.get("data", "")
-        if not content:
-            # If no content, send the original message
-            await websocket.send_text(json.dumps(message))
-            return
-
-        # Split content into chunks
-        chunks = [content[i : i + chunk_size] for i in range(0, len(content), chunk_size)]
-
-        for i, chunk in enumerate(chunks):
-            # Create a chunk message with same structure but partial content
-            chunk_message = {
-                "type": "message",
-                "id": message.get("id"),
-                "data": chunk,
-                "timestamp": message.get("timestamp", int(time.time())),
-            }
-
-            await websocket.send_text(json.dumps(chunk_message))
-            logger.debug(f"Sent message chunk {i + 1}/{len(chunks)}: {len(chunk)} chars")
-
-            # Add delay between chunks (except for the last one)
-            if i < len(chunks) - 1:
-                await asyncio.sleep(delay)
-
-    async def _consume_messages_from_queue(
-        self, message_queue: AgentMessageQueue, websocket: WebSocket
-    ) -> List[AgentToolCallResultResponse]:
-        """
-        Consume messages from queue, send to WebSocket, and collect AgentToolCallResultResponse messages.
-
-        This method runs as a separate task to avoid race conditions.
-        Returns a list of all AgentToolCallResultResponse messages.
-        """
+    async def _ensure_aperag_api_key(self, user: str) -> str:
+        """Reuse an active system key or create one for MCP access."""
+        keys = await self.db_ops.query_api_keys(user, is_system=True)
+        if keys and keys[0].key:
+            return keys[0].key
         try:
-            # Properly initialize list to collect AgentToolCallResultResponse messages
-            tool_call_results: List[Dict] = []
-
-            while True:
-                # Get message from queue (blocks until message is available)
-                message = await message_queue.get()
-
-                # None message signals end of stream
-                if message is None:
-                    logger.debug("Received end-of-stream signal from message queue")
-                    break
-
-                # Collect AgentToolCallResultResponse messages
-                if isinstance(message, dict) and message.get("type") == "tool_call_result":
-                    tool_call_results.append(message)
-
-                # Special handling for type="message" - stream it in chunks
-                if isinstance(message, dict) and message.get("type") == "message":
-                    await self._stream_message_content(message, websocket)
-                    logger.debug(f"Streamed message content: {message.get('type', 'unknown')}")
-                else:
-                    # Send other message types normally (start, stop, tool_call_result, etc.)
-                    await websocket.send_text(json.dumps(message))
-                    logger.debug(f"Sent message to WebSocket: {message.get('type', 'unknown')}")
-
-            return tool_call_results
-
-        except WebSocketDisconnect:
-            raise
-        except Exception as e:
-            logger.error(f"Error in message consumer: {e}")
-            raise
+            key = await self.db_ops.create_api_key(user=user, description="aperag", is_system=True)
+        except Exception as exc:
+            raise AgentConfigurationError(
+                config_key="aperag_api_key", reason="Failed to create system API key"
+            ) from exc
+        return key.key
 
     async def _get_agent_session(
         self, agent_message: view_models.AgentMessage, user: str, chat_id: str, resolved_system_prompt: str
@@ -535,20 +160,7 @@ class AgentChatService:
             logger.error(error_msg)
             raise AgentConfigurationError(error_msg)
 
-        aperag_api_keys = await self.db_ops.query_api_keys(user, is_system=True)
-        for item in aperag_api_keys:
-            aperag_api_key = item.key
-        if not aperag_api_key:
-            # Auto-create a new system aperag API key for the user if none exists
-            logger.info(f"No aperag API key found for user {user}, creating a new system key")
-            try:
-                api_key_result = await self.db_ops.create_api_key(user=user, description="aperag", is_system=True)
-                aperag_api_key = api_key_result.key
-                logger.info(f"Successfully created new system aperag API key for user {user}")
-            except Exception as e:
-                error_msg = f"Failed to create aperag API key for user {user}: {str(e)}"
-                logger.error(error_msg)
-                raise AgentConfigurationError(error_msg)
+        aperag_api_key = await self._ensure_aperag_api_key(user)
 
         # Use resolved system prompt (already processed through prompt_template_service)
         system_prompt = resolved_system_prompt
@@ -939,84 +551,6 @@ class AgentChatService:
         }
 
     @staticmethod
-    def _get_flow_start_node_id(skill_config: view_models.SkillConfig) -> Optional[str]:
-        if not skill_config.flow or not skill_config.flow.nodes:
-            return None
-
-        nodes = skill_config.flow.nodes
-        incoming_count = {node.id: 0 for node in nodes}
-        for edge in skill_config.flow.edges:
-            if edge.target in incoming_count and edge.source != edge.target:
-                incoming_count[edge.target] += 1
-
-        explicit_start = next(
-            (
-                node.id
-                for node in nodes
-                if node.type == "startEnd"
-                and str(node.data.get("label", "")).strip().lower() in {"start", "开始"}
-            ),
-            None,
-        )
-        if explicit_start:
-            return explicit_start
-
-        zero_incoming = [node.id for node in nodes if incoming_count.get(node.id, 0) == 0]
-        if zero_incoming:
-            return zero_incoming[0]
-
-        return nodes[0].id
-
-    @staticmethod
-    def _normalize_condition_value(value: Any) -> str:
-        if isinstance(value, bool):
-            return "true" if value else "false"
-        if value is None:
-            return ""
-        normalized = str(value).strip().lower()
-        if normalized in {"yes", "y", "1"}:
-            return "true"
-        if normalized in {"no", "n", "0"}:
-            return "false"
-        return normalized
-
-    def _evaluate_condition_node(
-        self,
-        node: view_models.ReactFlowNode,
-        node_results: dict[str, dict[str, Any]],
-    ) -> str:
-        source_node_id = str(node.data.get("source_node_id") or "").strip()
-        field = str(node.data.get("field") or "").strip()
-        operator = str(node.data.get("operator") or "equals").strip().lower()
-        expected_value = self._normalize_condition_value(node.data.get("expected_value"))
-
-        source_result = node_results.get(source_node_id, {})
-        outputs = source_result.get("outputs", {}) if isinstance(source_result, dict) else {}
-        actual_value = outputs.get(field) if isinstance(outputs, dict) else None
-        normalized_actual = self._normalize_condition_value(actual_value)
-
-        matched = False
-        if operator == "exists":
-            matched = field in outputs if isinstance(outputs, dict) else False
-        elif operator == "not_equals":
-            matched = normalized_actual != expected_value
-        else:
-            matched = normalized_actual == expected_value
-
-        decision = "yes" if matched else "no"
-        logger.info(
-            "Condition node %s evaluated: source=%s field=%s operator=%s actual=%s expected=%s decision=%s",
-            node.id,
-            source_node_id,
-            field,
-            operator,
-            normalized_actual,
-            expected_value,
-            decision,
-        )
-        return decision
-
-    @staticmethod
     def _extract_primary_reference(references: list[dict[str, Any]]) -> tuple[dict[str, Any], str, dict[str, Any], Any]:
         for reference in references:
             metadata = reference.get("metadata") or {}
@@ -1059,92 +593,6 @@ class AgentChatService:
             "top_hit_text": top_text,
             "top_hit_score": top_score,
         }
-
-    async def _execute_action_node(
-        self,
-        *,
-        node: view_models.ReactFlowNode,
-        llm,
-        chat_id: str,
-        agent_message: view_models.AgentMessage,
-        user: str,
-        request_params: RequestParams,
-        query_prompt: str,
-        node_results: dict[str, dict[str, Any]],
-    ) -> dict[str, Any]:
-        history_before = llm.history.get() if hasattr(llm.history, "get") else []
-        history_before_len = len(history_before)
-        node_prompt = node.data.get("prompt") if isinstance(node.data.get("prompt"), str) else ""
-        node_label = node.data.get("label") if isinstance(node.data.get("label"), str) else node.id
-        context_blocks: list[str] = []
-        for source_node_id, result in node_results.items():
-            outputs = result.get("outputs", {}) if isinstance(result, dict) else {}
-            if outputs:
-                context_blocks.append(f"[Node Outputs: {source_node_id}]\n{json.dumps(outputs, ensure_ascii=False)}")
-
-        node_query_prompt = query_prompt
-        if node_prompt.strip() or context_blocks:
-            extra_parts = []
-            if node_prompt.strip():
-                extra_parts.append(f"[Current Node: {node_label}]\n{node_prompt.strip()}")
-            if context_blocks:
-                extra_parts.append("\n\n".join(context_blocks))
-            node_query_prompt = "\n\n".join(part for part in [query_prompt, *extra_parts] if part)
-
-        comprehensive_prompt = build_agent_query_prompt(
-            chat_id, agent_message=agent_message, user=user, template=node_query_prompt, is_search_confirmed=False
-        )
-        comprehensive_prompt += (
-            '\n\n证据与回答要求：先逐项核对用户的全部问题和条件，再完整作答；精简检索过程说明，'
-            '把篇幅留给答案、原文依据和必要限制，不以未展开的标题结束。'
-            '不能从局部未检索到推断全文不存在；枚举、跨页续文或条件不足时，'
-            '用search_collection(collection_id,query,document_id=已返回的文档ID,page_idx=零基物理页)'
-            '核对同文档邻页，Word等无页文档省略page_idx读取全文。context.truncated为真时按next_offset继续。'
-            '涉及截图字段、图中表格或图文归属时，用原文已返回的asset_id作为image_asset_ids参数（最多6张）'
-            '再次读取上下文以取得实际视觉观察，不能仅凭图片URI或OCR声称已看图。'
-            '跨页上方续文不自动归到下方新标题，样例值不能当当前值。'
-            '静态代码只证明文本和控制流，不把字符串里的表达式当已验证运行效果。'
-            '文本与图片读值冲突时并列呈现，不能用正文或常识把图片标识纠正成另一个值；看不清就标明未知。'
-            '物理页码以physical_page为准；page_idx从0开始，页脚印刷页码可能不同。'
-            '图片引用复制工具返回的完整asset_url，不省略collection_id和document_id。'
-            '得到足够证据后立即完整作答，不反复扩搜同源副本，不要求穷尽全库；'
-            '只有具体缺口才补读相应原文或图，不把检索计划当作最终答案。'
-            '说明无法从已核验证据确认的部分，不编造缺失步骤或版本审批。'
-        )
-        response = await llm.generate_str(comprehensive_prompt, request_params)
-        finish_reason = getattr(llm, 'last_finish_reason', None)
-        if finish_reason in {'length', 'tool_calls', 'function_call'}:
-            logger.warning('chat.answer.output_limited', extra={'chat_id': chat_id, 'status': 'continuing'})
-            continuation_params = request_params.model_copy(update={
-                'tool_filter': {'aperag': set()}, 'max_iterations': 1, 'use_history': True,
-            })
-            if finish_reason == 'length':
-                final_prompt = (
-                    '上一条回答因输出上限被截断。请从中断位置准确接续，补全未完成的句子和剩余问题，'
-                    '不要重复已经写出的内容，不再调用工具，不补无依据的事实。'
-                )
-            else:
-                final_prompt = (
-                    '检索预算已结束。现在只根据已取得的证据完整回答用户全部问题，不再调用工具。'
-                    '证据不足的具体部分明确说明未确认，不编造，不再只输出检索计划。'
-                )
-            continuation = await llm.generate_str(final_prompt, continuation_params)
-            if getattr(llm, 'last_finish_reason', None) in {'length', 'tool_calls', 'function_call'}:
-                raise CompletionError('Model response exceeded its output limit after continuation')
-            response = ((response or '') + (continuation or '')) if finish_reason == 'length' else continuation
-        if not response:
-            raise CompletionError('Model did not return a final answer')
-        text = response
-        history_after = llm.history.get() if hasattr(llm.history, "get") else []
-        current_turn_messages = history_after[history_before_len:]
-        references = extract_tool_call_references_from_messages(current_turn_messages)
-        outputs = self._build_node_output_from_references(references)
-        return {
-            "text": text,
-            "outputs": outputs,
-            "references": references,
-        }
-
 
     async def _execute_skill(
         self,
@@ -1301,20 +749,13 @@ class AgentChatService:
             prompt_parts.append(skill_prompt_text)
         effective_system_prompt = "\n\n".join(part for part in prompt_parts if part)
 
-        # Get aperag API key for MCP connection
-        aperag_api_key = None
-        aperag_api_keys = await self.db_ops.query_api_keys(user, is_system=True)
-        if aperag_api_keys:
-            aperag_api_key = aperag_api_keys[0].key
-        if not aperag_api_key:
-            try:
-                api_key_result = await self.db_ops.create_api_key(user=user, description="aperag", is_system=True)
-                aperag_api_key = api_key_result.key
-            except Exception as e:
-                error_msg = f"Failed to create aperag API key: {str(e)}"
-                await message_queue.put(format_stream_content(message_id, error_msg))
-                await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
-                return {"query": agent_message.query, "content": error_msg, "references": []}
+        try:
+            aperag_api_key = await self._ensure_aperag_api_key(user)
+        except AgentConfigurationError:
+            error_msg = "Failed to create aperag API key"
+            await message_queue.put(format_stream_content(message_id, error_msg))
+            await message_queue.put(format_stream_end(message_id, references=[], urls=[]))
+            return {"query": agent_message.query, "content": error_msg, "references": []}
 
         try:
             # Get agent session with the skill base prompt
@@ -1336,93 +777,19 @@ class AgentChatService:
             session = await agent_session_manager.get_or_create_session(session_config)
             llm = await session.get_llm(model_name)
             llm.history = skill_memory
-            nodes_by_id = {node.id: node for node in (skill_config.flow.nodes if skill_config.flow else [])}
-            outgoing_edges: dict[str, list[view_models.ReactFlowEdge]] = {}
-            if skill_config.flow:
-                for edge in skill_config.flow.edges:
-                    outgoing_edges.setdefault(edge.source, []).append(edge)
-
-            enabled_tools_from_skill: set[str] = set()
-            for binding in skill_config.tools or []:
-                if binding.enabled and binding.tool_id:
-                    enabled_tools_from_skill.add(binding.tool_id)
-
-            if effective_agent_message.files:
-                enabled_tools_from_skill.add("search_chat_files")
-
-            current_node_id = self._get_flow_start_node_id(skill_config)
-            if not current_node_id and skill_config.flow and skill_config.flow.nodes:
-                current_node_id = skill_config.flow.nodes[0].id
-
-            node_results: dict[str, dict[str, Any]] = {}
-            branch_trace: list[str] = []
-            final_text = ""
-            final_references: list[dict[str, Any]] = []
-            visited_node_ids: set[str] = set()
-            step_guard = 0
-
-            while current_node_id and current_node_id in nodes_by_id and step_guard < 50:
-                step_guard += 1
-                if current_node_id in visited_node_ids:
-                    logger.warning("Detected flow loop at node %s for skill %s", current_node_id, skill_id)
-                    break
-                visited_node_ids.add(current_node_id)
-
-                node = nodes_by_id[current_node_id]
-                outgoing = outgoing_edges.get(current_node_id, [])
-
-                if node.type == "action":
-                    enabled_tools = set(enabled_tools_from_skill)
-                    node_tools = node.data.get("tools", [])
-                    if isinstance(node_tools, list):
-                        enabled_tools.update(str(tool_id) for tool_id in node_tools if tool_id)
-
-                    request_params = RequestParams(
-                        systemPrompt=effective_system_prompt,
-                        maxTokens=max_tokens,
-                        model=model_name,
-                        use_history=True,
-                        max_iterations=4,
-                        parallel_tool_calls=True,
-                        temperature=temperature,
-                        user=user,
-                        tool_filter={"aperag": enabled_tools} if enabled_tools else None,
-                    )
-
-                    node_result = await self._execute_action_node(
-                        node=node,
-                        llm=llm,
-                        chat_id=chat_id,
-                        agent_message=effective_agent_message,
-                        user=user,
-                        request_params=request_params,
-                        query_prompt=query_prompt,
-                        node_results=node_results,
-                    )
-                    node_results[node.id] = node_result
-                    final_text = node_result.get("text", final_text)
-                    final_references = node_result.get("references", final_references)
-                    next_edge = outgoing[0] if outgoing else None
-                elif node.type == "condition":
-                    decision = self._evaluate_condition_node(node, node_results)
-                    branch_trace.append(f"{node.id}:{decision}")
-                    next_edge = next((edge for edge in outgoing if (edge.sourceHandle or "") == decision), None)
-                    if not next_edge:
-                        next_edge = outgoing[0] if outgoing else None
-                elif node.type == "startEnd":
-                    next_edge = outgoing[0] if outgoing else None
-                    if not next_edge:
-                        break
-                else:
-                    next_edge = outgoing[0] if outgoing else None
-
-                current_node_id = next_edge.target if next_edge else None
-
-            logger.info(
-                "Skill %s flow executed: visited=%s branches=(%s)",
-                skill_id,
-                ", ".join(sorted(visited_node_ids)) if visited_node_ids else "none",
-                ", ".join(branch_trace) if branch_trace else "none",
+            final_text, final_references = await execute_skill_flow(
+                skill_config=skill_config,
+                skill_id=skill_id,
+                llm=llm,
+                chat_id=chat_id,
+                agent_message=effective_agent_message,
+                user=user,
+                query_prompt=query_prompt,
+                effective_system_prompt=effective_system_prompt,
+                model_name=model_name,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                build_node_output=self._build_node_output_from_references,
             )
 
             full_content = final_text or "No response generated"
