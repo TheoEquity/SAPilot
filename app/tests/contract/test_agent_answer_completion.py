@@ -9,9 +9,8 @@ import pytest
 
 
 def action_boundary():
-    tree = ast.parse(Path('aperag/service/agent_chat_service.py').read_text(encoding='utf-8'))
-    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'AgentChatService')
-    node = next(n for n in cls.body if getattr(n, 'name', '') == '_execute_action_node')
+    tree = ast.parse(Path('aperag/service/skill_flow_executor.py').read_text(encoding='utf-8'))
+    node = next(n for n in tree.body if getattr(n, 'name', '') == '_execute_action_node')
     node.returns = None
     for arg in node.args.args + node.args.kwonlyargs:
         arg.annotation = None
@@ -46,7 +45,7 @@ async def test_provider_length_continues_once_without_repeating_tools_or_losing_
     llm.generate_str = generate
     original = Params(maxTokens=3072, max_iterations=10, use_history=True, tool_filter={'aperag': {'search_collection'}})
     result = await action_boundary()(
-        SimpleNamespace(_build_node_output_from_references=lambda refs: {}),
+        build_node_output=lambda refs: {},
         node=SimpleNamespace(id='answer', data={}), llm=llm, chat_id='chat',
         agent_message=SimpleNamespace(query='question'), user='user', request_params=original,
         query_prompt='answer all requested parts', node_results={},
@@ -64,7 +63,7 @@ async def test_second_length_is_not_reported_as_a_complete_answer():
                           generate_str=AsyncMock(return_value='partial'))
     with pytest.raises(RuntimeError, match='output limit'):
         await action_boundary()(
-            SimpleNamespace(_build_node_output_from_references=lambda refs: {}),
+            build_node_output=lambda refs: {},
             node=SimpleNamespace(id='answer', data={}), llm=llm, chat_id='chat',
             agent_message=SimpleNamespace(query='question'), user='user',
             request_params=Params(maxTokens=3072), query_prompt='answer', node_results={},
@@ -77,7 +76,7 @@ async def test_normal_stop_does_not_add_another_model_call():
     llm = SimpleNamespace(last_finish_reason='stop', history=SimpleNamespace(get=lambda: []),
                           generate_str=AsyncMock(return_value='complete'))
     result = await action_boundary()(
-        SimpleNamespace(_build_node_output_from_references=lambda refs: {}),
+        build_node_output=lambda refs: {},
         node=SimpleNamespace(id='answer', data={}), llm=llm, chat_id='chat',
         agent_message=SimpleNamespace(query='question'), user='user', request_params=Params(),
         query_prompt='answer', node_results={},
@@ -98,7 +97,7 @@ async def test_exhausted_tool_budget_still_produces_one_final_answer_without_new
 
     llm.generate_str = generate
     result = await action_boundary()(
-        SimpleNamespace(_build_node_output_from_references=lambda refs: {}),
+        build_node_output=lambda refs: {},
         node=SimpleNamespace(id='answer', data={}), llm=llm, chat_id='chat',
         agent_message=SimpleNamespace(query='question'), user='user', request_params=Params(),
         query_prompt='answer', node_results={},

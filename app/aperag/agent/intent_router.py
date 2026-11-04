@@ -14,6 +14,7 @@
 
 """Choose a Skill while leaving chat orchestration and session ownership to the service."""
 
+import asyncio
 import logging
 import re
 from typing import Any, Awaitable, Callable, Optional
@@ -69,12 +70,12 @@ async def route_intent(
         session = await get_agent_session(intent_message, user, chat_id, resolved_system_prompt)
         llm = await session.get_llm(intent_router.llm.model)
 
-        # Intent router only needs the last 1-2 turns for coreference resolution
-        # Take the most recent 4 messages (2 user + 2 assistant) max
+        # Use the recent conversation text supplied by the chat service for references.
         intent_memory = SimpleMemory()
         for msg in recent_messages:
-            for openai_msg in msg.to_openai_format(include_tool_results=True):
-                intent_memory.append(openai_msg)
+            for openai_msg in msg.to_openai_format(include_tool_results=False):
+                if openai_msg["role"] in {"user", "assistant"}:
+                    intent_memory.append(openai_msg)
 
         llm.history = intent_memory
 
@@ -100,6 +101,9 @@ async def route_intent(
             f"Authoritative candidate skills (you must choose one exact skill_id from this list):\n"
             f"{skills_desc}\n\n"
             f"Current user input:\n{agent_message.query}\n\n"
+            "Use recent conversation messages to resolve references and follow-up questions. "
+            "If the user explicitly introduces a new task, classify that task. "
+            "Treat previous messages as context for classification and follow the output rule below.\n"
             "Document comparison, version, scope and evidence checking are knowledge lookup tasks, "
             "even when they are not troubleshooting questions. Route to an appropriate enabled evidence skill. "
             "An attached image or partial screenshot is input evidence; do not choose clarification solely "
@@ -110,11 +114,21 @@ async def route_intent(
 
         params = RequestParams(
             systemPrompt=resolved_system_prompt or "",
-            maxTokens=intent_router.llm.max_tokens, model=intent_router.llm.model, use_history=False,
+            maxTokens=intent_router.llm.max_tokens, model=intent_router.llm.model, use_history=True,
             max_iterations=1, temperature=float(intent_router.llm.temperature or 0),
             user=user, tool_filter={"aperag": set()},
         )
-        resp = await llm.generate_str(prompt, params)
+        timeout_ms = intent_router.llm.timeout_ms
+        timeout = (30_000 if timeout_ms is None else timeout_ms) / 1000
+        try:
+            resp = await asyncio.wait_for(llm.generate_str(prompt, params), timeout=timeout)
+        except Exception as exc:
+            logger.warning(
+                "chat.intent.fallback",
+                extra={"status": "timeout" if isinstance(exc, TimeoutError) else "failed",
+                       "error_type": type(exc).__name__},
+            )
+            return intent_router.fallback_skill_id
         classified = (resp or "").strip()
 
         valid_ids = {s.skill_id for s in candidate_skills if s.enabled}
