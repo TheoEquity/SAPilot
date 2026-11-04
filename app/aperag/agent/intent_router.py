@@ -109,6 +109,7 @@ async def route_intent(
         )
 
         params = RequestParams(
+            systemPrompt=resolved_system_prompt or "",
             maxTokens=intent_router.llm.max_tokens, model=intent_router.llm.model, use_history=False,
             max_iterations=1, temperature=float(intent_router.llm.temperature or 0),
             user=user, tool_filter={"aperag": set()},

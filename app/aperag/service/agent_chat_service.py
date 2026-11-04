@@ -1145,17 +1145,6 @@ class AgentChatService:
             "references": references,
         }
 
-    def _format_faq_choice_message(self, message_id: str, label: str) -> Dict[str, Any]:
-        return {
-            "type": "faq_choice",
-            "id": message_id,
-            "data": label,
-            "timestamp": int(time.time()),
-            "options": [
-                {"label": "是，专业扩展", "action": "faq_expand"},
-                {"label": "否，结束", "action": "faq_end"},
-            ],
-        }
 
     async def _execute_skill(
         self,
@@ -1389,6 +1378,7 @@ class AgentChatService:
                         enabled_tools.update(str(tool_id) for tool_id in node_tools if tool_id)
 
                     request_params = RequestParams(
+                        systemPrompt=effective_system_prompt,
                         maxTokens=max_tokens,
                         model=model_name,
                         use_history=True,
