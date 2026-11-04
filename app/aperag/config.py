@@ -20,8 +20,8 @@ from typing import Annotated, Any, AsyncGenerator, Dict, Generator, Optional
 
 from dotenv import load_dotenv
 from fastapi import Depends
-from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -48,6 +48,8 @@ class LocalObjectStoreConfig(BaseSettings):
 
 
 class Config(BaseSettings):
+    model_config = SettingsConfigDict(hide_input_in_errors=True)
+
     # Debug mode
     debug: bool = Field(False, alias="DEBUG")
 
@@ -83,7 +85,15 @@ class Config(BaseSettings):
 
     # Auth
     auth_type: str = Field("none", alias="AUTH_TYPE")
-    jwt_secret: str = Field("SECRET", alias="JWT_SECRET")
+    jwt_secret: str = Field(..., alias="JWT_SECRET", min_length=32)
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def validate_jwt_secret(cls, value: str) -> str:
+        if len(value.strip()) < 32:
+            raise ValueError("JWT_SECRET must contain at least 32 non-padding characters; generate a random secret")
+        return value
+
     oauth_redirect_url: str = Field("http://localhost:3000/auth/callback", alias="OAUTH_REDIRECT_URL")
     google_oauth_client_id: str = Field("", alias="GOOGLE_OAUTH_CLIENT_ID")
     google_oauth_client_secret: str = Field("", alias="GOOGLE_OAUTH_CLIENT_SECRET")
