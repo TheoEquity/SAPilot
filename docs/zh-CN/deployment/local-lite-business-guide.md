@@ -1,6 +1,6 @@
 # 本地轻量部署说明
 
-> 状态：本地开发操作说明，包含联网准备及热重载步骤。当前团队部署方向见[云服务器与模型 API 讨论稿](../design/discussions/cloud-api-deployment-draft.md)，原[离线架构讨论稿](../design/discussions/offline-deployment-draft.md)已作废。本说明不等同于团队云部署说明，脚本仍使用仓库内被忽略的 `.run/` 保存 PID 和日志。
+> 状态：本地开发操作说明，包含联网准备及热重载步骤。当前团队部署方向见[云服务器与模型 API 讨论稿](../../design/zh-CN/discussions/cloud-api-deployment-draft.md)，原[离线架构讨论稿](../../design/zh-CN/discussions/offline-deployment-draft.md)已作废。本说明不等同于团队云部署说明，脚本使用项目内被忽略的 `runtime/work/` 保存 PID，服务日志在 `runtime/logs/`。
 
 这份说明适合完全不懂开发的业务同事。
 
@@ -24,10 +24,10 @@
 
 ## 第一次启动
 
-在项目根目录打开终端，复制执行下面这条命令：
+在项目总目录打开终端，复制执行下面这条命令：
 
 ```bash
-bash scripts/dev-lite-start.sh
+bash app/scripts/dev-lite-start.sh
 ```
 
 第一次启动会自动完成这些动作：
@@ -53,7 +53,7 @@ bash scripts/dev-lite-start.sh
 ## 查看当前状态
 
 ```bash
-bash scripts/dev-lite-status.sh
+bash app/scripts/dev-lite-status.sh
 ```
 
 这个命令会显示：
@@ -65,7 +65,7 @@ bash scripts/dev-lite-status.sh
 ## 停止系统
 
 ```bash
-bash scripts/dev-lite-stop.sh
+bash app/scripts/dev-lite-stop.sh
 ```
 
 这个命令会停止：
@@ -89,15 +89,15 @@ bash scripts/dev-lite-stop.sh
 先执行：
 
 ```bash
-bash scripts/dev-lite-status.sh
+bash app/scripts/dev-lite-status.sh
 ```
 
 如果状态异常，再查看日志目录：
 
 ```text
-.run/logs/backend.log
-.run/logs/celery.log
-.run/logs/frontend.log
+runtime/logs/api.log
+runtime/logs/worker.log
+runtime/logs/frontend.log
 ```
 
 ### 4. 电脑内存紧张

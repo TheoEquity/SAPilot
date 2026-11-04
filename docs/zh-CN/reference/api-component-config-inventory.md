@@ -2,7 +2,7 @@
 
 > 状态：2026 年 10 月 29 日当前工作区的源码静态盘点。描述对应关系、确认的差异和验证边界；不修改业务代码、接口定义或生成产物，不代表运行验收或修复完成。
 
-后续状态：本页保留实施前的盘点基线，不能将下列差异一概视为当前仍未修复。按批代码变更、独立审核与实际验证见[架构整理实施记录](../../../records/architecture-implementation-record.md)。
+后续状态：本页保留实施前的盘点基线，不能将下列差异一概视为当前仍未修复。按批代码变更、独立审核与实际验证见[架构整理实施记录](../../records/architecture-implementation-record.md)。
 
 ## 1 范围与结论
 
@@ -36,21 +36,21 @@ BotConfigProvider 持有服务器配置快照。意图与 Skill 编辑器生成�
 
 | 页面 / 组件 | 调用接口或协议 | 后端与数据 | 源码入口 |
 | --- | --- | --- | --- |
-| Bot 设置、创建表单 | GET/POST /bots；GET/PUT /bots/{id}；POST /available_models | BotService；BotCreate/Update/config，默认 Bot 切换还会更新另一 Bot | [BotForm][bot-form]、[创建表单](../../../web/src/app/workspace/bots/new/bot-create-form.tsx)、[Bot 路由][bot-view] |
+| Bot 设置、创建表单 | GET/POST /bots；GET/PUT /bots/{id}；POST /available_models | BotService；BotCreate/Update/config，默认 Bot 切换还会更新另一 Bot | [BotForm][bot-form]、[创建表单](../../../app/web/src/app/workspace/bots/new/bot-create-form.tsx)、[Bot 路由][bot-view] |
 | IntentRouterEditor | GET /llm_configuration；经更新器 PUT /bots/{id} | 页面筛选 api=intent；保存 orchestration.intent_router | [意图编辑器][intent]、[更新器][updater] |
-| SkillEditor | GET /collections；POST /available_models；GET /mcp_tools；经更新器 PUT /bots/{id} | Skill 与候选/兜底联动保存，不存在本轮已发现的独立 Skill CRUD 接口 | [Skill 编辑器][skill]、[工具列表](../../../aperag/views/main.py#L221) |
-| FlowCanvasEditor / JSON 编辑 | onChange 更新父草稿，Skill 的 onQuickSave 还调用父组件保存逻辑 | 两个编辑器均 import flow-canvas-editor.tsx；V2 文件存在不代表被这两页使用。画布仍经 PUT Bot 保存 | [当前画布][canvas]、[Skill 父组件][skill]、[意图父组件][intent]、[JSON 编辑](../../../web/src/app/workspace/bots/[botId]/flow-json-editor.tsx) |
-| BotProvider、聊天页面 | 会话列表/创建/修改/删除、历史 GET、标题 POST | ChatService；Chat/ChatDetails/history | [BotProvider](../../../web/src/components/providers/bot-provider.tsx)、[聊天页面](../../../web/src/app/workspace/bots/[botId]/chats/[chatId]/page.tsx)、[Chat 路由][chat-view] |
+| SkillEditor | GET /collections；POST /available_models；GET /mcp_tools；经更新器 PUT /bots/{id} | Skill 与候选/兜底联动保存，不存在本轮已发现的独立 Skill CRUD 接口 | [Skill 编辑器][skill]、[工具列表](../../../app/aperag/views/main.py#L221) |
+| FlowCanvasEditor / JSON 编辑 | onChange 更新父草稿，Skill 的 onQuickSave 还调用父组件保存逻辑 | 两个编辑器均 import flow-canvas-editor.tsx；V2 文件存在不代表被这两页使用。画布仍经 PUT Bot 保存 | [当前画布][canvas]、[Skill 父组件][skill]、[意图父组件][intent]、[JSON 编辑](../../../app/web/src/app/workspace/bots/[botId]/flow-json-editor.tsx) |
+| BotProvider、聊天页面 | 会话列表/创建/修改/删除、历史 GET、标题 POST | ChatService；Chat/ChatDetails/history | [BotProvider](../../../app/web/src/components/providers/bot-provider.tsx)、[聊天页面](../../../app/web/src/app/workspace/bots/[botId]/chats/[chatId]/page.tsx)、[Chat 路由][chat-view] |
 | ChatMessages / MessagePartsAi | WebSocket /bots/{id}/chats/{id}/connect；POST 消息反馈 | AgentMessage、实时事件、references 与 Skill 标签 | [消息组件][messages]、[AI 展示][ai-parts]、[事件类型][events] |
-| ChatInput | POST /chats/{id}/documents；GET /chats/{id}/documents/{id} | 上传附件及轮询；发送文件 id/name/previewUrl | [输入组件][input]、[附件路由](../../../aperag/views/chat_documents.py) |
+| ChatInput | POST /chats/{id}/documents；GET /chats/{id}/documents/{id} | 上传附件及轮询；发送文件 id/name/previewUrl | [输入组件][input]、[附件路由](../../../app/aperag/views/chat_documents.py) |
 | CollectionForm | POST /available_models；POST /collections；PUT /collections/{id} | CollectionCreate/Update/config | [知识库表单][collection-form]、[Collection 路由][collection-view] |
-| DocumentUpload | upload、staged、confirm | 文件暂存 UPLOADED，再确认入索引 | [上传组件](../../../web/src/app/workspace/collections/[collectionId]/documents/upload/document-upload.tsx)、[文档服务][document-service] |
-| UrlImport / TextImport | POST documents/fetch-url 或 documents/upload | URL 返回 results；文本包装 File；两者复用确认 | [URL 导入](../../../web/src/app/workspace/collections/[collectionId]/documents/upload/import/url-import.tsx)、[文本导入](../../../web/src/app/workspace/collections/[collectionId]/documents/upload/import/text-import.tsx) |
-| SearchTest | POST /collections/{id}/searches | SearchRequest 的多路召回配置，经动态 Flow 合并与重排 | [搜索组件](../../../web/src/app/workspace/collections/[collectionId]/search/search-test.tsx)、[CollectionService][collection-service] |
-| ProviderActions / 模型配置 | /llm_configuration、/llm_providers、/available_models 及模型相关操作 | Provider、模型 api/tags、Key 和默认模型；具体逐项见附表 | [供应商操作](../../../web/src/app/workspace/providers/provider-actions.tsx)、[默认模型](../../../web/src/app/workspace/providers/models-default-configuration.tsx)、[LLM 路由](../../../aperag/views/llm.py) |
-| PromptSettings / PromptCard | GET/PUT /prompts/user；DELETE 单项；POST reset | PromptTemplateService 保存默认模板；Agent 和索引接入程度不同 | [Prompt 页面组件][prompt-ui]、[Prompt 路由](../../../aperag/views/prompts.py) |
-| 问题生成与评测页面 | question-sets 与 evaluations 操作 | QuestionSetService / EvaluationService；模型配置和逐题结果 | [问题生成](../../../web/src/app/workspace/collections/[collectionId]/questions/[questionSetId]/question-generate.tsx)、[评测创建](../../../web/src/app/workspace/collections/[collectionId]/evaluations/evaluation-create.tsx)、[路由](../../../aperag/views/evaluation.py) |
-| BackupSettings | fetchWithAuth 调 backup/export、import/settings、import/prompts 和 Bot 创建/更新 | 备份由内联 Pydantic payload 处理；Bot 导入复用普通 Bot 接口 | [备份组件][backup-ui]、[备份路由](../../../aperag/views/backup.py) |
+| DocumentUpload | upload、staged、confirm | 文件暂存 UPLOADED，再确认入索引 | [上传组件](../../../app/web/src/app/workspace/collections/[collectionId]/documents/upload/document-upload.tsx)、[文档服务][document-service] |
+| UrlImport / TextImport | POST documents/fetch-url 或 documents/upload | URL 返回 results；文本包装 File；两者复用确认 | [URL 导入](../../../app/web/src/app/workspace/collections/[collectionId]/documents/upload/import/url-import.tsx)、[文本导入](../../../app/web/src/app/workspace/collections/[collectionId]/documents/upload/import/text-import.tsx) |
+| SearchTest | POST /collections/{id}/searches | SearchRequest 的多路召回配置，经动态 Flow 合并与重排 | [搜索组件](../../../app/web/src/app/workspace/collections/[collectionId]/search/search-test.tsx)、[CollectionService][collection-service] |
+| ProviderActions / 模型配置 | /llm_configuration、/llm_providers、/available_models 及模型相关操作 | Provider、模型 api/tags、Key 和默认模型；具体逐项见附表 | [供应商操作](../../../app/web/src/app/workspace/providers/provider-actions.tsx)、[默认模型](../../../app/web/src/app/workspace/providers/models-default-configuration.tsx)、[LLM 路由](../../../app/aperag/views/llm.py) |
+| PromptSettings / PromptCard | GET/PUT /prompts/user；DELETE 单项；POST reset | PromptTemplateService 保存默认模板；Agent 和索引接入程度不同 | [Prompt 页面组件][prompt-ui]、[Prompt 路由](../../../app/aperag/views/prompts.py) |
+| 问题生成与评测页面 | question-sets 与 evaluations 操作 | QuestionSetService / EvaluationService；模型配置和逐题结果 | [问题生成](../../../app/web/src/app/workspace/collections/[collectionId]/questions/[questionSetId]/question-generate.tsx)、[评测创建](../../../app/web/src/app/workspace/collections/[collectionId]/evaluations/evaluation-create.tsx)、[路由](../../../app/aperag/views/evaluation.py) |
+| BackupSettings | fetchWithAuth 调 backup/export、import/settings、import/prompts 和 Bot 创建/更新 | 备份由内联 Pydantic payload 处理；Bot 导入复用普通 Bot 接口 | [备份组件][backup-ui]、[备份路由](../../../app/aperag/views/backup.py) |
 
 市场、图谱管理、导出、配额、审计、用户、设置等其余接口的直接调用组件均已纳入[附表](http-api-component-matrix.md)；这些模块的每个字段尚未做与编排相同深度的执行核对。
 
@@ -65,7 +65,7 @@ BotConfigProvider 持有服务器配置快照。意图与 Skill 编辑器生成�
 | ChatMessage | YAML 无 faq_choice 枚举、options、skill_id；现有 SDK 有这些扩展 | Python ChatMessage 有 faq_choice/options，但无 skill_id；实时 BaseAgentResponse 有 skill_id |
 | CollectionConfig | YAML、生成类型与 Python 已含索引开关、模型、index_prompts、knowledge_graph_config | 通用 CollectionForm 只编辑其中子集，字段存在不等于可编辑或执行已接入 |
 
-依据：[Bot YAML][bot-yaml]、[Agent YAML][agent-yaml]、[Chat YAML][chat-yaml]、[Collection YAML][collection-yaml]、[后端模型][models]、[SDK BotConfig][sdk-bot-config]、[SDK Bot](../../../web/src/api/models/bot.ts)、[SDK BotCreate](../../../web/src/api/models/bot-create.ts)、[SDK BotUpdate](../../../web/src/api/models/bot-update.ts)、[SDK AgentMessage](../../../web/src/api/models/agent-message.ts)、[SDK ChatMessage](../../../web/src/api/models/chat-message.ts)、[编排自定义类型][types]。
+依据：[Bot YAML][bot-yaml]、[Agent YAML][agent-yaml]、[Chat YAML][chat-yaml]、[Collection YAML][collection-yaml]、[后端模型][models]、[SDK BotConfig][sdk-bot-config]、[SDK Bot](../../../app/web/src/api/models/bot.ts)、[SDK BotCreate](../../../app/web/src/api/models/bot-create.ts)、[SDK BotUpdate](../../../app/web/src/api/models/bot-update.ts)、[SDK AgentMessage](../../../app/web/src/api/models/agent-message.ts)、[SDK ChatMessage](../../../app/web/src/api/models/chat-message.ts)、[编排自定义类型][types]。
 
 ## 5 Bot 与意图字段如何保存和执行
 
@@ -124,22 +124,22 @@ BotConfigProvider 持有服务器配置快照。意图与 Skill 编辑器生成�
 | --- | --- | --- | --- |
 | Collection title/description/type | CollectionForm → POST/PUT Collection | 后端存元数据；通用表单 type 固定 document | [表单][collection-form]、[服务][collection-service] |
 | config.source 与外部来源参数 | API 模型有 local/FTP/S3/邮箱等相关字段；通用表单只选 system 并提交表单子集 | 不能把模型所有来源字段视为已有 UI；不同来源逐字段消费不在本轮深查内 | [表单][collection-form]、[模型][models] |
-| enable_vector/fulltext/knowledge_graph/summary/vision | CollectionForm 保存；vector/fulltext 当前 UI 禁用切换 | 索引任务按配置启用，搜索请求再决定启用哪些路；API 字段可用范围大于当前 UI 控件 | [表单][collection-form]、[索引管理](../../../aperag/index/manager.py) |
-| embedding/completion.{model,model_service_provider,custom_llm_provider} | available_models 返回选项，CollectionForm 提交 | 对应 embedding 与生成服务；UI 开 vision 要求 completion，索引源码还允许多模态 embedding 的图片路径 | [表单][collection-form]、[VisionIndexer](../../../aperag/index/vision_index.py) |
-| language / knowledge_graph_config.entity_types | schema 有；通用表单编辑 language，未发现 entity_types 编辑项 | 图谱 manager 读取实体类型；language 与模型最终语言效果不能只由字段存在认定 | [表单][collection-form]、[图谱配置](../../../aperag/graph/lightrag_manager.py) |
-| index_prompts.graph/summary/vision | schema 支持，通用 CollectionForm 未编辑/提交该项 | resolve_index_prompt 只有定义，所核对索引主路径没有调用；保存与执行未闭合 | [模型][models]、[PromptService][prompt-service]、[索引目录](../../../aperag/index/) |
-| SearchRequest.query 与各路 topk/similarity/keywords、rerank/save_to_history | SearchTest → POST /collections/{id}/searches | 非空召回配置建 DAG，merge→rerank；降级图谱优先，无统一最终 topk 保证 | [搜索 UI](../../../web/src/app/workspace/collections/[collectionId]/search/search-test.tsx)、[服务][collection-service] |
-| Provider 模型 api/tags | Provider/模型页面调用 LLM 接口 | 意图编辑筛 api=intent；Skill 模型按 enable_for_agent 标签筛选；前端候选和执行选模型逻辑需分别核对 | [意图][intent]、[Skill][skill]、[Provider 操作](../../../web/src/app/workspace/providers/[providerName]/models/model-actions.tsx) |
+| enable_vector/fulltext/knowledge_graph/summary/vision | CollectionForm 保存；vector/fulltext 当前 UI 禁用切换 | 索引任务按配置启用，搜索请求再决定启用哪些路；API 字段可用范围大于当前 UI 控件 | [表单][collection-form]、[索引管理](../../../app/aperag/index/manager.py) |
+| embedding/completion.{model,model_service_provider,custom_llm_provider} | available_models 返回选项，CollectionForm 提交 | 对应 embedding 与生成服务；UI 开 vision 要求 completion，索引源码还允许多模态 embedding 的图片路径 | [表单][collection-form]、[VisionIndexer](../../../app/aperag/index/vision_index.py) |
+| language / knowledge_graph_config.entity_types | schema 有；通用表单编辑 language，未发现 entity_types 编辑项 | 图谱 manager 读取实体类型；language 与模型最终语言效果不能只由字段存在认定 | [表单][collection-form]、[图谱配置](../../../app/aperag/graph/lightrag_manager.py) |
+| index_prompts.graph/summary/vision | schema 支持，通用 CollectionForm 未编辑/提交该项 | resolve_index_prompt 只有定义，所核对索引主路径没有调用；保存与执行未闭合 | [模型][models]、[PromptService][prompt-service]、[索引目录](../../../app/aperag/index) |
+| SearchRequest.query 与各路 topk/similarity/keywords、rerank/save_to_history | SearchTest → POST /collections/{id}/searches | 非空召回配置建 DAG，merge→rerank；降级图谱优先，无统一最终 topk 保证 | [搜索 UI](../../../app/web/src/app/workspace/collections/[collectionId]/search/search-test.tsx)、[服务][collection-service] |
+| Provider 模型 api/tags | Provider/模型页面调用 LLM 接口 | 意图编辑筛 api=intent；Skill 模型按 enable_for_agent 标签筛选；前端候选和执行选模型逻辑需分别核对 | [意图][intent]、[Skill][skill]、[Provider 操作](../../../app/web/src/app/workspace/providers/[providerName]/models/model-actions.tsx) |
 | Prompt 默认 agent_system/agent_query | PromptCard → PUT /prompts/user，删除/reset 同族接口 | Agent 解析已接入；Bot 专属模板优先，连接时读取 | [页面][prompt-ui]、[服务][prompt-service]、[执行][agent] |
-| Prompt 默认 index_graph/index_summary/index_vision | 同一 PromptCard 可保存 | 保存 API 已有；索引执行未接入解析器，不能提示为已改变实际索引模型指令 | [页面][prompt-ui]、[服务][prompt-service]、[索引](../../../aperag/index/) |
+| Prompt 默认 index_graph/index_summary/index_vision | 同一 PromptCard 可保存 | 保存 API 已有；索引执行未接入解析器，不能提示为已改变实际索引模型指令 | [页面][prompt-ui]、[服务][prompt-service]、[索引](../../../app/aperag/index) |
 
-CollectionService 将提交的 CollectionConfig 经 dumpCollectionConfig 序列化，Repository 直接替换 instance.config；未在该路径发现与旧配置的逐字段合并。因此通用表单未带回的高级配置不能视为必然保留，最终默认回填与丢值需保存回读验证。依据：[序列化](../../../aperag/schema/utils.py)、[更新方法][collection-service]、[Repository](../../../aperag/db/repositories/collection.py)。ModelSpec、IntentRouterLLMConfig、SkillRuntimeConfig 的字段命名不同，`timeout` 与 `timeout_ms` 等不能在转换时直接当作同一字段复制。
+CollectionService 将提交的 CollectionConfig 经 dumpCollectionConfig 序列化，Repository 直接替换 instance.config；未在该路径发现与旧配置的逐字段合并。因此通用表单未带回的高级配置不能视为必然保留，最终默认回填与丢值需保存回读验证。依据：[序列化](../../../app/aperag/schema/utils.py)、[更新方法][collection-service]、[Repository](../../../app/aperag/db/repositories/collection.py)。ModelSpec、IntentRouterLLMConfig、SkillRuntimeConfig 的字段命名不同，`timeout` 与 `timeout_ms` 等不能在转换时直接当作同一字段复制。
 
 ## 8 聊天请求、实时事件与历史的对接
 
 ### 发送到 WebSocket 的请求
 
-下面逐字段表针对 Agent 路径。ChatService 对 knowledge/common 的传统 Flow 路径从 `data` 或 `message` 取文本，而当前 ChatInput 发送 `query`；两者存在静态字段差异，不能把 Agent 请求模型直接当成所有 Bot 的共同协议。相关 Bot 是否仍在使用及实际交互需运行核对。依据：[ChatService](../../../aperag/service/chat_service.py)、[ChatInput][input]。
+下面逐字段表针对 Agent 路径。ChatService 对 knowledge/common 的传统 Flow 路径从 `data` 或 `message` 取文本，而当前 ChatInput 发送 `query`；两者存在静态字段差异，不能把 Agent 请求模型直接当成所有 Bot 的共同协议。相关 Bot 是否仍在使用及实际交互需运行核对。依据：[ChatService](../../../app/aperag/service/chat_service.py)、[ChatInput][input]。
 
 | 字段 | 当前前端来源 | 后端消费 |
 | --- | --- | --- |
@@ -168,7 +168,7 @@ CollectionService 将提交的 CollectionConfig 经 dumpCollectionConfig 序列�
 
 取消按钮当前通过 disconnect 后 connect 重建连接并复位本地 loading，没有发送专门的取消命令或等待服务端确认；这不证明服务端模型任务已经停止。连接鉴权使用 Cookie，实际 Bot/Chat 用户范围与代理行为仍需按后端和部署验证。
 
-依据：[前端事件处理][messages]、[AI Part][ai-parts]、[实时事件类型][events]、[格式化器](../../../aperag/agent/stream_formatters.py)、[聊天路由][chat-view]、[历史工具](../../../aperag/utils/history.py)。
+依据：[前端事件处理][messages]、[AI Part][ai-parts]、[实时事件类型][events]、[格式化器](../../../app/aperag/agent/stream_formatters.py)、[聊天路由][chat-view]、[历史工具](../../../app/aperag/utils/history.py)。
 
 ## 9 SDK 以外的请求与主定义缺项
 
@@ -184,7 +184,7 @@ CollectionService 将提交的 CollectionConfig 经 dumpCollectionConfig 序列�
 | /health、/v1/chat/completions、dev 的 /test/register_admin | 后端有，主 OpenAPI 不覆盖 | 健康、独立兼容协议、仅开发条件分别标记，不统一当作业务定义遗漏 |
 | POST /agent/message | 主定义和 SDK 都有，明示 Doc Only；无对应已挂载 HTTP 实现 | 只供消息模型说明，不能拿它替代 WebSocket 测试 |
 
-依据：[main.py](../../../aperag/views/main.py)、[备份 UI][backup-ui]、[备份路由](../../../aperag/views/backup.py)、[应用挂载](../../../aperag/app.py)、[OAuth 鉴权](../../../aperag/views/auth.py)、[MCP](../../../aperag/mcp/server.py)、[资源渲染](../../../web/src/components/markdown.tsx)、[用户附件展示](../../../web/src/components/chat/message-parts-user.tsx)。逐项方法、路径和调用点见[附表](http-api-component-matrix.md)。
+依据：[main.py](../../../app/aperag/views/main.py)、[备份 UI][backup-ui]、[备份路由](../../../app/aperag/views/backup.py)、[应用挂载](../../../app/aperag/app.py)、[OAuth 鉴权](../../../app/aperag/views/auth.py)、[MCP](../../../app/aperag/mcp/server.py)、[资源渲染](../../../app/web/src/components/markdown.tsx)、[用户附件展示](../../../app/web/src/components/chat/message-parts-user.tsx)。逐项方法、路径和调用点见[附表](http-api-component-matrix.md)。
 
 ## 10 差异汇总与后续边界
 
@@ -206,36 +206,36 @@ D01–D03 等会影响生成文件覆盖；本轮未运行 `api:build`、datamod
 
 本轮交付的是盘点事实，未批准或实施上述修正。运行配置、真实 HTTP/WS 请求响应、表单保存回读、跨 Provider 模型调用和用户隔离仍待验证；字段级深查未覆盖所有管理与集成模块。后续可据本表选定具体契约修正范围，再进入前后端模块拆分。
 
-生成流程依据：[Makefile](../../../Makefile)、[package.json](../../../web/package.json)、[生成器配置](../../../web/openapitools.json)。返回[当前说明](../design/current/README.md)或[文档入口](../../README.md)。
+生成流程依据：[Makefile](../../../app/Makefile)、[package.json](../../../app/web/package.json)、[生成器配置](../../../app/web/openapitools.json)。返回[当前说明](../../design/zh-CN/current/README.md)或[文档入口](../../README.md)。
 
-[client]: ../../../web/src/lib/api/client.ts
-[server]: ../../../web/src/lib/api/server.ts
-[bot-provider]: ../../../web/src/components/providers/bot-config-provider.tsx
-[updater]: ../../../web/src/app/workspace/bots/[botId]/bot-config-updater.ts
-[bot-view]: ../../../aperag/views/bot.py
-[bot-service]: ../../../aperag/service/bot_service.py
-[bot-form]: ../../../web/src/app/workspace/bots/[botId]/bot-form.tsx
-[intent]: ../../../web/src/app/workspace/bots/[botId]/intent-router/intent-router-editor.tsx
-[skill]: ../../../web/src/app/workspace/bots/[botId]/skills/skill-editor.tsx
-[types]: ../../../web/src/app/workspace/bots/[botId]/orchestration-types.ts
-[canvas]: ../../../web/src/app/workspace/bots/[botId]/flow-canvas-editor.tsx
-[agent]: ../../../aperag/service/agent_chat_service.py
-[session]: ../../../aperag/agent/agent_session_manager.py
-[chat-view]: ../../../aperag/views/chat.py
-[messages]: ../../../web/src/components/chat/chat-messages.tsx
-[input]: ../../../web/src/components/chat/chat-input.tsx
-[ai-parts]: ../../../web/src/components/chat/message-parts-ai.tsx
-[events]: ../../../aperag/agent/response_types.py
-[models]: ../../../aperag/schema/view_models.py
-[bot-yaml]: ../../../aperag/api/components/schemas/bot.yaml
-[agent-yaml]: ../../../aperag/api/components/schemas/agent.yaml
-[chat-yaml]: ../../../aperag/api/components/schemas/chat.yaml
-[collection-yaml]: ../../../aperag/api/components/schemas/collection.yaml
-[sdk-bot-config]: ../../../web/src/api/models/bot-config.ts
-[collection-form]: ../../../web/src/app/workspace/collections/collection-form.tsx
-[collection-view]: ../../../aperag/views/collections.py
-[collection-service]: ../../../aperag/service/collection_service.py
-[document-service]: ../../../aperag/service/document_service.py
-[prompt-ui]: ../../../web/src/app/workspace/prompts/prompt-settings.tsx
-[prompt-service]: ../../../aperag/service/prompt_template_service.py
-[backup-ui]: ../../../web/src/app/admin/configuration/backup-settings.tsx
+[client]: ../../../app/web/src/lib/api/client.ts
+[server]: ../../../app/web/src/lib/api/server.ts
+[bot-provider]: ../../../app/web/src/components/providers/bot-config-provider.tsx
+[updater]: ../../../app/web/src/app/workspace/bots/[botId]/bot-config-updater.ts
+[bot-view]: ../../../app/aperag/views/bot.py
+[bot-service]: ../../../app/aperag/service/bot_service.py
+[bot-form]: ../../../app/web/src/app/workspace/bots/[botId]/bot-form.tsx
+[intent]: ../../../app/web/src/app/workspace/bots/[botId]/intent-router/intent-router-editor.tsx
+[skill]: ../../../app/web/src/app/workspace/bots/[botId]/skills/skill-editor.tsx
+[types]: ../../../app/web/src/app/workspace/bots/[botId]/orchestration-types.ts
+[canvas]: ../../../app/web/src/app/workspace/bots/[botId]/flow-canvas-editor.tsx
+[agent]: ../../../app/aperag/service/agent_chat_service.py
+[session]: ../../../app/aperag/agent/agent_session_manager.py
+[chat-view]: ../../../app/aperag/views/chat.py
+[messages]: ../../../app/web/src/components/chat/chat-messages.tsx
+[input]: ../../../app/web/src/components/chat/chat-input.tsx
+[ai-parts]: ../../../app/web/src/components/chat/message-parts-ai.tsx
+[events]: ../../../app/aperag/agent/response_types.py
+[models]: ../../../app/aperag/schema/view_models.py
+[bot-yaml]: ../../../app/aperag/api/components/schemas/bot.yaml
+[agent-yaml]: ../../../app/aperag/api/components/schemas/agent.yaml
+[chat-yaml]: ../../../app/aperag/api/components/schemas/chat.yaml
+[collection-yaml]: ../../../app/aperag/api/components/schemas/collection.yaml
+[sdk-bot-config]: ../../../app/web/src/api/models/bot-config.ts
+[collection-form]: ../../../app/web/src/app/workspace/collections/collection-form.tsx
+[collection-view]: ../../../app/aperag/views/collections.py
+[collection-service]: ../../../app/aperag/service/collection_service.py
+[document-service]: ../../../app/aperag/service/document_service.py
+[prompt-ui]: ../../../app/web/src/app/workspace/prompts/prompt-settings.tsx
+[prompt-service]: ../../../app/aperag/service/prompt_template_service.py
+[backup-ui]: ../../../app/web/src/app/admin/configuration/backup-settings.tsx

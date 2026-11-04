@@ -1,1 +1,3 @@
-scripts/*.sh text eol=lf
+app/scripts/**/*.sh text eol=lf
+app/deploy/**/*.sh text eol=lf
+app/scripts/hooks/pre-commit text eol=lf

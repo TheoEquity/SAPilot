@@ -1,219 +1,82 @@
-# SAPilot v1.2.0 – SAP Operations AI Agent Platform
+# SAPilot 运维领航员
 
-[Documentation index](docs/README.md) · [Project layout and Git submission rules](specs/project-layout.md)
+SAPilot 基于 ApeRAG 二次开发，面向 SAP 知识问答、FAQ 故障处理、ABAP 代码阅读与运维制度检索。项目仓库：[TheoEquity/SAPilot](https://github.com/TheoEquity/SAPilot)。功能目标、当前实现和运行验收分别记录。
 
-SAPilot is an enterprise-grade AI assistant for SAP operations scenarios. Built as a secondary development of [apeRAG](https://github.com/apecloud/ApeRAG), it inherits powerful hybrid retrieval (Graph RAG, vector and full-text search) and multimodal processing capabilities, and is deeply customized for SAP operations: DingTalk integration, code attachment analysis, centralized prompt management, Agent orchestration UI, and more — enabling SAP consultants to resolve operations issues efficiently through natural language Q&A, screenshot diagnosis, and code document interpretation.
+## 项目目录
 
-> **Important:** This project is a fork of apeRAG, independently maintained at [TheoEquity/SAPilot](https://github.com/TheoEquity/SAPilot). The original apeRAG installation instructions and documentation are no longer applicable to this project.
-
-## Project Information Map
-
-This map helps the project owner find materials and keep track of how the project is organized. It can be refreshed during occasional documentation reviews; routine endpoint, field, or page changes do not require README updates. The README has no role in development execution or acceptance. Development conventions are referenced directly by [AGENTS.md](AGENTS.md).
-
-| What to find | Location | Purpose |
-| --- | --- | --- |
-| Product goals and SAP context | [Project context](docs/SAPILOT_PROJECT_CONTEXT.md) | The problem, business scope, and acceptance goals |
-| High-level architecture | [Engineering architecture](specs/engineering-architecture.md) | Module responsibilities, boundaries, and dependencies, without endpoint or field inventories |
-| Development conventions | [specs/](specs/) | Workflow, frontend, backend, database, and API conventions, separate from the architecture overview |
-| Development environment and file placement | [Environment guide](specs/development-guide.md), [project layout](specs/project-layout.md) | Local setup, running the project, and where files belong |
-| Implementation details and flows | [Current implementation explanations](docs/zh-CN/design/current/) | Message processing, ingestion, retrieval, storage, and related implementation details |
-| Discussion drafts and alternatives | [discussions/](docs/zh-CN/design/discussions/) | Ideas, rationale, and alternatives; discussion does not automatically establish a development decision |
-| On-demand development prompt | [Development task template](prompts/development-task.md) | A prompt to review, copy, and fill in once a requirement is clear; not a required step in routine development |
-| Main project steps | [Development roadmap record](records/development-roadmap.md) | Overall steps, stage priorities, and open questions |
-| Implementation, review, and verification records | [records/](records/) | What changed in a particular round, what was checked, and what remains; kept separate from architecture and conventions |
-| Deployment, integrations, and other materials | [Documentation index](docs/README.md) | Deployment explanations, DingTalk and MCP integrations, test guides, and references |
-| Older materials | [Archive](docs/archive/), [historical designs](docs/zh-CN/design/historical/), [preserved drafts](docs/zh-CN/design/pending-review/) | Background and earlier proposals, rather than evidence of current behavior or development requirements |
-| Source code and automated tests | [aperag/](aperag/), [web/](web/), [tests/](tests/) | Backend, frontend, and test code |
-| Scripts and configuration templates | [scripts/](scripts/), [config/](config/), [envs/](envs/), [deploy/](deploy/) | Scripts, application configuration, and environment and deployment templates |
-| API maintenance and generated artifacts | [API conventions](specs/api-contract-conventions.md) | Python routes and models in `aperag/views/` and `aperag/schema/`; generated clients in `web/src/api/generated/`; local exported documentation in `.run/openapi/` |
-| Private materials and temporary artifacts | Sibling `../SAPilot-data/`; local `.run/` | Private documents, raw evaluations, and model weights in the former; temporary runtime and generated artifacts in the latter. Neither is committed. `models/` contains configuration catalogs, not weights |
-
-[Quick Start](#quick-start)
-- [Key Features](#key-features)
-- [Docker Compose Deployment](#docker-compose-deployment)
-- [Lightweight Deploy (8G/20G Machine)](#8g20g-local-lightweight-deployment)
-- [Development Guide](#development-guide)
-- [Acknowledgments](#acknowledgments)
-- [License](#license)
-
-## Quick Start
-
-The simplest way to deploy SAPilot is via Docker Compose. Ensure you have [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed before running:
-
-```bash
-git clone https://github.com/TheoEquity/SAPilot.git
-cd SAPilot
-cp envs/env.template .env
-docker-compose up -d
+```text
+SAPilot/                 项目总目录
+├─ AGENTS.md             Agent 工作入口，引用具体规约
+├─ README.md             项目入口与导航
+├─ app/                  业务代码
+├─ maintenance/          Swagger、Langfuse 等维护工具
+├─ data/                 业务数据、摄取原文、测试数据集
+├─ runtime/              日志、原始报表、截图、缓存和临时文件
+└─ docs/                 长期维护的项目资料
+   ├─ specs/             正式开发规约、架构和目录约定
+   ├─ prompts/           开发建议、需求启动 Prompt 模板
+   ├─ design/            产品设计、方案讨论和历史设计
+   └─ records/           实施、审查和验证的结论记录
 ```
 
-After services are running, access in your browser:
-- **Web Interface**: http://localhost:3000/
-- **API Documentation**: http://localhost:8000/docs
+`app/` 包含 `aperag/` 后端、`config/` 后台任务配置、`web/` 前端、`tests/`、`scripts/`、`models/` 模型配置，以及 Makefile、Dockerfile、Compose 和依赖清单。Python 包名继续使用 `aperag`。
 
-[Read Chinese Documentation](README-zh.md)
+`data/` 与 `runtime/` 已放入同一个总目录，整体忽略、不提交 Git。前者保存原始材料和可复用题集，后者保存日志、原始评测、私有凭据及历史运行材料。依赖和工具自动管理的 `.venv`、`node_modules`、`.next` 等可留在 `app/` 内，同样不提交。Git、GitHub 和本机 Agent 的隐藏元数据保留工具要求的位置。
 
-## Docker Compose Deployment
+开发用建议 Prompt 在 `docs/prompts/`；产品运行时模型 Prompt 属于 `app/` 业务配置。整理过的验证结论在 `docs/records/`，大量原始输出在 `runtime/`。
 
-### Prerequisites
+## 本地访问
 
-- CPU >= 2 cores
-- RAM >= 4 GiB
-- Docker & Docker Compose
+| 服务 | 地址 |
+| --- | --- |
+| SAPilot 前端 | [localhost:3000](http://localhost:3000) |
+| API 健康检查 | [localhost:8000/health](http://localhost:8000/health) |
+| Swagger UI | [localhost:8000/docs](http://localhost:8000/docs) |
+| ReDoc | [localhost:8000/redoc](http://localhost:8000/redoc) |
+| Langfuse | [localhost:3300](http://localhost:3300) |
 
-### Full Startup
+Swagger 是 API 自带界面，入口说明集中在 `maintenance/swagger/`；Langfuse 是独立服务，部署配置在 `maintenance/langfuse/`。
 
-```bash
-cd SAPilot
-cp envs/env.template .env
-docker-compose up -d
-```
+## 启动位置
 
-### MCP (Model Context Protocol) Support
-
-SAPilot supports [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) integration, allowing AI assistants to interact directly with your knowledge base. After starting services, configure your MCP client:
-
-```json
-{
-  "mcpServers": {
-    "sapilot-mcp": {
-      "url": "http://localhost:8000/mcp/",
-      "headers": {
-        "Authorization": "Bearer your-api-key-here"
-      }
-    }
-  }
-}
-```
-
-**Authentication** (by priority):
-1. **HTTP Authorization Header** (Recommended): `Authorization: Bearer your-api-key`
-2. **Environment Variable** (Fallback): `APERAG_API_KEY=your-api-key`
-
-Replace `your-api-key-here` with a valid API key from your SAPilot web settings.
-
-### Enhanced Document Parsing
-
-SAPilot supports advanced document parsing powered by MinerU. For local machines with limited resources, keep it disabled unless explicitly needed:
-
-<details>
-<summary><strong>Commands</strong></summary>
+按[开发环境指南](docs/specs/development-guide.md)准备依赖和本地配置。应用配置为 `app/.env`，模板在 `app/envs/`。应用命令在 `app/` 执行，各服务使用独立终端：
 
 ```bash
-DOCRAY_HOST=http://aperag-docray:8639 docker compose --profile docray up -d
-DOCRAY_HOST=http://aperag-docray-gpu:8639 docker compose --profile docray-gpu up -d
-```
-
-Or use Makefile:
-
-```bash
-make compose-up WITH_DOCRAY=1
-make compose-up WITH_DOCRAY=1 WITH_GPU=1
-```
-
-</details>
-
-## 8G/20G Local Lightweight Deployment
-
-For machines with approximately 8GB RAM and 20GB disk, use lightweight mode:
-
-```bash
-cp envs/env.dev-lite.template .env
-bash scripts/dev-lite-start.sh
-```
-
-This mode automatically reduces Elasticsearch heap, Celery concurrency, and database connection pool sizes — suitable for resource-constrained development machines.
-
-## Key Features
-
-### apeRAG Foundation
-
-1. **Hybrid Retrieval Engine**: Combines Graph RAG, vector search, full-text search, summary retrieval, and vision search
-2. **Five Index Types**: Vector, Full-text, Graph, Summary, and Vision
-3. **Intelligent AI Agents**: MCP tool support, automatic collection discovery, smart search, web search
-4. **Enhanced Graph RAG**: Deeply modified LightRAG with entity normalization
-5. **Multimodal Processing**: Image, chart, and visual content analysis
-6. **Production-Grade Deployment**: Docker Compose and Kubernetes supported
-7. **Enterprise Management**: Audit logs, LLM model management, document management UI
-
-### SAPilot Custom Features
-
-1. **DingTalk Integration**: DingTalk Stream bot接入, supporting image diagnosis and code attachment analysis
-2. **Code Attachment Analysis**: DingTalk and web support for uploading code files, .doc/.docx documents; small document full-text injection preferred
-3. **Skill Orchestration UI v2**: Visual intent routing, skill configuration, Flow Canvas editor
-4. **Centralized Prompt Management**: Edit all 5 prompt templates in `/workspace/prompts` with batch reset
-5. **Configuration Import/Export**: Admin can export/import bot configs, prompts, and system settings in one click via `/admin/configuration`
-6. **API Key Management**: Token generation for users and API access
-7. **Quota Management**: Per-user quota configuration to prevent resource abuse
-
-## Development Guide
-
-### Environment Setup
-
-```bash
-git clone https://github.com/TheoEquity/SAPilot.git
-cd SAPilot
-cp envs/env.template .env
-```
-
-### Start Infrastructure
-
-```bash
+cd app
 make compose-infra
+make run-backend
+make run-celery
+make run-frontend
 ```
 
-Starts 4 core infrastructure containers: PostgreSQL, Redis, Qdrant, Elasticsearch.
+上述 API、Worker、前端是分别启动的常驻进程。业务数据库和对象存储的数据卷不随目录整理删除。
 
-### Install Backend Dependencies
+Langfuse 在项目总目录启动：
 
-```bash
-.venv/bin/uv sync
+```powershell
+python maintenance/langfuse/setup.py
+docker compose --env-file runtime/private/langfuse.env -f maintenance/langfuse/compose.yaml up -d
 ```
 
-This project uses `uv` for Python dependency management.
+凭据生成器保留已有文件。停止方法及工具说明见[维护入口](maintenance/README.md)。运行日志统一在 `runtime/logs/`；`make clean` 会删除 Docker 数据卷，不用于普通临时文件清理。
 
-### Start Backend
+## 文档导航
 
-```bash
-.venv/bin/uvicorn aperag.app:app --host 0.0.0.0 --port 8000 --loop uvloop
-```
+- [项目目标与 SAP 约束](docs/SAPILOT_PROJECT_CONTEXT.md)
+- [文档总入口](docs/README.md)
+- [目录约定](docs/specs/project-layout.md)、[开发流程](docs/specs/development-workflow.md)
+- [当前架构与消息流程](docs/design/zh-CN/current/current-architecture-and-message-flow.md)
+- [开发 Prompt 模板](docs/prompts/development-task.md)
+- [本轮目录重组与验证](docs/records/project-layout-reorganization-20261102.md)
 
-### Start Frontend
+正式开发要求由 `AGENTS.md` 直接引用具体规约；讨论稿、建议模板和历史结果各自保留状态。
 
-```bash
-cd web
-npm install
-npm run dev
-```
+## 本轮验证范围
 
-Frontend runs at http://localhost:3000/.
+2026-11-02 已验证新目录下的登录、Bot 页面、实际检索与模型回答、文本上传、Worker 解析及向量/全文索引、搜索、文件下载，以及 Langfuse 接收模型与工具追踪。测试资源单独创建并回收，原有数据库卷和知识库保留。详细检查和限制见本轮验证记录；这不代表完整业务、全部文档质量或生产容量验收。
 
-### Type Checking and Code Quality
+现有配置未设置自动标题生成的默认模型，标题接口仍可能返回 400；聊天正文可正常完成，本次没有更换模型或扩大为配置修复。
 
-```bash
-# Backend single-file syntax check
-.venv/bin/python -m py_compile <file.py>
+## 来源与许可证
 
-# Backend lint
-.venv/bin/python -m ruff check <files>
-
-# Frontend full type check
-cd web && yarn tsc --noEmit --pretty false
-
-# Frontend code formatting
-npx prettier --write <files>
-```
-
-## Acknowledgments
-
-SAPilot is built as a secondary development of [apeRAG](https://github.com/apecloud/ApeRAG). Graph retrieval capabilities in apeRAG are powered by a deeply modified version of [LightRAG](https://github.com/HKUDS/LightRAG):
-
-- **Paper**: "LightRAG: Simple and Fast Retrieval-Augmented Generation" ([arXiv:2410.05779](https://arxiv.org/abs/2410.05779))
-- **Authors**: Zirui Guo, Lianghao Xia, Yanhua Yu, Tu Ao, Chao Huang
-- **License**: MIT License
-
-We have extensively modified LightRAG to support production-grade concurrent processing, distributed task queues (Celery/Prefect), and stateless operations. See our [LightRAG modifications changelog](./aperag/graph/lightrag/CHANGELOG.md) for details.
-
-## License
-
-SAPilot is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
+项目继承 [ApeRAG](https://github.com/apecloud/ApeRAG) 的基础能力，许可证见 [LICENSE](LICENSE)。
