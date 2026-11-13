@@ -2,6 +2,7 @@ import type { ChatDetails } from '@/api/generated/models';
 import { UploadDocumentResponseStatus } from '@/api/generated/models';
 import { apiClient } from '@/lib/api/client';
 import _ from 'lodash';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -28,6 +29,7 @@ const isImageFile = (file: File) =>
   /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name);
 
 export const useChatAttachments = (chat: ChatDetails) => {
+  const pageChat = useTranslations('page_chat');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   const addFilesToAttachments = useCallback(
@@ -147,20 +149,30 @@ export const useChatAttachments = (chat: ChatDetails) => {
     await Promise.all(
       newPending.map(async (attachment) => {
         const file = attachment.file;
-        const res =
-          await apiClient.chats.uploadChatDocumentViewApiV1ChatsChatIdDocumentsPost(
-            encodeURIComponent(chatId),
-            { file },
+        let res;
+        try {
+          res =
+            await apiClient.chats.uploadChatDocumentViewApiV1ChatsChatIdDocumentsPost(
+              encodeURIComponent(chatId),
+              { file },
+            );
+        } catch {
+          setAttachments((items) =>
+            items.filter((item) => item.id !== attachment.id),
           );
+          onFileReject(file, pageChat('invalid_attachment'));
+          return;
+        }
         const documentId = res.data.id;
         if (documentId) {
           setAttachments((items) => {
             const item = items.find((item) => item.id === attachment.id);
             if (!item) return items;
             item.document_id = documentId;
-            item.progress_status = isImageFile(item.file)
-              ? 'success'
-              : 'uploaded';
+            item.progress_status =
+              isImageFile(item.file) || res.data.status === 'COMPLETE'
+                ? 'success'
+                : 'uploaded';
             if (isImageFile(item.file)) {
               item.previewUrl = URL.createObjectURL(item.file);
             }
@@ -169,7 +181,7 @@ export const useChatAttachments = (chat: ChatDetails) => {
         }
       }),
     );
-  }, [chat.id]);
+  }, [chat.id, onFileReject, pageChat]);
 
   useEffect(() => {
     onAttachmentsChange();

@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from aperag.agent.sap_scenarios import SkillToolScope
+
 
 def completion_service():
     tree = ast.parse(Path('aperag/llm/completion/completion_service.py').read_text(encoding='utf-8'))
@@ -56,7 +58,7 @@ async def test_sdk_qwen_request_is_fast_without_mutating_explicit_request_metada
 
     tree = ast.parse(Path('aperag/agent/completion_llm.py').read_text(encoding='utf-8'))
     cls = next(n for n in tree.body if isinstance(n, ast.ClassDef))
-    scope = {'OpenAIAugmentedLLM': Base}
+    scope = {'OpenAIAugmentedLLM': Base, 'SkillToolScope': SkillToolScope}
     exec(compile(ast.Module(body=[cls], type_ignores=[]), 'completion-llm', 'exec'), scope)
     params = Params()
     used = await scope['CompletionAwareOpenAILLM']().generate('question', params)
@@ -73,7 +75,7 @@ async def test_sdk_publishes_only_final_answer_instead_of_tool_planning_messages
 
     tree = ast.parse(Path('aperag/agent/completion_llm.py').read_text(encoding='utf-8'))
     cls = next(n for n in tree.body if isinstance(n, ast.ClassDef))
-    scope = {'OpenAIAugmentedLLM': Base}
+    scope = {'OpenAIAugmentedLLM': Base, 'SkillToolScope': SkillToolScope}
     exec(compile(ast.Module(body=[cls], type_ignores=[]), 'completion-llm', 'exec'), scope)
     llm = scope['CompletionAwareOpenAILLM']()
     assert await llm.generate_str('question') == 'Evidence-based answer.'

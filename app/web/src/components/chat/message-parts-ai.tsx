@@ -25,7 +25,7 @@ export const MessagePartsAi = ({
   loading: boolean;
   parts: ChatMessage[];
   hanldeMessageFeedback: (part: ChatMessage, feedback: Feedback) => void;
-  onFaqChoice: (action: string, label: string) => void;
+  onFaqChoice: (action: string, label: string, turnId: string) => void;
 }) => {
   const pageChat = useTranslations('page_chat');
   const { bot } = useBotContext();

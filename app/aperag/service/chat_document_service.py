@@ -19,14 +19,30 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException, UploadFile
 
+from aperag.agent.sap_scenarios import is_code_orchestration
 from aperag.db.models import random_id
 from aperag.db.ops import async_db_ops
+from aperag.objectstore.base import get_async_object_store
 from aperag.schema import view_models
 from aperag.service.chat_collection_service import chat_collection_service
 from aperag.service.document_service import document_service
 from aperag.utils.utils import utc_now
 
 logger = logging.getLogger(__name__)
+CODE_SUFFIXES = {".abap", ".java"}
+MAX_CODE_BYTES = 48 * 1024
+
+
+def decode_source_code(data: bytes) -> str:
+    if not data or len(data) > MAX_CODE_BYTES:
+        raise ValueError("Code files must be nonempty and at most 48 KiB")
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValueError("Code files must be UTF-8") from exc
+    if not text.strip() or any(ord(char) < 32 and char not in "\r\n\t" for char in text):
+        raise ValueError("Code files must contain plain text")
+    return text
 
 
 class ChatDocumentService:
@@ -39,13 +55,33 @@ class ChatDocumentService:
 
     async def upload_chat_document(self, chat_id: str, user_id: str, file: UploadFile) -> view_models.Document:
         """Upload chat document to user's chat collection"""
+        original_filename = file.filename or "attachment"
+        source_code = Path(original_filename).suffix.lower() in CODE_SUFFIXES
+        chat = await self.db_ops.query_chat_for_user(user_id, chat_id)
+        bot = await self.db_ops.query_bot(user_id, chat.bot_id) if chat else None
+        if not bot:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        code_agent = bool(
+            bot.config and is_code_orchestration(view_models.BotConfig.model_validate_json(bot.config).orchestration)
+        )
+        if code_agent and not source_code:
+            raise HTTPException(status_code=400, detail="The Code Agent accepts .abap or .java files")
+        if source_code:
+            if not code_agent:
+                raise HTTPException(status_code=400, detail="Upload ABAP or Java files in the Code Agent")
+            try:
+                decode_source_code(await file.read(MAX_CODE_BYTES + 1))
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            finally:
+                await file.seek(0)
+
         # Get user's chat collection (should exist from registration)
         collection = await chat_collection_service.get_user_chat_collection(user_id)
         if not collection:
             # Create if missing (fallback)
             collection = await chat_collection_service.create_user_chat_collection(user_id)
 
-        original_filename = file.filename or "attachment"
         unique_filename = self._build_unique_filename(original_filename)
         file.filename = unique_filename
 
@@ -55,16 +91,47 @@ class ChatDocumentService:
             "file_type": "chat_upload",
             "original_name": original_filename,
         }
+        if source_code:
+            doc_metadata["source_code"] = True
 
         # Use document service to create document
         documents = await document_service.create_documents(
-            user_id, collection.id, [file], doc_metadata, ignore_duplicate=True
+            user_id, collection.id, [file], doc_metadata, ignore_duplicate=True, index_documents=not source_code
         )
 
         if not documents.items:
             raise HTTPException(status_code=500, detail="Failed to upload document")
 
         return documents.items[0]
+
+    async def read_code_attachments(
+        self, user_id: str, chat_id: str, files: list[view_models.File],
+    ) -> list[dict[str, str]]:
+        if len(files) != 1 or not files[0].id:
+            raise ValueError("Select one code file")
+        document = await self.db_ops.query_document_by_id(files[0].id)
+        if not document or document.user != user_id:
+            raise ValueError("Code attachment unavailable")
+        metadata = json.loads(document.doc_metadata or "{}")
+        suffix = Path(document.name).suffix.lower()
+        if (
+            suffix not in CODE_SUFFIXES
+            or metadata.get("chat_id") != chat_id
+            or metadata.get("file_type") != "chat_upload"
+            or metadata.get("source_code") is not True
+        ):
+            raise ValueError("Code attachment unavailable")
+        path = f"{document.object_store_base_path()}/original{suffix}"
+        result = await get_async_object_store().get(path)
+        if not result:
+            raise ValueError("Code attachment unavailable")
+        stream, _ = result
+        content = bytearray()
+        async for part in stream:
+            content.extend(part)
+            if len(content) > MAX_CODE_BYTES:
+                raise ValueError("Code attachment too large")
+        return [{"name": metadata.get("original_name") or document.name, "code": decode_source_code(bytes(content))}]
 
     @staticmethod
     def _build_unique_filename(filename: str) -> str:
@@ -81,12 +148,16 @@ class ChatDocumentService:
         if not collection:
             return None
 
-        # Get document
         document = await self.db_ops.query_document_by_id(document_id)
         if not document or document.collection_id != collection.id:
             return None
-
-        return document
+        try:
+            metadata = json.loads(document.doc_metadata or "{}")
+        except ValueError:
+            return None
+        if metadata.get("file_type") != "chat_upload" or metadata.get("chat_id") != chat_id:
+            return None
+        return await document_service.get_document(user_id, collection.id, document_id)
 
     async def get_documents_metadata(self, chat_id: str, document_ids: List[str], user_id: str) -> List[Dict[str, Any]]:
         """Get metadata for documents to be stored in chat message"""

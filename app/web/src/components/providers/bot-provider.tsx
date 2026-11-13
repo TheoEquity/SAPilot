@@ -14,6 +14,7 @@ import type {
 import { useLocale } from 'next-intl';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext } from 'react';
+import { toast } from 'sonner';
 
 export type ProviderModels = {
   label?: string | null;
@@ -154,7 +155,29 @@ export const BotProvider = ({
             {
               language: locale,
             },
+            undefined,
+            { validateStatus: (status) => status === 200 || status === 400 },
           );
+        if (titleRes.status === 400) {
+          const errorBody = titleRes.data as unknown as {
+            detail?: string | { error_code?: string; message?: string };
+            message?: string;
+          };
+          const { detail } = errorBody;
+          if (
+            typeof detail === 'object' &&
+            detail?.error_code === 'LLM_MODEL_NOT_FOUND' &&
+            detail.message === 'Background task default model not configured'
+          ) {
+            return;
+          }
+          const message =
+            typeof detail === 'string'
+              ? detail
+              : (detail?.message ?? errorBody.message);
+          if (message) toast.error(message);
+          throw new Error(message || 'Chat title generation failed');
+        }
         const title = titleRes.data.title;
         if (title) {
           await apiClient.chats.updateChatViewApiV1BotsBotIdChatsChatIdPut(
