@@ -153,6 +153,7 @@ def create_assistant_message(
     urls: List[str] = None,
     trace_id: Optional[str] = None,
     metadata: Optional[Dict] = None,
+    faq_choice: Optional[str] = None,
 ) -> StoredChatMessage:
     """Create an assistant message with optional thinking steps and references"""
     if not message_id:
@@ -204,6 +205,10 @@ def create_assistant_message(
             )
         )
 
+    if faq_choice:
+        parts.append(StoredChatMessagePart(
+            chat_id=chat_id, message_id=message_id, trace_id=trace_id, type="faq_choice", content=faq_choice,
+        ))
     return StoredChatMessage(parts=parts)
 
 

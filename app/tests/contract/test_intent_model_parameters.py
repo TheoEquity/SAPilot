@@ -115,6 +115,17 @@ def harness(monkeypatch):
     monkeypatch.setattr(manager_scope["ChatSession"], "initialize", initialize)
     manager = SimpleNamespace(get_or_create_session=AsyncMock(side_effect=manager_scope["get_or_create_session"]))
     scope = {
+        "FAQ_ACTIONS": {"faq_expand", "faq_end"},
+        "FAQ_CORRECTION_ROUTE": "[FAQ_CORRECTION]",
+        "FAQ_EXPANSION": "sap_faq_expansion",
+        "is_code_orchestration": lambda orchestration: False,
+        "SCOPED_SCENARIOS": set(),
+        "CODE_SCENARIO": "sap_code",
+        "TCODE_SCENARIO": "sap_tcode",
+        "FAQ_SCENARIO": "sap_faq",
+        "POLICY_SCENARIO": "sap_policy",
+        "TECHNICAL_SCENARIO": "sap_technical",
+        "GENERAL_SCENARIO": "sap_general",
         "view_models": models,
         "RequestParams": SimpleNamespace,
         "SimpleMemory": Memory,
@@ -189,6 +200,7 @@ def harness(monkeypatch):
         rule_match=scope["try_hard_rules_match"],
         execute_skill=execute_skill,
         configuration_error=scope["AgentConfigurationError"],
+        route=scope["route_intent"],
     )
 
 
@@ -331,6 +343,20 @@ def test_classification_output_and_fallback_stay_unchanged(harness, response, ex
     h.llm.generate_str.return_value = response
     run(h)
     assert_routed(h, expected)
+
+
+@pytest.mark.parametrize("response, expected", [("[FAQ_CORRECTION]", "[FAQ_CORRECTION]"), ("selected", "first")])
+def test_faq_correction_can_override_a_normal_rule_only_when_classified(harness, response, expected):
+    h = harness
+    h.router.mode = "rules+llm"
+    h.router.rules = [models.IntentRouterRule(rule_type="keyword", value="SAP", target_skill_id="first")]
+    h.llm.generate_str.return_value = response
+    result = asyncio.run(h.route(
+        h.message, h.router, [], user="user-a", chat_id="chat-a", resolved_system_prompt=None,
+        get_agent_session=h.service._get_agent_session, faq_correction_context=("原问题", "FAQ 答复"),
+    ))
+    assert result == expected
+    assert "FAQ 答复" in h.llm.generate_str.await_args.args[0]
 
 
 @pytest.mark.parametrize(

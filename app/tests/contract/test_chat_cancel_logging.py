@@ -67,7 +67,10 @@ def boundary(monkeypatch):
     service.chat_service.register_message_queue = AsyncMock(return_value="existing-trace")
     service.chat_service._save_conversation_history = AsyncMock()
     service.chat_service._format_exception_to_error_response = lambda error, language: {"type": "error", "message": str(error)}
-    service.chat_service.db_ops = SimpleNamespace(query_bot=AsyncMock(return_value=SimpleNamespace(config=None)))
+    service.chat_service.db_ops = SimpleNamespace(
+        query_bot=AsyncMock(return_value=SimpleNamespace(config=None)),
+        query_chat=AsyncMock(return_value=SimpleNamespace(id="chat")),
+    )
     service._parse_websocket_message = lambda data: (SimpleNamespace(query=data, files=[], language="en-US"), None)
     return SimpleNamespace(service=service, listener=listener)
 
@@ -295,7 +298,7 @@ def test_early_next_message_is_preserved_without_concurrent_receive(boundary):
             finally:
                 await queue.close()
 
-        async def save(*args):
+        async def save(*args, **kwargs):
             if args[3] == "second":
                 second_completed.set()
 

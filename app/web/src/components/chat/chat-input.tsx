@@ -70,6 +70,13 @@ export const ChatInput = ({
   onCancel: () => void;
 }) => {
   const { mention, bot } = useBotContext();
+  const activeSkills =
+    bot?.config?.orchestration?.skills?.filter(
+      (skill) => skill.enabled !== false,
+    ) || [];
+  const codeAgent =
+    activeSkills.length > 0 &&
+    activeSkills.every((skill) => skill.category === 'sap_code');
   const [isComposing, setIsComposing] = useState<boolean>(false);
   const { open, isMobile } = useSidebar();
   const { collections } = useBotContext();
@@ -257,7 +264,7 @@ export const ChatInput = ({
 
           <Label>
             <Mention
-              trigger={mention ? '@' : ''}
+              trigger={mention && !codeAgent ? '@' : ''}
               className="w-full"
               open={mentionOpen}
               onOpenChange={setMentionOpen}
@@ -278,9 +285,13 @@ export const ChatInput = ({
                 <Textarea
                   className="resize-none rounded-xl pb-20"
                   value={query}
-                  placeholder={mention ? page_chat('mention_a_collection') : ''}
+                  placeholder={
+                    mention && !codeAgent
+                      ? page_chat('mention_a_collection')
+                      : ''
+                  }
                   disabled={disabled}
-                  onPaste={handlePaste}
+                  onPaste={codeAgent ? undefined : handlePaste}
                 />
               </MentionInput>
               <MentionContent className="w-60">
@@ -311,8 +322,12 @@ export const ChatInput = ({
               <div className="flex gap-2">
                 <FileUpload
                   maxFiles={1}
-                  maxSize={100 * 1024 * 1024}
-                  accept=".pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.webp"
+                  maxSize={codeAgent ? 48 * 1024 : 100 * 1024 * 1024}
+                  accept={
+                    codeAgent
+                      ? '.abap,.java'
+                      : '.pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.webp'
+                  }
                   value={attachments.map((f) => f.file)}
                   onFileReject={onFileReject}
                   onFileValidate={onFileValidate}
@@ -331,35 +346,39 @@ export const ChatInput = ({
                       </FileUploadTrigger>
                     </TooltipTrigger>
                     <TooltipContent>
-                      上传文件或图片，支持粘贴截图
+                      {codeAgent
+                        ? page_chat('upload_code')
+                        : '上传文件或图片，支持粘贴截图'}
                     </TooltipContent>
                   </Tooltip>
                 </FileUpload>
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Toggle
-                      variant={webSearchEnabled ? 'outline' : 'default'}
-                      onClick={() => {
-                        const enabled = !webSearchEnabled;
-                        toast.success(
-                          enabled
-                            ? page_chat('web_search_is_enabled')
-                            : page_chat('web_search_is_disabled'),
-                        );
-                        setWebSearchEnabled(enabled);
-                      }}
-                      aria-label={page_chat('web_search')}
-                      className={cn('relative cursor-pointer')}
-                      disabled={disabled}
-                    >
-                      <Globe
-                        className={`${webSearchEnabled ? 'text-primary' : 'text-muted-foreground'}`}
-                      />
-                    </Toggle>
-                  </TooltipTrigger>
-                  <TooltipContent>{page_chat('web_search')}</TooltipContent>
-                </Tooltip>
+                {!codeAgent && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Toggle
+                        variant={webSearchEnabled ? 'outline' : 'default'}
+                        onClick={() => {
+                          const enabled = !webSearchEnabled;
+                          toast.success(
+                            enabled
+                              ? page_chat('web_search_is_enabled')
+                              : page_chat('web_search_is_disabled'),
+                          );
+                          setWebSearchEnabled(enabled);
+                        }}
+                        aria-label={page_chat('web_search')}
+                        className={cn('relative cursor-pointer')}
+                        disabled={disabled}
+                      >
+                        <Globe
+                          className={`${webSearchEnabled ? 'text-primary' : 'text-muted-foreground'}`}
+                        />
+                      </Toggle>
+                    </TooltipTrigger>
+                    <TooltipContent>{page_chat('web_search')}</TooltipContent>
+                  </Tooltip>
+                )}
 
                 <Button
                   size="icon"

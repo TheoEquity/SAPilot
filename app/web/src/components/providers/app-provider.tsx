@@ -55,12 +55,14 @@ export const AppProvider = ({ children }: { children?: React.ReactNode }) => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await apiClient.users.getUserViewApiV1UserGet();
-        if (res.data) {
+        const res = await apiClient.users.getUserViewApiV1UserGet(undefined, {
+          validateStatus: (status) => status === 200 || status === 401,
+        });
+        if (res.status === 200) {
           setUser(res.data);
         }
       } catch {
-        // Not logged in or API error, ignore
+        // Request errors are handled by the API client.
       }
     };
     fetchUser();

@@ -4,9 +4,24 @@ from copy import copy, deepcopy
 from mcp_agent.workflows.llm.augmented_llm import SimpleMemory
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 
+from aperag.agent.sap_scenarios import SkillToolScope
+
 
 class CompletionAwareOpenAILLM(OpenAIAugmentedLLM):
     last_finish_reason: str | None = None
+    tool_scope: SkillToolScope | None = None
+
+    def for_tool_scope(self, scope: SkillToolScope):
+        call = copy(self)
+        call.tool_scope = scope
+        return call
+
+    async def pre_tool_call(self, tool_call_id, request):
+        if self.tool_scope is not None and not self.tool_scope.allows(
+            request.params.name, request.params.arguments or {}
+        ):
+            return False
+        return await super().pre_tool_call(tool_call_id, request)
 
     async def generate(self, message, request_params=None):
         self.last_finish_reason = None

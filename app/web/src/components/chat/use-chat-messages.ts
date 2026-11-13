@@ -215,7 +215,7 @@ export const useChatMessages = (chat: ChatDetails) => {
   );
 
   const handleFaqChoice = useCallback(
-    (action: string, label: string) => {
+    (action: string, label: string, turnId: string) => {
       const timestamp = Math.floor(new Date().getTime() / 1000);
       const part: ChatMessage = {
         type: 'message',
@@ -233,6 +233,7 @@ export const useChatMessages = (chat: ChatDetails) => {
           JSON.stringify({
             query: label,
             action,
+            faq_turn_id: turnId,
             collections: [],
             completion: null,
             web_search_enabled: false,

@@ -24,7 +24,7 @@ export const MessagePartAi = ({
 }: {
   part: ChatMessage;
   loading: boolean;
-  onFaqChoice: (action: string, label: string) => void;
+  onFaqChoice: (action: string, label: string, turnId: string) => void;
 }) => {
   const [faqChoiceSubmitted, setFaqChoiceSubmitted] = useState(false);
   const parseToolCall = useCallback(
@@ -80,10 +80,12 @@ export const MessagePartAi = ({
                 key={option.action}
                 size="sm"
                 variant={option.action === 'faq_expand' ? 'default' : 'outline'}
-                disabled={faqChoiceSubmitted}
+                disabled={faqChoiceSubmitted || !part.id}
                 onClick={() => {
-                  setFaqChoiceSubmitted(true);
-                  onFaqChoice(option.action, option.label);
+                  if (part.id) {
+                    setFaqChoiceSubmitted(true);
+                    onFaqChoice(option.action, option.label, part.id);
+                  }
                 }}
               >
                 {option.label}

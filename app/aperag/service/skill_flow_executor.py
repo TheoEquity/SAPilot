@@ -20,6 +20,7 @@ from typing import Any
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
 from aperag.agent import extract_tool_call_references_from_messages
+from aperag.agent.sap_scenarios import FAQ_SCENARIO, POLICY_SCENARIO, TECHNICAL_SCENARIO, SkillToolScope
 from aperag.agent.skill_flow_rules import evaluate_condition_node, get_flow_start_node_id
 from aperag.llm.llm_error_types import CompletionError
 from aperag.schema.skill_flow import ReactFlowEdge, ReactFlowNode
@@ -40,6 +41,9 @@ async def _execute_action_node(
     query_prompt: str,
     node_results: dict[str, dict[str, Any]],
     build_node_output: Callable[[list[dict[str, Any]]], dict[str, Any]],
+    tool_scope: SkillToolScope | None = None,
+    source_context: str = "",
+    requires_evidence: bool = False,
 ) -> dict[str, Any]:
     history_before = llm.history.get() if hasattr(llm.history, "get") else []
     history_before_len = len(history_before)
@@ -52,7 +56,7 @@ async def _execute_action_node(
             context_blocks.append(f"[Node Outputs: {source_node_id}]\n{json.dumps(outputs, ensure_ascii=False)}")
 
     node_query_prompt = query_prompt
-    if node_prompt.strip() or context_blocks:
+    if tool_scope is None and (node_prompt.strip() or context_blocks):
         extra_parts = []
         if node_prompt.strip():
             extra_parts.append(f"[Current Node: {node_label}]\n{node_prompt.strip()}")
@@ -63,23 +67,38 @@ async def _execute_action_node(
     comprehensive_prompt = build_agent_query_prompt(
         chat_id, agent_message=agent_message, user=user, template=node_query_prompt, is_search_confirmed=False
     )
-    comprehensive_prompt += (
-        '\n\n证据与回答要求：先逐项核对用户的全部问题和条件，再完整作答；精简检索过程说明，'
-        '把篇幅留给答案、原文依据和必要限制，不以未展开的标题结束。'
-        '不能从局部未检索到推断全文不存在；枚举、跨页续文或条件不足时，'
-        '用search_collection(collection_id,query,document_id=已返回的文档ID,page_idx=零基物理页)'
-        '核对同文档邻页，Word等无页文档省略page_idx读取全文。context.truncated为真时按next_offset继续。'
-        '涉及截图字段、图中表格或图文归属时，用原文已返回的asset_id作为image_asset_ids参数（最多6张）'
-        '再次读取上下文以取得实际视觉观察，不能仅凭图片URI或OCR声称已看图。'
-        '跨页上方续文不自动归到下方新标题，样例值不能当当前值。'
-        '静态代码只证明文本和控制流，不把字符串里的表达式当已验证运行效果。'
-        '文本与图片读值冲突时并列呈现，不能用正文或常识把图片标识纠正成另一个值；看不清就标明未知。'
-        '物理页码以physical_page为准；page_idx从0开始，页脚印刷页码可能不同。'
-        '图片引用复制工具返回的完整asset_url，不省略collection_id和document_id。'
-        '得到足够证据后立即完整作答，不反复扩搜同源副本，不要求穷尽全库；'
-        '只有具体缺口才补读相应原文或图，不把检索计划当作最终答案。'
-        '说明无法从已核验证据确认的部分，不编造缺失步骤或版本审批。'
-    )
+    if tool_scope is not None:
+        # Append request data after template rendering. Code and retrieved
+        # content can contain braces that must stay literal.
+        comprehensive_prompt = "\n\n".join(
+            part for part in (comprehensive_prompt, node_prompt, *context_blocks, source_context) if part
+        )
+    if tool_scope is None or requires_evidence:
+        comprehensive_prompt += (
+            '\n\n证据与回答要求：先逐项核对用户的全部问题和条件，再完整作答；精简检索过程说明，'
+            '把篇幅留给答案、原文依据和必要限制，不以未展开的标题结束。'
+            '不能从局部未检索到推断全文不存在；枚举、跨页续文或条件不足时，'
+            '用search_collection(collection_id,query,document_id=已返回的文档ID,page_idx=零基物理页)'
+            '核对同文档邻页，Word等无页文档省略page_idx读取全文。context.truncated为真时按next_offset继续。'
+            '涉及截图字段、图中表格或图文归属时，用原文已返回的asset_id作为image_asset_ids参数（最多6张）'
+            '再次读取上下文以取得实际视觉观察，不能仅凭图片URI或OCR声称已看图。'
+            '跨页上方续文不自动归到下方新标题，样例值不能当当前值。'
+            '静态代码只证明文本和控制流，不把字符串里的表达式当已验证运行效果。'
+            '文本与图片读值冲突时并列呈现，不能用正文或常识把图片标识纠正成另一个值；看不清就标明未知。'
+            '物理页码以physical_page为准；page_idx从0开始，页脚印刷页码可能不同。'
+            '图片引用复制工具返回的完整asset_url，不省略collection_id和document_id。'
+            '得到足够证据后立即完整作答，不反复扩搜同源副本，不要求穷尽全库；'
+            '只有具体缺口才补读相应原文或图，不把检索计划当作最终答案。'
+            '说明无法从已核验证据确认的部分，不编造缺失步骤或版本审批。'
+        )
+    if requires_evidence:
+        comprehensive_prompt += (
+            "\n\n仅当本轮工具返回的适用原文直接支持结论时，首行单独输出 [MATCH]。"
+            "第二行写 EVIDENCE: 后跟实际支持结论的检索项 evidence_id，多个 ID 用逗号分隔。"
+            "第三行起给出回答和出处。不要把未采用的检索项当作证据。"
+            "如果仅有相似、无关或不适用的材料，首行单独输出 [NO_MATCH]。"
+            "检索计划、模型常识和过去对话不能作为本轮依据。"
+        )
     response = await llm.generate_str(comprehensive_prompt, request_params)
     finish_reason = getattr(llm, 'last_finish_reason', None)
     if finish_reason in {'length', 'tool_calls', 'function_call'}:
@@ -97,7 +116,21 @@ async def _execute_action_node(
                 '检索预算已结束。现在只根据已取得的证据完整回答用户全部问题，不再调用工具。'
                 '证据不足的具体部分明确说明未确认，不编造，不再只输出检索计划。'
             )
-        continuation = await llm.generate_str(final_prompt, continuation_params)
+            if requires_evidence:
+                final_prompt += (
+                    '只用本轮适用的原文作为依据，按 [MATCH]、EVIDENCE: 和答复的三行格式输出；'
+                    '证据不足只输出 [NO_MATCH]。'
+                )
+            elif tool_scope is not None:
+                final_prompt = (
+                    '检索预算已结束。直接回答用户的当前请求，不再调用工具。'
+                    '已有证据支持的内容注明出处，无法核实的部分明确说明。'
+                )
+        continuation_llm = llm.for_tool_scope(SkillToolScope(frozenset())) if tool_scope is not None else llm
+        continuation = await continuation_llm.generate_str(final_prompt, continuation_params)
+        if continuation_llm is not llm:
+            llm.history = continuation_llm.history
+            llm.last_finish_reason = continuation_llm.last_finish_reason
         if getattr(llm, 'last_finish_reason', None) in {'length', 'tool_calls', 'function_call'}:
             raise CompletionError('Model response exceeded its output limit after continuation')
         response = ((response or '') + (continuation or '')) if finish_reason == 'length' else continuation
@@ -106,7 +139,9 @@ async def _execute_action_node(
     text = response
     history_after = llm.history.get() if hasattr(llm.history, "get") else []
     current_turn_messages = history_after[history_before_len:]
-    references = extract_tool_call_references_from_messages(current_turn_messages)
+    references = extract_tool_call_references_from_messages(
+        current_turn_messages, **({"include_search_hits": True} if requires_evidence else {}),
+    )
     outputs = build_node_output(references)
     return {
         "text": text,
@@ -129,6 +164,8 @@ async def execute_skill_flow(
     max_tokens: int,
     temperature: float,
     build_node_output: Callable[[list[dict[str, Any]]], dict[str, Any]],
+    tool_scope: SkillToolScope | None = None,
+    source_context: str = "",
 ) -> tuple[str, list[dict[str, Any]]]:
     nodes_by_id = {node.id: node for node in (skill_config.flow.nodes if skill_config.flow else [])}
     outgoing_edges: dict[str, list[ReactFlowEdge]] = {}
@@ -141,7 +178,7 @@ async def execute_skill_flow(
         if binding.enabled and binding.tool_id:
             enabled_tools_from_skill.add(binding.tool_id)
 
-    if agent_message.files:
+    if agent_message.files and tool_scope is None:
         enabled_tools_from_skill.add("search_chat_files")
 
     current_node_id = get_flow_start_node_id(skill_config)
@@ -152,6 +189,8 @@ async def execute_skill_flow(
     branch_trace: list[str] = []
     final_text = ""
     final_references: list[dict[str, Any]] = []
+    scoped_references: list[dict[str, Any]] = []
+    requires_evidence = tool_scope is not None and skill_config.category in {FAQ_SCENARIO, POLICY_SCENARIO}
     visited_node_ids: set[str] = set()
     step_guard = 0
 
@@ -170,22 +209,27 @@ async def execute_skill_flow(
             node_tools = node.data.get("tools", [])
             if isinstance(node_tools, list):
                 enabled_tools.update(str(tool_id) for tool_id in node_tools if tool_id)
+            if tool_scope is not None:
+                enabled_tools.intersection_update(tool_scope.tools)
+                node_llm = llm.for_tool_scope(SkillToolScope(frozenset(enabled_tools), tool_scope.collections))
+            else:
+                node_llm = llm
 
             request_params = RequestParams(
                 systemPrompt=effective_system_prompt,
                 maxTokens=max_tokens,
                 model=model_name,
                 use_history=True,
-                max_iterations=4,
+                max_iterations=3 if tool_scope is not None and skill_config.category == TECHNICAL_SCENARIO else 4,
                 parallel_tool_calls=True,
                 temperature=temperature,
                 user=user,
-                tool_filter={"aperag": enabled_tools} if enabled_tools else None,
+                tool_filter={"aperag": enabled_tools} if enabled_tools or tool_scope is not None else None,
             )
 
             node_result = await _execute_action_node(
                 node=node,
-                llm=llm,
+                llm=node_llm,
                 chat_id=chat_id,
                 agent_message=agent_message,
                 user=user,
@@ -193,10 +237,19 @@ async def execute_skill_flow(
                 query_prompt=query_prompt,
                 node_results=node_results,
                 build_node_output=build_node_output,
+                **({
+                    "tool_scope": tool_scope,
+                    "source_context": source_context,
+                    "requires_evidence": requires_evidence,
+                } if tool_scope is not None else {}),
             )
             node_results[node.id] = node_result
+            if node_llm is not llm:
+                llm.history = node_llm.history
             final_text = node_result.get("text", final_text)
             final_references = node_result.get("references", final_references)
+            if tool_scope is not None:
+                scoped_references.extend(node_result.get("references", []))
             next_edge = outgoing[0] if outgoing else None
         elif node.type == "condition":
             decision = evaluate_condition_node(node, node_results)
@@ -219,4 +272,4 @@ async def execute_skill_flow(
         ", ".join(sorted(visited_node_ids)) if visited_node_ids else "none",
         ", ".join(branch_trace) if branch_trace else "none",
     )
-    return final_text, final_references
+    return final_text, scoped_references if tool_scope is not None else final_references

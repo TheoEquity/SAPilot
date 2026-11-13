@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+from hashlib import sha256
 from typing import Any, Dict
 
 import httpx
@@ -70,6 +71,16 @@ def _scope_search_sources(search_result: SearchResult, collection_id: str) -> No
         if metadata.get('asset_id'):
             metadata['asset_url'] = _format_reference_content('asset://' + metadata['asset_id'], metadata)
         item.content = _format_reference_content(item.content or '', metadata)
+        # Identify the returned passage, including the source, so a grounded
+        # answer can point to the exact item it used.
+        identity = json.dumps(
+            [
+                collection_id, metadata["document_id"], metadata.get("chunk_id"),
+                metadata.get("faq_id"), metadata.get("physical_page"), item.content,
+            ],
+            ensure_ascii=False,
+        )
+        metadata["evidence_id"] = sha256(identity.encode()).hexdigest()[:16]
         item.metadata = metadata
 
 

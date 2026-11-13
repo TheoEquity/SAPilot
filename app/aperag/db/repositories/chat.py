@@ -22,6 +22,14 @@ from aperag.utils.utils import utc_now
 
 
 class AsyncChatRepositoryMixin(AsyncRepositoryProtocol):
+    async def query_chat_for_user(self, user: str, chat_id: str) -> Optional[Chat]:
+        async def _query(session):
+            stmt = select(Chat).where(Chat.id == chat_id, Chat.user == user, Chat.status != ChatStatus.DELETED)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
+
+        return await self._execute_query(_query)
+
     async def query_chat(self, user: str, bot_id: str, chat_id: str):
         async def _query(session):
             stmt = select(Chat).where(

@@ -114,36 +114,14 @@ class AgentChatWebSocket:
     @handle_agent_error("websocket_agent_chat", reraise=False)
     async def handle_websocket_agent_chat(self, websocket: WebSocket, user: str, bot_id: str, chat_id: str):
         """Handle WebSocket connections for agent-type bot chats with message queue architecture"""
-        # Get bot configuration once at the beginning for performance
         bot = await self.chat_service.db_ops.query_bot(user, bot_id)
         if not bot:
             error_response = format_processing_error("Bot not found", "en-US")
             await websocket.send_text(json.dumps(error_response))
             return
-
-        # Parse bot configuration and get default collections once
-        bot_config = None
-        default_collections = []
-        if bot.config:
-            try:
-                config_dict = json.loads(bot.config)
-                if config_dict:
-                    bot_config = view_models.BotConfig(**config_dict)
-            except (json.JSONDecodeError, ValueError):
-                bot_config = None
-
-        if bot_config and bot_config.agent:
-            # Get default collections once for performance
-            if bot_config.agent.collections:
-                collection_ids = [collection.id for collection in bot_config.agent.collections]
-                db_collections = await self.chat_service.db_ops.query_collections_by_ids(user, collection_ids)
-                # Convert SQLAlchemy models to Pydantic models
-                default_collections = await self.chat_service._convert_db_collections_to_pydantic(db_collections)
-
-        # Resolve prompts once at the beginning using prompt_template_service
-        # Priority: Bot config > User default > System default > Hardcoded
-        resolved_system_prompt = await prompt_template_service.resolve_agent_system_prompt(bot=bot, user_id=user)
-        resolved_query_prompt = await prompt_template_service.resolve_agent_query_prompt(bot=bot, user_id=user)
+        if not await self.chat_service.db_ops.query_chat(user, bot_id, chat_id):
+            await websocket.send_text(json.dumps(format_processing_error("Chat not found", "en-US")))
+            return
 
         pending_messages = []
         while True:
@@ -158,6 +136,35 @@ class AgentChatWebSocket:
             if error_response:
                 await websocket.send_text(json.dumps(error_response))
                 continue
+
+            bot = await self.chat_service.db_ops.query_bot(user, bot_id)
+            if not bot:
+                await websocket.send_text(json.dumps(format_processing_error("Bot not found", "en-US")))
+                return
+
+            # Use the current Bot settings for this turn
+            bot_config = None
+            default_collections = []
+            if bot.config:
+                try:
+                    config_dict = json.loads(bot.config)
+                    if config_dict:
+                        bot_config = view_models.BotConfig(**config_dict)
+                except (json.JSONDecodeError, ValueError):
+                    bot_config = None
+
+            if bot_config and bot_config.agent:
+                # Load the configured default collections
+                if bot_config.agent.collections:
+                    collection_ids = [collection.id for collection in bot_config.agent.collections]
+                    db_collections = await self.chat_service.db_ops.query_collections_by_ids(user, collection_ids)
+                    # Convert SQLAlchemy models to Pydantic models
+                    default_collections = await self.chat_service._convert_db_collections_to_pydantic(db_collections)
+
+            # Resolve prompts from the current Bot settings
+            # Priority: Bot config > User default > System default > Hardcoded
+            resolved_system_prompt = await prompt_template_service.resolve_agent_system_prompt(bot=bot, user_id=user)
+            resolved_query_prompt = await prompt_template_service.resolve_agent_query_prompt(bot=bot, user_id=user)
 
             # Process each message in a new trace context
             try:
@@ -305,7 +312,9 @@ class AgentChatWebSocket:
             references = process_result.get("references", "")
             tool_use_list = consumer_result
             await self.chat_service._save_conversation_history(
-                chat_id, message_id, trace_id, query, ai_response, files, tool_use_list, references
+                chat_id, message_id, trace_id, query, ai_response, files, tool_use_list, references,
+                faq_choice=process_result.get("faq_choice"),
+                faq=process_result.get("faq"),
             )
             logger.info(
                 "chat.message.completed",

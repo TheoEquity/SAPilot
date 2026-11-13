@@ -60,6 +60,11 @@ class AgentThinkingResponse(BaseAgentResponse):
     data: str
 
 
+class AgentFaqChoiceResponse(BaseAgentResponse):
+    type: Literal["faq_choice"]
+    data: str
+
+
 class AgentToolCallResultResponse(BaseAgentResponse):
     """Tool call end response."""
 
@@ -76,6 +81,7 @@ AgentResponse = Union[
     AgentStopResponse,
     AgentErrorResponse,
     AgentThinkingResponse,
+    AgentFaqChoiceResponse,
     AgentToolCallResultResponse,
 ]
 

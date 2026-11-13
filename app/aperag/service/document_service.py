@@ -390,6 +390,8 @@ class DocumentService:
         files: List[UploadFile],
         custom_metadata: dict = None,
         ignore_duplicate: bool = False,
+        *,
+        index_documents: bool = True,
     ) -> view_models.DocumentList:
         if len(files) > 50:
             raise invalid_param("file_count", "documents are too many, add document failed")
@@ -400,7 +402,7 @@ class DocumentService:
         # Prepare file data and validate all files before starting any database operations
         file_data = []
         for item in files:
-            file_suffix = self._validate_file(item.filename, item.size)
+            file_suffix = self._validate_file(item.filename, item.size) if index_documents else os.path.splitext(item.filename)[1].lower()
 
             # Read file content from UploadFile
             file_content = await item.read()
@@ -451,7 +453,7 @@ class DocumentService:
                     collection_id=collection.id,
                     filename=file_info["filename"],
                     size=file_info["size"],
-                    status=db_models.DocumentStatus.PENDING,
+                    status=db_models.DocumentStatus.PENDING if index_documents else db_models.DocumentStatus.COMPLETE,
                     file_suffix=file_info["suffix"],
                     file_content=file_info["content"],
                     custom_metadata=custom_metadata,
@@ -459,9 +461,10 @@ class DocumentService:
                 )
 
                 # Create indexes
-                await document_index_manager.create_or_update_document_indexes(
-                    document_id=document_instance.id, index_types=index_types, session=session
-                )
+                if index_documents:
+                    await document_index_manager.create_or_update_document_indexes(
+                        document_id=document_instance.id, index_types=index_types, session=session
+                    )
 
                 # Build response object
                 doc_response = await self._build_document_response(document_instance)
@@ -472,7 +475,8 @@ class DocumentService:
         response = await self.db_ops.execute_with_transaction(_create_documents_atomically)
 
         # Trigger index reconciliation after successful document creation
-        _trigger_index_reconciliation()
+        if index_documents:
+            _trigger_index_reconciliation()
 
         return DocumentList(items=response)
 

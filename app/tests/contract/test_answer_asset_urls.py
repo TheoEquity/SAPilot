@@ -58,6 +58,35 @@ def test_asset_link_with_conflicting_source_cannot_render_a_wrong_document():
     assert 'asset://' not in actual and '图片来源未确认' in actual
 
 
+def test_backticked_assets_are_rendered_from_the_current_references():
+    urls = [
+        f'asset://{image}?mime_type=image/png&collection_id=col&document_id=doc'
+        for image in ['button.png', 'link.png']
+    ]
+    reference = {'text': '\n'.join(f'![原图]({url})' for url in urls),
+                 'metadata': {'collection_id': 'col', 'document_id': 'doc'}}
+    answer = '截图对照：' + ' '.join(f'`{url}`' for url in urls)
+    assert resolver()(answer, [reference]) == '截图对照：' + ' '.join(f'![截图]({url})' for url in urls)
+
+
+def test_backticked_assets_without_a_matching_source_stay_as_text():
+    refs = [{'text': '', 'metadata': {'collection_id': 'col', 'document_id': doc, 'asset_id': 'page.png'}}
+            for doc in ['docA', 'docB']]
+    answer = ' '.join([
+        '`asset://unknown.png?collection_id=col&document_id=docA`',
+        '`asset://page.png?collection_id=col&document_id=docC`',
+        '`asset://page.png`',
+    ])
+    assert resolver()(answer, refs) == answer
+
+
+def test_asset_urls_inside_code_examples_stay_as_code():
+    url = 'asset://page.png?collection_id=col&document_id=doc'
+    refs = [{'text': '', 'metadata': {'collection_id': 'col', 'document_id': 'doc', 'asset_id': 'page.png'}}]
+    answer = f'```\n`{url}`\n```\n\n`path = "{url}"`'
+    assert resolver()(answer, refs) == answer
+
+
 def test_normal_document_links_are_preserved():
     source = '[材料说明](https://example.test/guide)'
     assert resolver()(source, []) == source

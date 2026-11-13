@@ -19,6 +19,13 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+from aperag.agent.intent_router import FAQ_CORRECTION_ROUTE  # noqa: E402
+from aperag.agent.sap_scenarios import (  # noqa: E402
+    FAQ_EXPANSION,
+    FAQ_SCENARIO,
+    SCOPED_SCENARIOS,
+    is_code_orchestration,
+)
 from aperag.chat.history.message import create_assistant_message  # noqa: E402
 from aperag.schema import view_models  # noqa: E402
 
@@ -91,6 +98,12 @@ def evaluation_harness():
         "uuid": uuid,
         "logger": logging.getLogger(__name__),
         "view_models": view_models,
+        "is_code_orchestration": is_code_orchestration,
+        "SCOPED_SCENARIOS": SCOPED_SCENARIOS,
+        "FAQ_EXPANSION": FAQ_EXPANSION,
+        "FAQ_SCENARIO": FAQ_SCENARIO,
+        "FAQ_CORRECTION_ROUTE": FAQ_CORRECTION_ROUTE,
+        "FAQ_ACTIONS": {"faq_expand", "faq_end"},
         "create_assistant_message": create_assistant_message,
         "format_stream_start": lambda message_id: {"type": "start"},
         "format_stream_content": lambda message_id, content: {"type": "message", "data": content},

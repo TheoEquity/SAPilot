@@ -29,7 +29,9 @@ from .exceptions import (
 logger = logging.getLogger(__name__)
 
 
-def _extract_tool_call_references_from_messages(history_messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _extract_tool_call_references_from_messages(
+    history_messages: List[Dict[str, Any]], *, include_search_hits: bool = False,
+) -> List[Dict[str, Any]]:
     references = []
 
     if not history_messages:
@@ -98,7 +100,9 @@ def _extract_tool_call_references_from_messages(history_messages: List[Dict[str,
                         ref = None
                         try:
                             if tool_name == "aperag_search_collection":
-                                ref = _format_search_reference(tool_result, args_dict, target_faq_ids)
+                                ref = _format_search_reference(
+                                    tool_result, args_dict, target_faq_ids, include_search_hits=include_search_hits
+                                )
                             elif tool_name == "aperag_search_chat_files":
                                 ref = _format_search_chat_files_reference(tool_result, args_dict, target_faq_ids)
                             elif tool_name == "aperag_search_faq_by_chat_image":
@@ -107,7 +111,7 @@ def _extract_tool_call_references_from_messages(history_messages: List[Dict[str,
                                 )
                             elif tool_name == "aperag_list_collections":
                                 ref = _format_list_reference(tool_result, args_dict)
-                            elif tool_name == "aperag_web_search":
+                            elif tool_name in {"aperag_web_search", "aperag_search_sap_help"}:
                                 ref = _format_web_search_reference(tool_result, args_dict)
                             elif tool_name == "aperag_web_read":
                                 ref = _format_web_read_reference(tool_result, args_dict)
@@ -147,9 +151,11 @@ def extract_tool_call_references(memory) -> List[Dict[str, Any]]:
 
 
 @handle_agent_error("tool_call_reference_extraction", default_return=[], reraise=False)
-def extract_tool_call_references_from_messages(history_messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def extract_tool_call_references_from_messages(
+    history_messages: List[Dict[str, Any]], *, include_search_hits: bool = False,
+) -> List[Dict[str, Any]]:
     """Extract tool call references from a specific history message slice."""
-    return _extract_tool_call_references_from_messages(history_messages)
+    return _extract_tool_call_references_from_messages(history_messages, include_search_hits=include_search_hits)
 
 
 def _extract_answer_faq_ids(messages) -> List[str]:
@@ -179,7 +185,8 @@ def _find_tool_result(messages, tool_call_id: str) -> Optional[str]:
 
 
 def _format_search_reference(
-    tool_result: str, args: Dict[str, Any], target_faq_ids: Optional[List[str]] = None
+    tool_result: str, args: Dict[str, Any], target_faq_ids: Optional[List[str]] = None, *,
+    include_search_hits: bool = False,
 ) -> Optional[List[Dict[str, Any]]]:
     """Format search_collection tool result as reference"""
     try:
@@ -214,28 +221,31 @@ def _format_search_reference(
         if "items" in result_data:
             items = result_data["items"]
             if items:
-                item, index = _select_primary_reference_item(items, target_faq_ids)
-                content = item.get("content", "")
-                metadata = item.get("metadata", {}) or {}
-                reference_metadata = {
-                    **metadata,
-                    "type": "search_collection",
-                    "collection_id": metadata.get("collection_id") or collection_id,
-                    "document_id": metadata.get("document_id") or metadata.get("doc_id"),
-                    "query": query,
-                    "result_count": len(items),
-                    "rank": item.get("rank") or index + 1,
-                    "recall_type": item.get("recall_type"),
-                    "document_source": item.get("source") or metadata.get("source"),
-                }
-
-                return [
-                    {
+                selected = ((item, index) for index, item in enumerate(items)) if include_search_hits else (
+                    _select_primary_reference_item(items, target_faq_ids),
+                )
+                refs = []
+                for item, index in selected:
+                    content = item.get("content", "")
+                    metadata = item.get("metadata", {}) or {}
+                    reference_metadata = {
+                        **metadata,
+                        "type": "search_collection",
+                        "collection_id": metadata.get("collection_id") or collection_id,
+                        "document_id": metadata.get("document_id") or metadata.get("doc_id"),
+                        "query": query,
+                        "result_count": len(items),
+                        "rank": item.get("rank") or index + 1,
+                        "recall_type": item.get("recall_type"),
+                        "document_source": item.get("source") or metadata.get("source"),
+                    }
+                    refs.append({
                         "text": _format_reference_content(content, reference_metadata),
                         "metadata": reference_metadata,
                         "score": item.get("score") or 1.0,
-                    }
-                ]
+                        **({"evidence_id": metadata["evidence_id"]} if metadata.get("evidence_id") else {}),
+                    })
+                return refs
 
         return None
 
@@ -422,25 +432,57 @@ def resolve_answer_asset_urls(content: str, references: List[Dict[str, Any]]) ->
         for asset in assets - conflicting_assets:
             sources.setdefault(asset, set()).add((collection_id, document_id))
 
-    def replace_image(match):
-        image_marker, label, url = match.groups()
-        if image_marker and 'collection_id=' in url and 'document_id=' in url:
-            return match.group(0)
+    def resolve_image_url(url: str) -> str | None:
         asset = url[len('asset://'):].split('?')[0]
         candidates = sources.get(asset, set())
-        scope = parse_qs(urlsplit(url).query, keep_blank_values=True)
+        try:
+            scope = parse_qs(urlsplit(url).query, keep_blank_values=True)
+        except ValueError:
+            return None
         candidates = {
             (collection_id, document_id) for collection_id, document_id in candidates
             if ('collection_id' not in scope or scope['collection_id'] == [collection_id])
             and ('document_id' not in scope or scope['document_id'] == [document_id])
         }
         if len(candidates) != 1:
-            return f'【{label or "图片"}：图片来源未确认，请查看原文引用】'
+            return None
         collection_id, document_id = next(iter(candidates))
-        url = _format_reference_content(url, {'collection_id': collection_id, 'document_id': document_id})
+        return _format_reference_content(url, {'collection_id': collection_id, 'document_id': document_id})
+
+    def replace_image(match):
+        image_marker, label, url = match.groups()
+        if image_marker and 'collection_id=' in url and 'document_id=' in url:
+            return match.group(0)
+        url = resolve_image_url(url)
+        if url is None:
+            return f'【{label or "图片"}：图片来源未确认，请查看原文引用】'
         return f'![{label}]({url})'
 
-    return re.sub(r'(!?)\[([^\]]*)\]\((asset://[^\s)]+)\)', replace_image, content)
+    content = re.sub(r'(!?)\[([^\]]*)\]\((asset://[^\s)]+)\)', replace_image, content)
+    if not sources or '`asset://' not in content:
+        return content
+
+    from markdown_it import MarkdownIt
+
+    def replace_code_span(match):
+        url = match.group(2)
+        if not re.fullmatch(r'asset://[^\s()<>\[\]"\\`]+', url):
+            return match.group(0)
+        resolved = resolve_image_url(url)
+        return f'![截图]({resolved})' if resolved else match.group(0)
+
+    code_spans = re.compile(r'(?<![\\`])(`+)(?!`)([^\n]*?)(?<!`)\1(?!`)')
+    lines = content.splitlines(keepends=True)
+    segments = []
+    start = 0
+    for token in MarkdownIt().parse(content):
+        if token.type in {'fence', 'code_block'} and token.map:
+            first, last = token.map
+            segments.append(code_spans.sub(replace_code_span, ''.join(lines[start:first])))
+            segments.append(''.join(lines[first:last]))
+            start = last
+    segments.append(code_spans.sub(replace_code_span, ''.join(lines[start:])))
+    return ''.join(segments)
 
 
 def _select_primary_reference_item(
@@ -572,7 +614,7 @@ def _format_web_search_reference(tool_result: str, args: Dict[str, Any]) -> Opti
         return None
 
 
-def _format_web_read_reference(tool_result: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _format_web_read_reference(tool_result: str, _args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Format web_read tool result as reference"""
     try:
         # Parse tool result - handle both string and already parsed data
@@ -598,10 +640,11 @@ def _format_web_read_reference(tool_result: str, args: Dict[str, Any]) -> Option
                     logger.error(f"Failed to parse text field as JSON: {first_item['text']}")
                     return None
 
-        urls = args.get("url_list", [])
-
         if "results" in result_data:
-            results = result_data["results"]
+            results = [
+                result for result in result_data["results"]
+                if result.get("status") == "success" and result.get("content")
+            ]
             if results:
                 combined_text = "Web Page Content:\n\n"
 
@@ -616,7 +659,11 @@ def _format_web_read_reference(tool_result: str, args: Dict[str, Any]) -> Option
 
                 return {
                     "text": combined_text.strip(),
-                    "metadata": {"type": "web_read", "urls": urls, "result_count": len(results)},
+                    "metadata": {
+                        "type": "web_read",
+                        "urls": [result.get("url") for result in results],
+                        "result_count": len(results),
+                    },
                     "score": 1.0,
                 }
 

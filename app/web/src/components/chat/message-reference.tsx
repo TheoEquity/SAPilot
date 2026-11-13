@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/drawer';
 import _ from 'lodash';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { MessageCollapseContent } from './message-collapse-content';
 
 const extractAssetUrls = (text: string) => {
@@ -92,17 +93,25 @@ export const MessageReference = ({
       reference.metadata?.type !== 'list_collections' &&
       reference.metadata?.type !== 'search_chat_files',
   );
-  const visibleReferences = _.isEmpty(primaryReferences)
-    ? references.slice(0, 1)
-    : primaryReferences.slice(0, 1);
+  const citedReferences = primaryReferences.filter(
+    (reference) =>
+      typeof reference.metadata?.tcode === 'string' ||
+      reference.metadata?.grounded === true ||
+      ['web_search', 'web_read'].includes(String(reference.metadata?.type)),
+  );
+  const visibleReferences = citedReferences.length
+    ? citedReferences
+    : (primaryReferences.length ? primaryReferences : references).slice(0, 1);
   const getReferenceTitle = (reference: Reference, index: number) => {
     const metadata = reference.metadata || {};
-    const title = metadata.faq_id
-      ? `${metadata.faq_id}${metadata.faq_title ? ` ${metadata.faq_title}` : ''}`
-      : metadata.document_source ||
-        metadata.source ||
-        metadata.query ||
-        _.truncate(reference.text ?? '', { length: 30 });
+    const title = metadata.tcode
+      ? `${metadata.tcode} · ${metadata.document_source || metadata.source || ''}`
+      : metadata.faq_id
+        ? `${metadata.faq_id}${metadata.faq_title ? ` ${metadata.faq_title}` : ''}`
+        : metadata.document_source ||
+          metadata.source ||
+          metadata.query ||
+          _.truncate(reference.text ?? '', { length: 30 });
     return `${index + 1}. ${title}`;
   };
 
@@ -112,6 +121,12 @@ export const MessageReference = ({
       metadata.document_source || metadata.source,
       metadata.faq_id,
       metadata.faq_title,
+      metadata.tcode && metadata.title,
+      metadata.tcode && typeof metadata.source_line === 'number'
+        ? page_chat('parsed_source_line', {
+            line: String(metadata.source_line),
+          })
+        : '',
     ]
       .filter(Boolean)
       .join(' / ');
@@ -138,6 +153,14 @@ export const MessageReference = ({
         <div className="overflow-auto px-4 pb-4 select-text">
           {visibleReferences?.map((reference: Reference, index) => {
             const source = getReferenceSource(reference);
+            const { tcode, collection_id, document_id } =
+              reference.metadata || {};
+            const sourcePath =
+              tcode &&
+              typeof collection_id === 'string' &&
+              typeof document_id === 'string'
+                ? `/workspace/collections/${encodeURIComponent(collection_id)}/documents/${encodeURIComponent(document_id)}`
+                : null;
             return (
               <MessageCollapseContent
                 defaultOpen={true}
@@ -162,7 +185,18 @@ export const MessageReference = ({
               >
                 {source && (
                   <div className="text-muted-foreground bg-muted/30 mb-3 rounded-md border px-3 py-2 text-xs">
-                    来源：{source}
+                    {sourcePath ? (
+                      <Link
+                        href={sourcePath}
+                        target="_blank"
+                        rel="noopener"
+                        className="underline"
+                      >
+                        {source}
+                      </Link>
+                    ) : (
+                      <>来源：{source}</>
+                    )}
                   </div>
                 )}
                 {reference.metadata?.chunk_type === 'faq_entry' ? (

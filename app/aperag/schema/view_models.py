@@ -2958,6 +2958,7 @@ class AgentMessage(BaseModel):
         description='Structured chat action, such as faq_expand or faq_end',
         examples=['faq_expand'],
     )
+    faq_turn_id: Optional[str] = Field(None, description='Assistant turn offering the FAQ choice')
 
 
 class ExportTaskResponse(BaseModel):
