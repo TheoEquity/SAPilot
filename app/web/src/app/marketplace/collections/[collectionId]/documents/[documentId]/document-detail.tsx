@@ -1,5 +1,5 @@
 'use client';
-import { DocumentPreview } from '@/api';
+import type { DocumentPreview } from '@/api/generated/models';
 import { Markdown } from '@/components/markdown';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -72,7 +72,9 @@ export const DocumentDetail = ({
         <TabsContent value="markdown">
           <Card>
             <CardContent>
-              <Markdown>{documentPreview.markdown_content}</Markdown>
+              <Markdown>
+                {documentPreview.markdown_content ?? undefined}
+              </Markdown>
             </CardContent>
           </Card>
         </TabsContent>

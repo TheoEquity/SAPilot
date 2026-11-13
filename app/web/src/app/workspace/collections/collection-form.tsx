@@ -1,6 +1,7 @@
 'use client';
 
-import { ModelSpec, TitleGenerateRequestLanguageEnum } from '@/api';
+import type { ModelSpec } from '@/api/generated/models';
+import { TitleGenerateRequestLanguage } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,7 +69,7 @@ const collectionSchema = z
       enable_vision: z.boolean(),
       completion: collectionModelSchema,
       embedding: collectionModelSchema,
-      language: z.enum(Object.values(TitleGenerateRequestLanguageEnum)),
+      language: z.enum(Object.values(TitleGenerateRequestLanguage)),
     }),
   })
   .refine(
@@ -101,9 +102,9 @@ const collectionSchema = z
 type FormValueType = z.infer<typeof collectionSchema>;
 
 export type ProviderModel = {
-  label?: string;
-  name?: string;
-  models?: ModelSpec[];
+  label?: string | null;
+  name?: string | null;
+  models?: ModelSpec[] | null;
 };
 
 export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
@@ -181,11 +182,10 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
    * set completion、embedding models used in model select component
    */
   const loadModels = useCallback(async () => {
-    const res = await apiClient.defaultApi.availableModelsPost({
-      tagFilterRequest: {
+    const res =
+      await apiClient.llmModels.getAvailableModelsViewApiV1AvailableModelsPost({
         tag_filters: [{ operation: 'AND', tags: ['enable_for_collection'] }],
-      },
-    });
+      });
     const completion = res.data.items?.map((m) => {
       return {
         label: m.label,
@@ -211,19 +211,21 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
     async (values: FormValueType) => {
       if (action === 'edit') {
         if (!collection?.id) return;
-        const res = await apiClient.defaultApi.collectionsCollectionIdPut({
-          collectionId: collection.id,
-          collectionUpdate: values,
-        });
+        const res =
+          await apiClient.collections.updateCollectionViewApiV1CollectionsCollectionIdPut(
+            encodeURIComponent(String(collection.id)),
+            values,
+          );
         if (res.data.id) {
           toast.success(common_tips('update_success'));
           loadCollection();
         }
       }
       if (action === 'add') {
-        const res = await apiClient.defaultApi.collectionsPost({
-          collectionCreate: values,
-        });
+        const res =
+          await apiClient.collections.createCollectionViewApiV1CollectionsPost(
+            values,
+          );
         if (res.data.id) {
           toast.success(common_tips('create_success'));
           router.push('/workspace/collections');
@@ -388,7 +390,7 @@ export const CollectionForm = ({ action }: { action: 'add' | 'edit' }) => {
                       <RadioGroup
                         value={field.value}
                         onValueChange={field.onChange}
-                        className="mt-2 flex flex-row gap-4 items-center"
+                        className="mt-2 flex flex-row items-center gap-4"
                       >
                         <Label>
                           <RadioGroupItem value="zh-CN" />

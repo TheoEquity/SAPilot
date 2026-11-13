@@ -1,6 +1,6 @@
 'use client';
 
-import { ApiKey } from '@/api';
+import type { ApiKey } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -60,15 +60,13 @@ export const ApiKeyActions = ({
     async (values: z.infer<typeof apiKeySchema>) => {
       let res;
       if (action === 'edit' && apiKey?.id) {
-        res = await apiClient.defaultApi.apikeysApikeyIdPut({
-          apikeyId: apiKey.id,
-          apiKeyUpdate: values,
-        });
+        res = await apiClient.apiKeys.updateApiKeyViewApiV1ApikeysApikeyIdPut(
+          encodeURIComponent(apiKey.id),
+          values,
+        );
       }
       if (action === 'add') {
-        res = await apiClient.defaultApi.apikeysPost({
-          apiKeyCreate: values,
-        });
+        res = await apiClient.apiKeys.createApiKeyViewApiV1ApikeysPost(values);
       }
       if (res?.status === 200) {
         setCreateOrUpdateVisible(false);
@@ -80,9 +78,10 @@ export const ApiKeyActions = ({
 
   const handleDelete = useCallback(async () => {
     if (action === 'delete' && apiKey?.id) {
-      const res = await apiClient.defaultApi.apikeysApikeyIdDelete({
-        apikeyId: apiKey.id,
-      });
+      const res =
+        await apiClient.apiKeys.deleteApiKeyViewApiV1ApikeysApikeyIdDelete(
+          encodeURIComponent(apiKey.id),
+        );
       if (res?.status === 200) {
         setDeleteVisible(false);
         setTimeout(router.refresh, 300);

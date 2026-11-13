@@ -12,11 +12,14 @@ import {
 import type {
   ExportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGet200,
   GraphLabelsResponse,
+  KnowledgeGraph,
   MergeSuggestionsResponse,
   NodeMergeResponse,
   SuggestionActionResponse
 } from '../models';
 
+
+export const getGetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetResponseMock = (overrideResponse: Partial<Extract<KnowledgeGraph, object>> = {}): KnowledgeGraph => ({edges: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: "墨香居-深夜读书会", properties: {created_at: 1751356233, description: "深夜读书会是墨香居的新活动，旨在提升书店的活力和吸引顾客。", file_path: "story.txt", keywords: "书店活力,活动", source_id: "chunk-88845945407136e9498f5f594c8a00c6", weight: 9}, source: "墨香居", target: "深夜读书会", type: "DIRECTED"})), is_truncated: false, nodes: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: "墨香居", labels: ["墨香居"], properties: {created_at: 1751356233, description: "墨香居是这条老巷子里唯一的旧书店，经营着各种书籍，承载了老板李明华的情怀。", entity_id: "墨香居", entity_type: "organization", file_path: "story.txt", source_id: "chunk-88845945407136e9498f5f594c8a00c6"}})), ...overrideResponse})
 
 export const getExportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGetResponseMock = (): ExportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGet200 => ({})
 

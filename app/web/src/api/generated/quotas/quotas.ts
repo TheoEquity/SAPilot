@@ -15,6 +15,7 @@ import type {
 import type {
   GetQuotasApiV1QuotasGetParams,
   GetSystemDefaultQuotasApiV1SystemDefaultQuotasGetParams,
+  QuotaRecalculateResponse,
   QuotaUpdateRequest,
   QuotaUpdateResponse,
   RecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostParams,
@@ -92,7 +93,7 @@ const getUpdateQuotaApiV1QuotasUserIdPutUrl = (userId: string,
 const recalculateQuotaUsageApiV1QuotasUserIdRecalculatePost = (
     userId: string,
     params?: RecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<QuotaRecalculateResponse>> => {
     return axiosInstance.post(
       `/quotas/${userId}/recalculate`,
       undefined,{
@@ -168,6 +169,6 @@ const getUpdateSystemDefaultQuotasApiV1SystemDefaultQuotasPutUrl = (params?: Upd
 return {getQuotasApiV1QuotasGet,updateQuotaApiV1QuotasUserIdPut,recalculateQuotaUsageApiV1QuotasUserIdRecalculatePost,getSystemDefaultQuotasApiV1SystemDefaultQuotasGet,updateSystemDefaultQuotasApiV1SystemDefaultQuotasPut,getGetQuotasApiV1QuotasGetUrl,getUpdateQuotaApiV1QuotasUserIdPutUrl,getRecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostUrl,getGetSystemDefaultQuotasApiV1SystemDefaultQuotasGetUrl,getUpdateSystemDefaultQuotasApiV1SystemDefaultQuotasPutUrl}};
 export type GetQuotasApiV1QuotasGetResult = AxiosResponse<UserQuotaInfo | UserQuotaList>
 export type UpdateQuotaApiV1QuotasUserIdPutResult = AxiosResponse<QuotaUpdateResponse>
-export type RecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostResult = AxiosResponse<unknown>
+export type RecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostResult = AxiosResponse<QuotaRecalculateResponse>
 export type GetSystemDefaultQuotasApiV1SystemDefaultQuotasGetResult = AxiosResponse<SystemDefaultQuotasResponse>
 export type UpdateSystemDefaultQuotasApiV1SystemDefaultQuotasPutResult = AxiosResponse<SystemDefaultQuotasUpdateResponse>

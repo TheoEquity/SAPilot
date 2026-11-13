@@ -4,6 +4,8 @@
 
 后续状态：本页保留实施前的盘点基线，不能将下列差异一概视为当前仍未修复。按批代码变更、独立审核与实际验证见[架构整理实施记录](../../records/architecture-implementation-record.md)。
 
+旧 SDK 链接固定到本次迁移前的 Git 提交，供核对历史盘点；当前前端客户端见 `app/web/src/api/generated/`。
+
 ## 1 范围与结论
 
 当前前后端已有 OpenAPI、生成 SDK、业务表单和后端模型，但定义、页面能编辑的字段、保存的配置与执行时读取的参数并未完全对齐。Bot、意图与 Skill 编辑共用 Bot 更新接口；聊天使用 WebSocket，另有直接 fetch 和资源 URL。架构拆分应保留这些实际关系，不能按页面名称假定独立接口。
@@ -65,7 +67,7 @@ BotConfigProvider 持有服务器配置快照。意图与 Skill 编辑器生成�
 | ChatMessage | YAML 无 faq_choice 枚举、options、skill_id；现有 SDK 有这些扩展 | Python ChatMessage 有 faq_choice/options，但无 skill_id；实时 BaseAgentResponse 有 skill_id |
 | CollectionConfig | YAML、生成类型与 Python 已含索引开关、模型、index_prompts、knowledge_graph_config | 通用 CollectionForm 只编辑其中子集，字段存在不等于可编辑或执行已接入 |
 
-依据：[Bot YAML][bot-yaml]、[Agent YAML][agent-yaml]、[Chat YAML][chat-yaml]、[Collection YAML][collection-yaml]、[后端模型][models]、[SDK BotConfig][sdk-bot-config]、[SDK Bot](../../../app/web/src/api/models/bot.ts)、[SDK BotCreate](../../../app/web/src/api/models/bot-create.ts)、[SDK BotUpdate](../../../app/web/src/api/models/bot-update.ts)、[SDK AgentMessage](../../../app/web/src/api/models/agent-message.ts)、[SDK ChatMessage](../../../app/web/src/api/models/chat-message.ts)、[编排自定义类型][types]。
+依据：[Bot YAML][bot-yaml]、[Agent YAML][agent-yaml]、[Chat YAML][chat-yaml]、[Collection YAML][collection-yaml]、[后端模型][models]、[SDK BotConfig][sdk-bot-config]、[SDK Bot](https://github.com/TheoEquity/SAPilot/blob/f13f934df37fafd73eb8422a83b788044ecdfea5/app/web/src/api/models/bot.ts)、[SDK BotCreate](https://github.com/TheoEquity/SAPilot/blob/f13f934df37fafd73eb8422a83b788044ecdfea5/app/web/src/api/models/bot-create.ts)、[SDK BotUpdate](https://github.com/TheoEquity/SAPilot/blob/f13f934df37fafd73eb8422a83b788044ecdfea5/app/web/src/api/models/bot-update.ts)、[SDK AgentMessage](https://github.com/TheoEquity/SAPilot/blob/f13f934df37fafd73eb8422a83b788044ecdfea5/app/web/src/api/models/agent-message.ts)、[SDK ChatMessage](https://github.com/TheoEquity/SAPilot/blob/f13f934df37fafd73eb8422a83b788044ecdfea5/app/web/src/api/models/chat-message.ts)、[编排自定义类型][types]。
 
 ## 5 Bot 与意图字段如何保存和执行
 
@@ -206,7 +208,7 @@ D01–D03 等会影响生成文件覆盖；本轮未运行 `api:build`、datamod
 
 本轮交付的是盘点事实，未批准或实施上述修正。运行配置、真实 HTTP/WS 请求响应、表单保存回读、跨 Provider 模型调用和用户隔离仍待验证；字段级深查未覆盖所有管理与集成模块。后续可据本表选定具体契约修正范围，再进入前后端模块拆分。
 
-生成流程依据：[Makefile](../../../app/Makefile)、[package.json](../../../app/web/package.json)、[生成器配置](../../../app/web/openapitools.json)。返回[当前说明](../../design/zh-CN/current/README.md)或[文档入口](../../README.md)。
+生成流程依据：[Makefile](../../../app/Makefile)、[package.json](../../../app/web/package.json)、[生成器配置](https://github.com/TheoEquity/SAPilot/blob/f13f934df37fafd73eb8422a83b788044ecdfea5/app/web/openapitools.json)。返回[当前说明](../../design/zh-CN/current/README.md)或[文档入口](../../README.md)。
 
 [client]: ../../../app/web/src/lib/api/client.ts
 [server]: ../../../app/web/src/lib/api/server.ts
@@ -231,7 +233,7 @@ D01–D03 等会影响生成文件覆盖；本轮未运行 `api:build`、datamod
 [agent-yaml]: ../../../app/aperag/api/components/schemas/agent.yaml
 [chat-yaml]: ../../../app/aperag/api/components/schemas/chat.yaml
 [collection-yaml]: ../../../app/aperag/api/components/schemas/collection.yaml
-[sdk-bot-config]: ../../../app/web/src/api/models/bot-config.ts
+[sdk-bot-config]: https://github.com/TheoEquity/SAPilot/blob/f13f934df37fafd73eb8422a83b788044ecdfea5/app/web/src/api/models/bot-config.ts
 [collection-form]: ../../../app/web/src/app/workspace/collections/collection-form.tsx
 [collection-view]: ../../../app/aperag/views/collections.py
 [collection-service]: ../../../app/aperag/service/collection_service.py

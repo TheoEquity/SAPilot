@@ -6,14 +6,14 @@ import {
   PageTitle,
 } from '@/components/page-container';
 
-import { UserQuotaInfo } from '@/api';
+import type { UserQuotaInfo } from '@/api/generated/models';
 import { getServerApi } from '@/lib/api/server';
 import { getTranslations } from 'next-intl/server';
 import { QuotaRadialChart } from './quota-radial-chart';
 
 export default async function Page() {
   const serverApi = await getServerApi();
-  const res = await serverApi.quotasApi.quotasGet();
+  const res = await serverApi.quotas.getQuotasApiV1QuotasGet();
   const page_quotas = await getTranslations('page_quota');
   const data = res.data as UserQuotaInfo;
 

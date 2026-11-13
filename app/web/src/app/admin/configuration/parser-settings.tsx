@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings } from '@/api';
+import type { Settings } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -42,9 +42,7 @@ export const ParserSettings = ({
   const [checking, setChecking] = useState<boolean>(false);
 
   const handleSave = useCallback(async () => {
-    await apiClient.defaultApi.settingsPut({
-      settings: data,
-    });
+    await apiClient.settings.updateSettingsApiV1SettingsPut(data);
     toast.success(common_tips('save_success'));
   }, [common_tips, data]);
 
@@ -52,9 +50,7 @@ export const ParserSettings = ({
     async (key: keyof Settings, checked: boolean) => {
       const settings = { ...data, [key]: checked };
       setData(settings);
-      await apiClient.defaultApi.settingsPut({
-        settings,
-      });
+      await apiClient.settings.updateSettingsApiV1SettingsPut(settings);
     },
     [data],
   );
@@ -66,11 +62,10 @@ export const ParserSettings = ({
     }
 
     setChecking(true);
-    const res = await apiClient.defaultApi.settingsTestMineruTokenPost({
-      settingsTestMineruTokenPostRequest: {
+    const res =
+      await apiClient.settings.testMineruTokenApiV1SettingsTestMineruTokenPost({
         token: data.mineru_api_token,
-      },
-    });
+      });
     if (res.data.status_code === 401) {
       toast.error(admin_config('mineru_api_token_invalid'));
     } else {
@@ -99,7 +94,7 @@ export const ParserSettings = ({
               </CardDescription>
             </div>
             <Switch
-              checked={data.use_mineru}
+              checked={data.use_mineru ?? false}
               onCheckedChange={(checked) =>
                 handleSwitchChange('use_mineru', checked)
               }
@@ -152,7 +147,7 @@ export const ParserSettings = ({
               </CardDescription>
             </div>
             <Switch
-              checked={data.use_doc_ray}
+              checked={data.use_doc_ray ?? false}
               onCheckedChange={(checked) =>
                 handleSwitchChange('use_doc_ray', checked)
               }
@@ -170,7 +165,7 @@ export const ParserSettings = ({
               </CardDescription>
             </div>
             <Switch
-              checked={data.use_markitdown}
+              checked={data.use_markitdown ?? false}
               onCheckedChange={(checked) =>
                 handleSwitchChange('use_markitdown', checked)
               }

@@ -1,5 +1,9 @@
-import type { ReactFlowSchema as ApiReactFlowSchema } from '@/api/models/react-flow-schema';
-import type { ReactFlowEdge, ReactFlowNode, ReactFlowSchema } from './orchestration-types';
+import type { ReactFlowSchema as ApiReactFlowSchema } from '@/api/generated/models';
+import type {
+  ReactFlowEdge,
+  ReactFlowNode,
+  ReactFlowSchema,
+} from './orchestration-types';
 
 export const buildEdgeId = (edge: {
   source?: string | null;
@@ -35,7 +39,9 @@ export const EMPTY_FLOW: ReactFlowSchema = {
   edges: [],
 };
 
-export const normalizeFlowSchema = (flow?: ApiReactFlowSchema | null): ReactFlowSchema => {
+export const normalizeFlowSchema = (
+  flow?: ApiReactFlowSchema | null,
+): ReactFlowSchema => {
   const rawEdges = flow?.edges || [];
   const seenEdgeIds = new Set<string>();
 
@@ -65,26 +71,44 @@ export const normalizeFlowSchema = (flow?: ApiReactFlowSchema | null): ReactFlow
   };
 };
 
-export const getStartNodeIds = (nodes: ReactFlowNode[], edges: ReactFlowEdge[]) => {
+export const getStartNodeIds = (
+  nodes: ReactFlowNode[],
+  edges: ReactFlowEdge[],
+) => {
   const indegree = new Map(nodes.map((node) => [node.id, 0]));
 
   edges.forEach((edge) => {
-    if (!indegree.has(edge.target) || !indegree.has(edge.source) || edge.source === edge.target) {
+    if (
+      !indegree.has(edge.target) ||
+      !indegree.has(edge.source) ||
+      edge.source === edge.target
+    ) {
       return;
     }
 
     indegree.set(edge.target, (indegree.get(edge.target) || 0) + 1);
   });
 
-  return nodes.filter((node) => (indegree.get(node.id) || 0) === 0).map((node) => node.id);
+  return nodes
+    .filter((node) => (indegree.get(node.id) || 0) === 0)
+    .map((node) => node.id);
 };
 
-export const getFlowDiagnostics = (flow?: ApiReactFlowSchema | null): FlowDiagnostics => {
+export const getFlowDiagnostics = (
+  flow?: ApiReactFlowSchema | null,
+): FlowDiagnostics => {
   const normalizedFlow = normalizeFlowSchema(flow);
   const nodeIds = new Set(normalizedFlow.nodes.map((node) => node.id));
-  const startNodeIds = getStartNodeIds(normalizedFlow.nodes, normalizedFlow.edges);
-  const incomingCount = new Map(normalizedFlow.nodes.map((node) => [node.id, 0]));
-  const outgoingCount = new Map(normalizedFlow.nodes.map((node) => [node.id, 0]));
+  const startNodeIds = getStartNodeIds(
+    normalizedFlow.nodes,
+    normalizedFlow.edges,
+  );
+  const incomingCount = new Map(
+    normalizedFlow.nodes.map((node) => [node.id, 0]),
+  );
+  const outgoingCount = new Map(
+    normalizedFlow.nodes.map((node) => [node.id, 0]),
+  );
 
   normalizedFlow.edges.forEach((edge) => {
     if (nodeIds.has(edge.source)) {
@@ -101,23 +125,28 @@ export const getFlowDiagnostics = (flow?: ApiReactFlowSchema | null): FlowDiagno
     isolatedNodeIds: normalizedFlow.nodes
       .filter(
         (node) =>
-          (incomingCount.get(node.id) || 0) === 0 && (outgoingCount.get(node.id) || 0) === 0,
+          (incomingCount.get(node.id) || 0) === 0 &&
+          (outgoingCount.get(node.id) || 0) === 0,
       )
       .map((node) => node.id),
     danglingNodeIds: normalizedFlow.nodes
       .filter(
-        (node) => node.type !== 'end' && (outgoingCount.get(node.id) || 0) === 0,
+        (node) =>
+          node.type !== 'end' && (outgoingCount.get(node.id) || 0) === 0,
       )
       .map((node) => node.id),
     weakConditionNodeIds: normalizedFlow.nodes
       .filter(
-        (node) => node.type === 'condition' && (outgoingCount.get(node.id) || 0) < 2,
+        (node) =>
+          node.type === 'condition' && (outgoingCount.get(node.id) || 0) < 2,
       )
       .map((node) => node.id),
   };
 };
 
-export const validateFlowSchema = (flow?: ApiReactFlowSchema | null): FlowValidationIssue[] => {
+export const validateFlowSchema = (
+  flow?: ApiReactFlowSchema | null,
+): FlowValidationIssue[] => {
   const normalizedFlow = normalizeFlowSchema(flow);
   const issues: FlowValidationIssue[] = [];
   const seenNodeIds = new Set<string>();
@@ -135,11 +164,19 @@ export const validateFlowSchema = (flow?: ApiReactFlowSchema | null): FlowValida
 
   normalizedFlow.edges.forEach((edge) => {
     if (!nodeIds.has(edge.source)) {
-      issues.push({ code: 'missing_edge_source', edgeId: edge.id, source: edge.source });
+      issues.push({
+        code: 'missing_edge_source',
+        edgeId: edge.id,
+        source: edge.source,
+      });
     }
 
     if (!nodeIds.has(edge.target)) {
-      issues.push({ code: 'missing_edge_target', edgeId: edge.id, target: edge.target });
+      issues.push({
+        code: 'missing_edge_target',
+        edgeId: edge.id,
+        target: edge.target,
+      });
     }
   });
 

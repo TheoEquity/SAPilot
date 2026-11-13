@@ -23,6 +23,7 @@ import type {
   DeleteDocumentsViewApiV1CollectionsCollectionIdDocumentsDeleteParams,
   Document,
   DocumentList,
+  DocumentPreview,
   DownloadDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDownloadGetParams,
   FetchUrlDocumentViewApiV1CollectionsCollectionIdDocumentsFetchUrlPostParams,
   FetchUrlRequest,
@@ -33,6 +34,7 @@ import type {
   ListDocumentsViewApiV1CollectionsCollectionIdDocumentsGetParams,
   ListStagedDocumentsViewApiV1CollectionsCollectionIdDocumentsStagedGetParams,
   RebuildDocumentIndexesViewApiV1CollectionsCollectionIdDocumentsDocumentIdRebuildIndexesPostParams,
+  RebuildFailedIndexesResponse,
   RebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPostParams,
   RebuildIndexesRequest,
   StagedDocumentsResponse,
@@ -78,7 +80,7 @@ const getDeleteDocumentsViewApiV1CollectionsCollectionIdDocumentsDeleteUrl = (co
 const listDocumentsViewApiV1CollectionsCollectionIdDocumentsGet = (
     collectionId: string,
     params?: ListDocumentsViewApiV1CollectionsCollectionIdDocumentsGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<DocumentList>> => {
     return axiosInstance.get(
       `/collections/${collectionId}/documents`,{
     ...options,
@@ -370,7 +372,7 @@ const getDocumentPreview = (
     collectionId: string,
     documentId: string,
     params?: GetDocumentPreviewParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<DocumentPreview>> => {
     return axiosInstance.get(
       `/collections/${collectionId}/documents/${documentId}/preview`,{
     ...options,
@@ -429,7 +431,7 @@ const getRebuildDocumentIndexesViewApiV1CollectionsCollectionIdDocumentsDocument
 const rebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPost = (
     collectionId: string,
     params?: RebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPostParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<RebuildFailedIndexesResponse>> => {
     return axiosInstance.post(
       `/collections/${collectionId}/rebuild_failed_indexes`,
       undefined,{
@@ -452,7 +454,7 @@ const getRebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexe
 }
 return {deleteDocumentsViewApiV1CollectionsCollectionIdDocumentsDelete,listDocumentsViewApiV1CollectionsCollectionIdDocumentsGet,createDocumentsViewApiV1CollectionsCollectionIdDocumentsPost,confirmDocumentsViewApiV1CollectionsCollectionIdDocumentsConfirmPost,fetchUrlDocumentViewApiV1CollectionsCollectionIdDocumentsFetchUrlPost,listStagedDocumentsViewApiV1CollectionsCollectionIdDocumentsStagedGet,uploadDocumentViewApiV1CollectionsCollectionIdDocumentsUploadPost,deleteDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDelete,getDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdGet,downloadDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDownloadGet,getDocumentObject,getDocumentPreview,rebuildDocumentIndexesViewApiV1CollectionsCollectionIdDocumentsDocumentIdRebuildIndexesPost,rebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPost,getDeleteDocumentsViewApiV1CollectionsCollectionIdDocumentsDeleteUrl,getListDocumentsViewApiV1CollectionsCollectionIdDocumentsGetUrl,getCreateDocumentsViewApiV1CollectionsCollectionIdDocumentsPostUrl,getConfirmDocumentsViewApiV1CollectionsCollectionIdDocumentsConfirmPostUrl,getFetchUrlDocumentViewApiV1CollectionsCollectionIdDocumentsFetchUrlPostUrl,getListStagedDocumentsViewApiV1CollectionsCollectionIdDocumentsStagedGetUrl,getUploadDocumentViewApiV1CollectionsCollectionIdDocumentsUploadPostUrl,getDeleteDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDeleteUrl,getGetDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdGetUrl,getDownloadDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDownloadGetUrl,getGetDocumentObjectUrl,getGetDocumentPreviewUrl,getRebuildDocumentIndexesViewApiV1CollectionsCollectionIdDocumentsDocumentIdRebuildIndexesPostUrl,getRebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPostUrl}};
 export type DeleteDocumentsViewApiV1CollectionsCollectionIdDocumentsDeleteResult = AxiosResponse<unknown>
-export type ListDocumentsViewApiV1CollectionsCollectionIdDocumentsGetResult = AxiosResponse<unknown>
+export type ListDocumentsViewApiV1CollectionsCollectionIdDocumentsGetResult = AxiosResponse<DocumentList>
 export type CreateDocumentsViewApiV1CollectionsCollectionIdDocumentsPostResult = AxiosResponse<DocumentList>
 export type ConfirmDocumentsViewApiV1CollectionsCollectionIdDocumentsConfirmPostResult = AxiosResponse<ConfirmDocumentsResponse>
 export type FetchUrlDocumentViewApiV1CollectionsCollectionIdDocumentsFetchUrlPostResult = AxiosResponse<FetchUrlResponse>
@@ -462,6 +464,6 @@ export type DeleteDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDel
 export type GetDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdGetResult = AxiosResponse<Document>
 export type DownloadDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDownloadGetResult = AxiosResponse<unknown>
 export type GetDocumentObjectResult = AxiosResponse<unknown>
-export type GetDocumentPreviewResult = AxiosResponse<unknown>
+export type GetDocumentPreviewResult = AxiosResponse<DocumentPreview>
 export type RebuildDocumentIndexesViewApiV1CollectionsCollectionIdDocumentsDocumentIdRebuildIndexesPostResult = AxiosResponse<unknown>
-export type RebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPostResult = AxiosResponse<unknown>
+export type RebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPostResult = AxiosResponse<RebuildFailedIndexesResponse>

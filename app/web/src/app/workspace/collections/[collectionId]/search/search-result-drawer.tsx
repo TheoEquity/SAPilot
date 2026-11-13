@@ -1,4 +1,4 @@
-import { SearchResult } from '@/api';
+import type { SearchResult } from '@/api/generated/models';
 import { Markdown } from '@/components/markdown';
 import { Button } from '@/components/ui/button';
 import {
@@ -74,18 +74,18 @@ export const SearchResultDrawer = ({
                       <div className="block flex-1 text-left">
                         {item.rank}.{' '}
                         {item.source ||
-                          _.truncate(item.content, { length: 30 })}
+                          _.truncate(item.content ?? '', { length: 30 })}
                       </div>
                     </div>
                     <div className="text-muted-foreground flex flex-row items-center gap-4 text-xs">
-                      <span>{_.startCase(item.recall_type)}</span>
+                      <span>{_.startCase(item.recall_type ?? '')}</span>
                       <span>{(item.score || 0).toFixed(2)}</span>
                     </div>
                   </Button>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent className="mt-2 rounded-md border p-4">
-                  <Markdown>{item.content}</Markdown>
+                  <Markdown>{item.content ?? undefined}</Markdown>
                 </CollapsibleContent>
               </Collapsible>
             );

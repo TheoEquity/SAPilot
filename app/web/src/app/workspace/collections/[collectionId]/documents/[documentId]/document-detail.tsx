@@ -1,5 +1,5 @@
 'use client';
-import { Document, DocumentPreview } from '@/api';
+import type { Document, DocumentPreview } from '@/api/generated/models';
 import { getDocumentStatusColor } from '@/app/workspace/collections/tools';
 import { FormatDate } from '@/components/format-date';
 import { Markdown } from '@/components/markdown';
@@ -85,7 +85,7 @@ export const DocumentDetail = ({
                 </>
               ) : null}
               <div className={getDocumentStatusColor(document.status)}>
-                {_.capitalize(document.status)}
+                {_.capitalize(document.status ?? undefined)}
               </div>
             </div>
             <TabsList>
@@ -98,7 +98,9 @@ export const DocumentDetail = ({
         <TabsContent value="markdown">
           <Card>
             <CardContent>
-              <Markdown>{documentPreview.markdown_content}</Markdown>
+              <Markdown>
+                {documentPreview.markdown_content ?? undefined}
+              </Markdown>
             </CardContent>
           </Card>
         </TabsContent>

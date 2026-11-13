@@ -10,9 +10,16 @@ import {
 } from '@faker-js/faker';
 
 import type {
+  ApiKey,
   ApiKeyList
 } from '../models';
 
 
 export const getListApiKeysViewApiV1ApikeysGetResponseMock = (overrideResponse: Partial<Extract<ApiKeyList, object>> = {}): ApiKeyList => ({items: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({created_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), description: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), key: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), last_used_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), updated_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,])})),null,]), pageResult: faker.helpers.arrayElement([{count: faker.helpers.arrayElement([faker.number.int(),null,]), page_number: faker.helpers.arrayElement([faker.number.int(),null,]), page_size: faker.helpers.arrayElement([faker.number.int(),null,])},null,]), ...overrideResponse})
+
+export const getCreateApiKeyViewApiV1ApikeysPostResponseMock = (overrideResponse: Partial<Extract<ApiKey, object>> = {}): ApiKey => ({created_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), description: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), key: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), last_used_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), updated_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), ...overrideResponse})
+
+export const getDeleteApiKeyViewApiV1ApikeysApikeyIdDeleteResponseMock = (): boolean | null => (faker.helpers.arrayElement([faker.datatype.boolean(),null,]))
+
+export const getUpdateApiKeyViewApiV1ApikeysApikeyIdPutResponseMock = (overrideResponse: Partial<Extract<ApiKey, object>> = {}): ApiKey => ({created_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), description: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), key: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), last_used_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), updated_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), ...overrideResponse})
 

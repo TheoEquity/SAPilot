@@ -15,16 +15,20 @@ import type {
 } from 'msw';
 
 import type {
-  GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGet200,
+  DocumentList,
+  DocumentPreview,
+  KnowledgeGraph,
   SharedCollection
 } from '../models';
 
 import {
   getGetMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGetResponseMock,
-  getGetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetResponseMock
+  getGetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetResponseMock,
+  getGetMarketplaceDocumentPreviewResponseMock,
+  getListMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGetResponseMock
 } from './marketplace-collections.faker';
 
-export { getGetMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGetResponseMock, getGetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetResponseMock } from './marketplace-collections.faker';
+export { getGetMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGetResponseMock, getListMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGetResponseMock, getGetMarketplaceDocumentPreviewResponseMock, getGetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetResponseMock } from './marketplace-collections.faker';
 
 
 export const getGetMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGetMockHandler = (overrideResponse?: SharedCollection | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<SharedCollection> | SharedCollection), options?: RequestHandlerOptions) => {
@@ -39,11 +43,13 @@ export const getGetMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdG
   }, options)
 }
 
-export const getListMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getListMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGetMockHandler = (overrideResponse?: DocumentList | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<DocumentList> | DocumentList), options?: RequestHandlerOptions) => {
   return http.get<{ collectionId: string }>('*/api/v1/marketplace/collections/:collectionId/documents', async (info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getListMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGetResponseMock(),
       { status: 200
       })
   }, options)
@@ -59,17 +65,19 @@ export const getGetMarketplaceDocumentObjectMockHandler = (overrideResponse?: un
   }, options)
 }
 
-export const getGetMarketplaceDocumentPreviewMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ collectionId: string; documentId: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getGetMarketplaceDocumentPreviewMockHandler = (overrideResponse?: DocumentPreview | ((info: Parameters<HttpResponseResolver<{ collectionId: string; documentId: string }>>[0]) => Promise<DocumentPreview> | DocumentPreview), options?: RequestHandlerOptions) => {
   return http.get<{ collectionId: string; documentId: string }>('*/api/v1/marketplace/collections/:collectionId/documents/:documentId/preview', async (info: Parameters<HttpResponseResolver<{ collectionId: string; documentId: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetMarketplaceDocumentPreviewResponseMock(),
       { status: 200
       })
   }, options)
 }
 
-export const getGetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetMockHandler = (overrideResponse?: GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGet200 | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGet200> | GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGet200), options?: RequestHandlerOptions) => {
+export const getGetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetMockHandler = (overrideResponse?: KnowledgeGraph | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<KnowledgeGraph> | KnowledgeGraph), options?: RequestHandlerOptions) => {
   return http.get<{ collectionId: string }>('*/api/v1/marketplace/collections/:collectionId/graph', async (info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => {
 
 

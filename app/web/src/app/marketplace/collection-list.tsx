@@ -1,6 +1,6 @@
 'use client';
 
-import { SharedCollection } from '@/api';
+import type { SharedCollection } from '@/api/generated/models';
 import { useAppContext } from '@/components/providers/app-provider';
 import { Badge } from '@/components/ui/badge';
 import {

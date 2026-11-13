@@ -1,4 +1,4 @@
-import { CollectionView } from '@/api';
+import type { CollectionView } from '@/api/generated/models';
 import {
   PageContainer,
   PageContent,
@@ -29,11 +29,12 @@ export default async function Page() {
 
   let collections: CollectionView[] = [];
   try {
-    const res = await serverApi.defaultApi.collectionsGet({
-      page: 1,
-      pageSize: 100,
-      includeSubscribed: true,
-    });
+    const res =
+      await serverApi.collections.listCollectionsViewApiV1CollectionsGet({
+        page: 1,
+        page_size: 100,
+        include_subscribed: true,
+      });
     collections = res.data.items || [];
   } catch (err) {
     console.log(err);

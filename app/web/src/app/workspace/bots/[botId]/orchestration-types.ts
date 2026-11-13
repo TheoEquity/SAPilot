@@ -1,19 +1,24 @@
-import type { BotConfig } from '@/api/models/bot-config';
-import type { ReactFlowEdge as ApiReactFlowEdge } from '@/api/models/react-flow-edge';
-import type { ReactFlowNode as ApiReactFlowNode } from '@/api/models/react-flow-node';
-import type { ReactFlowSchema as ApiReactFlowSchema } from '@/api/models/react-flow-schema';
+import type {
+  ReactFlowEdge as ApiReactFlowEdge,
+  ReactFlowNode as ApiReactFlowNode,
+  ReactFlowSchema as ApiReactFlowSchema,
+  BotConfigInput,
+  BotConfigOutput,
+} from '@/api/generated/models';
 
-export type { IntentRouterLLMConfig } from '@/api/models/intent-router-llmconfig';
-export type { CandidateSkill } from '@/api/models/candidate-skill';
-export type { IntentRouterRule } from '@/api/models/intent-router-rule';
-export type { ReactFlowViewport } from '@/api/models/react-flow-viewport';
-export type { SkillToolBinding } from '@/api/models/skill-tool-binding';
-export type { SkillRuntimeConfig } from '@/api/models/skill-runtime-config';
-export type { SkillPrompts } from '@/api/models/skill-prompts';
-export type { SkillIOConfig } from '@/api/models/skill-ioconfig';
-export type { SkillCollection } from '@/api/models/skill-collection';
-export type { SkillConfig as OrchestrationSkill } from '@/api/models/skill-config';
-export type { OrchestrationConfig } from '@/api/models/orchestration-config';
+export type {
+  CandidateSkill,
+  IntentRouterLLMConfig,
+  IntentRouterRule,
+  OrchestrationConfigOutput as OrchestrationConfig,
+  SkillConfigOutput as OrchestrationSkill,
+  ReactFlowViewport,
+  SkillCollection,
+  SkillIOConfig,
+  SkillPrompts,
+  SkillRuntimeConfig,
+  SkillToolBinding,
+} from '@/api/generated/models';
 
 // The canvas works with normalized arrays and x/y coordinates; the API also accepts
 // omitted arrays and arbitrary numeric position keys for existing stored flows.
@@ -33,4 +38,10 @@ export type MCPToolInfo = {
   description: string;
 };
 
-export type BotConfigWithOrchestration = BotConfig;
+export type BotConfigWithOrchestration = BotConfigOutput;
+
+export const toBotConfigInput = (config: BotConfigOutput): BotConfigInput => ({
+  agent: config.agent,
+  flow: config.flow,
+  orchestration: config.orchestration,
+});

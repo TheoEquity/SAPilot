@@ -16,16 +16,20 @@ import type {
 } from 'msw';
 
 import type {
+  ApiKey,
   ApiKeyCreate,
   ApiKeyList,
   ApiKeyUpdate
 } from '../models';
 
 import {
-  getListApiKeysViewApiV1ApikeysGetResponseMock
+  getCreateApiKeyViewApiV1ApikeysPostResponseMock,
+  getDeleteApiKeyViewApiV1ApikeysApikeyIdDeleteResponseMock,
+  getListApiKeysViewApiV1ApikeysGetResponseMock,
+  getUpdateApiKeyViewApiV1ApikeysApikeyIdPutResponseMock
 } from './api-keys.faker';
 
-export { getListApiKeysViewApiV1ApikeysGetResponseMock } from './api-keys.faker';
+export { getListApiKeysViewApiV1ApikeysGetResponseMock, getCreateApiKeyViewApiV1ApikeysPostResponseMock, getDeleteApiKeyViewApiV1ApikeysApikeyIdDeleteResponseMock, getUpdateApiKeyViewApiV1ApikeysApikeyIdPutResponseMock } from './api-keys.faker';
 
 
 export const getListApiKeysViewApiV1ApikeysGetMockHandler = (overrideResponse?: ApiKeyList | ((info: Parameters<HttpResponseResolver>[0]) => Promise<ApiKeyList> | ApiKeyList), options?: RequestHandlerOptions) => {
@@ -40,31 +44,37 @@ export const getListApiKeysViewApiV1ApikeysGetMockHandler = (overrideResponse?: 
   }, options)
 }
 
-export const getCreateApiKeyViewApiV1ApikeysPostMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<PathParams, ApiKeyCreate>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getCreateApiKeyViewApiV1ApikeysPostMockHandler = (overrideResponse?: ApiKey | ((info: Parameters<HttpResponseResolver<PathParams, ApiKeyCreate>>[0]) => Promise<ApiKey> | ApiKey), options?: RequestHandlerOptions) => {
   return http.post<PathParams, ApiKeyCreate>('*/api/v1/apikeys', async (info: Parameters<HttpResponseResolver<PathParams, ApiKeyCreate>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getCreateApiKeyViewApiV1ApikeysPostResponseMock(),
       { status: 200
       })
   }, options)
 }
 
-export const getDeleteApiKeyViewApiV1ApikeysApikeyIdDeleteMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ apikeyId: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getDeleteApiKeyViewApiV1ApikeysApikeyIdDeleteMockHandler = (overrideResponse?: boolean | null | ((info: Parameters<HttpResponseResolver<{ apikeyId: string }>>[0]) => Promise<boolean | null> | boolean | null), options?: RequestHandlerOptions) => {
   return http.delete<{ apikeyId: string }>('*/api/v1/apikeys/:apikeyId', async (info: Parameters<HttpResponseResolver<{ apikeyId: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getDeleteApiKeyViewApiV1ApikeysApikeyIdDeleteResponseMock(),
       { status: 200
       })
   }, options)
 }
 
-export const getUpdateApiKeyViewApiV1ApikeysApikeyIdPutMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ apikeyId: string }, ApiKeyUpdate>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getUpdateApiKeyViewApiV1ApikeysApikeyIdPutMockHandler = (overrideResponse?: ApiKey | ((info: Parameters<HttpResponseResolver<{ apikeyId: string }, ApiKeyUpdate>>[0]) => Promise<ApiKey> | ApiKey), options?: RequestHandlerOptions) => {
   return http.put<{ apikeyId: string }, ApiKeyUpdate>('*/api/v1/apikeys/:apikeyId', async (info: Parameters<HttpResponseResolver<{ apikeyId: string }, ApiKeyUpdate>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getUpdateApiKeyViewApiV1ApikeysApikeyIdPutResponseMock(),
       { status: 200
       })
   }, options)

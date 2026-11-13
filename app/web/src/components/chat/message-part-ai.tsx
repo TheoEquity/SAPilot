@@ -1,11 +1,21 @@
-import { ChatMessage } from '@/api';
 import { Markdown } from '@/components/markdown';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import _ from 'lodash';
 import { AlertCircleIcon } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import type { ChatMessage } from './chat-message';
 import { MessageCollapseContent } from './message-collapse-content';
+
+const isFaqOption = (
+  value: unknown,
+): value is { action: string; label: string } =>
+  typeof value === 'object' &&
+  value !== null &&
+  'action' in value &&
+  typeof value.action === 'string' &&
+  'label' in value &&
+  typeof value.label === 'string';
 
 export const MessagePartAi = ({
   part,
@@ -42,7 +52,7 @@ export const MessagePartAi = ({
     case 'thinking':
       return (
         <MessageCollapseContent title="Thinging" animate={loading}>
-          <Markdown>{part.data}</Markdown>
+          <Markdown>{part.data ?? undefined}</Markdown>
         </MessageCollapseContent>
       );
     case 'tool_call_result':
@@ -53,13 +63,9 @@ export const MessagePartAi = ({
         </MessageCollapseContent>
       );
     case 'message':
-      return <Markdown>{part.data}</Markdown>;
+      return <Markdown>{part.data ?? undefined}</Markdown>;
     case 'faq_choice': {
-      const options = (
-        part as ChatMessage & {
-          options?: { action: string; label: string }[];
-        }
-      ).options || [
+      const options = part.options?.filter(isFaqOption) || [
         { action: 'faq_expand', label: '是，专业扩展' },
         { action: 'faq_end', label: '否，结束' },
       ];

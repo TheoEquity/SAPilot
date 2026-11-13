@@ -13,14 +13,12 @@ export default async function Page({
   const serverApi = await getServerApi();
 
   const [collectionRes, documentPreviewRes] = await Promise.all([
-    serverApi.defaultApi.marketplaceCollectionsCollectionIdGet({
-      collectionId,
-    }),
-    serverApi.defaultApi.marketplaceCollectionsCollectionIdDocumentsDocumentIdPreviewGet(
-      {
-        collectionId,
-        documentId,
-      },
+    serverApi.marketplaceCollections.getMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGet(
+      encodeURIComponent(String(collectionId)),
+    ),
+    serverApi.marketplaceCollections.getMarketplaceDocumentPreview(
+      encodeURIComponent(String(collectionId)),
+      encodeURIComponent(String(documentId)),
     ),
   ]);
 

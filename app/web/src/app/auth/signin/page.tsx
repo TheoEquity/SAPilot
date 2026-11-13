@@ -14,7 +14,7 @@ export default async function Page() {
   const apiServer = await getServerApi();
   let methods;
   try {
-    const res = await apiServer.defaultApi.configGet();
+    const res = await apiServer.config.configViewApiV1ConfigGet();
     methods = res.data.login_methods || [];
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {

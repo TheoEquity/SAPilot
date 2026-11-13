@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-import { SearchResult } from '@/api';
+import type { SearchResult } from '@/api/generated/models';
 import { DataGrid, DataGridPagination } from '@/components/data-grid';
 import { FormatDate } from '@/components/format-date';
 import { useCollectionContext } from '@/components/providers/collection-provider';

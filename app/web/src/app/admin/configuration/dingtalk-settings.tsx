@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, Settings } from '@/api';
+import type { Bot, Settings } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -74,7 +74,7 @@ export const DingTalkSettings = ({
 
     setSaving(true);
     try {
-      await apiClient.defaultApi.settingsPut({ settings: data });
+      await apiClient.settings.updateSettingsApiV1SettingsPut(data);
       toast.success(common_tips('save_success'));
     } finally {
       setSaving(false);

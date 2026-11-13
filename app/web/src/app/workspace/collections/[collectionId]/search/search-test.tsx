@@ -1,4 +1,4 @@
-import { SearchRequest } from '@/api';
+import type { SearchRequest } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -136,10 +136,10 @@ export const SearchTest = ({ children }: { children: ReactNode }) => {
         data.summary_search = values.summary_search;
       }
 
-      await apiClient.defaultApi.collectionsCollectionIdSearchesPost({
-        collectionId: collection.id,
-        searchRequest: data,
-      });
+      await apiClient.search.createSearchViewApiV1CollectionsCollectionIdSearchesPost(
+        encodeURIComponent(String(collection.id)),
+        data,
+      );
 
       setVisible(false);
 

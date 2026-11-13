@@ -1,6 +1,6 @@
 'use client';
 
-import { UploadDocumentResponseStatusEnum } from '@/api';
+import { UploadDocumentResponseStatus } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -74,7 +74,7 @@ type DocumentsWithFile = {
   progress: number;
   progress_status: 'pending' | 'uploading' | 'success' | 'failed';
   document_id?: string;
-  status?: UploadDocumentResponseStatusEnum;
+  status?: UploadDocumentResponseStatus;
 };
 
 type AsyncTask = (callback: (error?: Error | null) => void) => void;
@@ -105,14 +105,14 @@ export const DocumentUpload = () => {
     if (!collection.id) return;
     try {
       const res =
-        await apiClient.defaultApi.collectionsCollectionIdDocumentsStagedGet({
-          collectionId: collection.id,
-        });
+        await apiClient.documents.listStagedDocumentsViewApiV1CollectionsCollectionIdDocumentsStagedGet(
+          encodeURIComponent(String(collection.id)),
+        );
       const staged: DocumentsWithFile[] = res.data.documents.map((doc) => ({
         filename: doc.filename,
         size: doc.size,
         document_id: doc.document_id,
-        status: doc.status as UploadDocumentResponseStatusEnum,
+        status: doc.status as UploadDocumentResponseStatus,
         progress: 100,
         progress_status: 'success' as const,
       }));
@@ -183,14 +183,14 @@ export const DocumentUpload = () => {
   const handleSaveToCollection = useCallback(async () => {
     if (!collection.id) return;
     const res =
-      await apiClient.defaultApi.collectionsCollectionIdDocumentsConfirmPost({
-        collectionId: collection.id,
-        confirmDocumentsRequest: {
+      await apiClient.documents.confirmDocumentsViewApiV1CollectionsCollectionIdDocumentsConfirmPost(
+        encodeURIComponent(String(collection.id)),
+        {
           document_ids: documents
             .map((doc) => doc.document_id || '')
             .filter((id) => !_.isEmpty(id)),
         },
-      });
+      );
     if (res.status === 200) {
       logger.info('document.ingestion.submitted', {
         collection_id: collection.id,
@@ -230,85 +230,89 @@ export const DocumentUpload = () => {
         uploadingFilesRef.current.add(fileKey);
       });
 
-      const tasks: AsyncTask[] = filesToUpload.map((_doc) => async (callback) => {
-        const file = _doc.file!;
-        if (!collection?.id) {
-          callback();
-          return;
-        }
+      const tasks: AsyncTask[] = filesToUpload.map(
+        (_doc) => async (callback) => {
+          const file = _doc.file!;
+          if (!collection?.id) {
+            callback();
+            return;
+          }
 
-        const networkSimulation = async () => {
-          const totalChunks = 100;
-          let uploadedChunks = 0;
-          for (let i = 0; i < totalChunks; i++) {
-            await new Promise((resolve) =>
-              setTimeout(resolve, Math.random() * 5 + 5),
-            );
-            uploadedChunks++;
-            const progress = (uploadedChunks / totalChunks) * 99;
+          const networkSimulation = async () => {
+            const totalChunks = 100;
+            let uploadedChunks = 0;
+            for (let i = 0; i < totalChunks; i++) {
+              await new Promise((resolve) =>
+                setTimeout(resolve, Math.random() * 5 + 5),
+              );
+              uploadedChunks++;
+              const progress = (uploadedChunks / totalChunks) * 99;
+              setDocuments((docs) => {
+                const doc = docs.find((d) => d.file && _.isEqual(d.file, file));
+                if (doc) {
+                  doc.progress = Number(progress.toFixed(0));
+                  doc.progress_status = 'uploading';
+                }
+                return [...docs];
+              });
+            }
+          };
+
+          const started = performance.now();
+          logger.info('document.upload.started', {
+            collection_id: collection.id,
+            size: file.size,
+            status: 'started',
+          });
+          try {
+            const [res] = await Promise.all([
+              apiClient.documents.uploadDocumentViewApiV1CollectionsCollectionIdDocumentsUploadPost(
+                encodeURIComponent(String(collection.id)),
+                { file },
+                undefined,
+                { timeout: 1000 * 30 },
+              ),
+              networkSimulation(),
+            ]);
+
+            logger.info('document.upload.completed', {
+              collection_id: collection.id,
+              document_id: res.data.document_id,
+              status: 'uploaded',
+              duration_ms: Math.round(performance.now() - started),
+            });
             setDocuments((docs) => {
               const doc = docs.find((d) => d.file && _.isEqual(d.file, file));
-              if (doc) {
-                doc.progress = Number(progress.toFixed(0));
-                doc.progress_status = 'uploading';
+              if (doc && res.data.document_id) {
+                Object.assign(doc, {
+                  ...res.data,
+                  progress: 100,
+                  progress_status: 'success',
+                });
               }
               return [...docs];
             });
+          } catch (err) {
+            logger.warn('document.upload.failed', {
+              collection_id: collection.id,
+              status: 'failed',
+              error: err,
+              duration_ms: Math.round(performance.now() - started),
+            });
+            setDocuments((docs) => {
+              const doc = docs.find((d) => d.file && _.isEqual(d.file, file));
+              if (doc) {
+                Object.assign(doc, { progress: 0, progress_status: 'failed' });
+              }
+              return [...docs];
+            });
+          } finally {
+            const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+            uploadingFilesRef.current.delete(fileKey);
           }
-        };
-
-        const started = performance.now();
-        logger.info('document.upload.started', {
-          collection_id: collection.id,
-          size: file.size,
-          status: 'started',
-        });
-        try {
-          const [res] = await Promise.all([
-            apiClient.defaultApi.collectionsCollectionIdDocumentsUploadPost(
-              { collectionId: collection.id, file },
-              { timeout: 1000 * 30 },
-            ),
-            networkSimulation(),
-          ]);
-
-          logger.info('document.upload.completed', {
-            collection_id: collection.id,
-            document_id: res.data.document_id,
-            status: 'uploaded',
-            duration_ms: Math.round(performance.now() - started),
-          });
-          setDocuments((docs) => {
-            const doc = docs.find((d) => d.file && _.isEqual(d.file, file));
-            if (doc && res.data.document_id) {
-              Object.assign(doc, {
-                ...res.data,
-                progress: 100,
-                progress_status: 'success',
-              });
-            }
-            return [...docs];
-          });
-        } catch (err) {
-          logger.warn('document.upload.failed', {
-            collection_id: collection.id,
-            status: 'failed',
-            error: err,
-            duration_ms: Math.round(performance.now() - started),
-          });
-          setDocuments((docs) => {
-            const doc = docs.find((d) => d.file && _.isEqual(d.file, file));
-            if (doc) {
-              Object.assign(doc, { progress: 0, progress_status: 'failed' });
-            }
-            return [...docs];
-          });
-        } finally {
-          const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
-          uploadingFilesRef.current.delete(fileKey);
-        }
-        callback(null);
-      });
+          callback(null);
+        },
+      );
 
       setIsUploading(true);
       uploadController = new AbortController();
@@ -325,9 +329,11 @@ export const DocumentUpload = () => {
         },
         (err) => {
           logger.info(
-            err ? 'document.upload.batch.cancelled' : 'document.upload.batch.completed',
+            err
+              ? 'document.upload.batch.cancelled'
+              : 'document.upload.batch.completed',
             {
-              collection_id: collection.id,
+              collection_id: collection.id ?? undefined,
               status: err ? 'cancelled' : 'completed',
               file_count: filesToUpload.length,
             },
@@ -339,18 +345,15 @@ export const DocumentUpload = () => {
     [collection.id],
   );
 
-  const handleRemoveFile = useCallback(
-    (item: DocumentsWithFile) => {
-      setDocuments((docs) =>
-        docs.filter((doc) =>
-          item.file
-            ? !_.isEqual(doc.file, item.file)
-            : doc.document_id !== item.document_id,
-        ),
-      );
-    },
-    [],
-  );
+  const handleRemoveFile = useCallback((item: DocumentsWithFile) => {
+    setDocuments((docs) =>
+      docs.filter((doc) =>
+        item.file
+          ? !_.isEqual(doc.file, item.file)
+          : doc.document_id !== item.document_id,
+      ),
+    );
+  }, []);
 
   // ── DataGrid columns ─────────────────────────────────────────────────────
 
@@ -388,7 +391,8 @@ export const DocumentUpload = () => {
         cell: ({ row }) => {
           const { filename, file, size } = row.original;
           const mimeType = file?.type ?? '';
-          const extension = _.last(mimeType.split('/')) || _.last(filename.split('.')) || '';
+          const extension =
+            _.last(mimeType.split('/')) || _.last(filename.split('.')) || '';
           return (
             <div className="flex w-full flex-row items-center gap-2">
               <div className="size-6">
@@ -469,7 +473,12 @@ export const DocumentUpload = () => {
     columns,
     state: { rowSelection, pagination },
     getRowId: (row) =>
-      String(row.document_id ?? (row.file ? `${row.file.name}-${row.file.lastModified}` : row.filename)),
+      String(
+        row.document_id ??
+          (row.file
+            ? `${row.file.name}-${row.file.lastModified}`
+            : row.filename),
+      ),
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onPaginationChange: setPagination,
@@ -648,7 +657,7 @@ export const DocumentUpload = () => {
         )}
 
         {/* Source picker — always anchored at the bottom */}
-        <div className="flex items-center gap-1 rounded-lg border bg-muted/30 px-4 py-2">
+        <div className="bg-muted/30 flex items-center gap-1 rounded-lg border px-4 py-2">
           {documents.length > 0 && (
             <span className="text-muted-foreground mr-2 text-xs">
               {page_documents('add_more_sources')}
@@ -688,7 +697,9 @@ export const DocumentUpload = () => {
               handleUrlImportSuccess(results);
               // Only auto-close when every URL succeeded; keep open on partial failure
               // so the user can read the error details before dismissing.
-              const hasFailures = results.some((r) => r.fetch_status === 'error');
+              const hasFailures = results.some(
+                (r) => r.fetch_status === 'error',
+              );
               if (!hasFailures) setUrlDialogOpen(false);
             }}
           />

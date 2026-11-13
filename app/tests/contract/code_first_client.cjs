@@ -46,8 +46,14 @@ function load(relative) {
     if (name === 'axios') return transport;
     if (name === './logging') return load('web/src/lib/api/logging.ts');
     if (name === '../logger') return load('web/src/lib/logger.ts');
-    if (name === '@/api/generated/bots/bots') return load('web/src/api/generated/bots/bots.ts');
-    if (name === '@/api') return new Proxy({}, { get: () => class LegacyApi {} });
+    if (name === '@/api/generated') return load('web/src/api/generated/index.ts');
+    if (name.startsWith('@/api/generated/')) {
+      return load(`web/src/api/generated/${name.slice('@/api/generated/'.length)}.ts`);
+    }
+    if (name.startsWith('./') || name.startsWith('../')) {
+      const target = path.posix.normalize(path.posix.join(path.posix.dirname(relative), `${name}.ts`));
+      if (fs.existsSync(path.join(root, target))) return load(target);
+    }
     if (name === 'sonner') return { toast: { error: text => notices.push(text) } };
     if (name === '@/services/cookies') return { getLocale: async () => 'zh-CN' };
     if (name === 'next/headers') return { cookies: async () => ({ getAll: () => [{ name: 'sessionid', value: 'test-session' }] }) };
@@ -87,5 +93,18 @@ function load(relative) {
   ]);
   assert.deepEqual(logs.map(log => log.level), ['DEBUG', 'INFO', 'INFO', 'DEBUG', 'WARNING']);
   assert.equal(logs[4].status_code, 403);
+  const modelClient = load('web/src/api/generated/llm-models/llm-models.ts')
+    .getLlmModels(transport.create({ baseURL: '/api/v1' }));
+  const createdModel = {
+    provider_name: 'provider', api: 'completion', model: 'model/one', custom_llm_provider: 'openai',
+  };
+  await modelClient.createProviderModelViewApiV1LlmProvidersProviderNameModelsPost('provider', createdModel);
+  const updatedModel = { max_output_tokens: 512 };
+  await modelClient.updateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPut(
+    'provider', 'completion', 'model%2Fone', updatedModel,
+  );
+  assert.deepEqual(captures[5].data, createdModel);
+  assert.deepEqual(captures[6].data, updatedModel);
+  assert.equal(captures[6].url, '/api/v1/llm_providers/provider/models/completion/model%2Fone');
   process.stdout.write(JSON.stringify({ requests: captures.length, browserAndServer: true, preservedPayloadAndErrors: true }));
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1,8 +1,6 @@
 'use client';
-import {
-  Evaluation,
-  RetryEvaluationApiV1EvaluationsEvalIdRetryPostScopeEnum,
-} from '@/api';
+import type { Evaluation } from '@/api/generated/models';
+import { RetryEvaluationApiV1EvaluationsEvalIdRetryPostScope } from '@/api/generated/models';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -26,7 +24,7 @@ export const EvaluationRetryItem = ({
   children,
   onRetry,
 }: {
-  scope: RetryEvaluationApiV1EvaluationsEvalIdRetryPostScopeEnum;
+  scope: RetryEvaluationApiV1EvaluationsEvalIdRetryPostScope;
   evaluation: Evaluation;
   children: React.ReactNode;
   onRetry: () => void;
@@ -38,11 +36,9 @@ export const EvaluationRetryItem = ({
   const handleRetry = useCallback(async () => {
     if (!evaluation.id) return;
 
-    await apiClient.evaluationApi.retryEvaluationApiV1EvaluationsEvalIdRetryPost(
-      {
-        evalId: evaluation.id,
-        scope,
-      },
+    await apiClient.evaluation.retryEvaluationApiV1EvaluationsEvalIdRetryPost(
+      encodeURIComponent(evaluation.id),
+      { scope },
     );
     setVisible(false);
 

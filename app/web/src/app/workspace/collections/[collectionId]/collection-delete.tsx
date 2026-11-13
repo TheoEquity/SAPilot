@@ -32,9 +32,10 @@ export const CollectionDelete = ({
 
   const handleDelete = useCallback(async () => {
     if (collection?.id) {
-      const res = await apiClient.defaultApi.collectionsCollectionIdDelete({
-        collectionId: collection.id,
-      });
+      const res =
+        await apiClient.collections.deleteCollectionViewApiV1CollectionsCollectionIdDelete(
+          encodeURIComponent(String(collection.id)),
+        );
       if (res?.status === 200) {
         setDeleteVisible(false);
         router.push('/workspace/collections');

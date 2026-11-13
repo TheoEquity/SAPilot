@@ -15,9 +15,9 @@ export default async function BotSkillsLayout({
   let bot;
 
   try {
-    const botRes = await serverApi.defaultApi.botsBotIdGet({
-      botId,
-    });
+    const botRes = await serverApi.bots.getBot(
+      encodeURIComponent(String(botId)),
+    );
     bot = botRes.data;
   } catch (err) {
     console.log(err);

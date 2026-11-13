@@ -23,7 +23,8 @@ export default async function Page() {
   const serverApi = await getServerApi();
   const page_models = await getTranslations('page_models');
 
-  const res = await serverApi.defaultApi.llmConfigurationGet();
+  const res =
+    await serverApi.llmProviders.getLlmConfigurationViewApiV1LlmConfigurationGet();
 
   return (
     <PageContainer>

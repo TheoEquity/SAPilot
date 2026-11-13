@@ -8,7 +8,7 @@
 - Bot 设置保留未编辑的 agent.collections 与 completion 高级参数；意图保存保留 llm.top_p/timeout_ms；Skill 两种保存保留 category、runtime 高级参数和工具高级绑定。显式删除工具/集合或清空文本仍提交空值，不恢复已删除项。
 - 画布构造保存对象时带回 viewport 与 edge.type。现有边 ID 规范化仍沿用原逻辑。
 - 普通 Skill 保存的校验、兜底冲突保护和去重，以及快捷保存绕过这些处理的既有差异分别测试，未统一两者语义。SkillList 仅在已有 intent_router 的分支收窄 fallback 类型，不改变有效配置的删除逻辑。
-- 编排业务类型引用生成 SDK；画布类型仅收窄为其既有的 x/y 坐标与已规范化数组形状，后端仍接受原来的 numeric position 字典；edge.type 的 null 在 UI 边界转为 undefined，与后端 exclude_none 语义一致。
+- 编排业务类型引用当前生成客户端；画布类型仅收窄为其既有的 x/y 坐标与已规范化数组形状，后端仍接受原来的 numeric position 字典；edge.type 的 null 在 UI 边界转为 undefined，与后端 exclude_none 语义一致。
 - 未实现 confidence_threshold 比较、启停执行、工具必用/重试/超时策略等规划。字段保存不等于策略执行。
 
 ## 执行回归

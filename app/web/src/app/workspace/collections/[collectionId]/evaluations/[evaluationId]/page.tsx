@@ -24,9 +24,9 @@ export default async function Page({
 
   try {
     const [evaluationRes] = await Promise.all([
-      serverApi.evaluationApi.getEvaluationApiV1EvaluationsEvalIdGet({
-        evalId: evaluationId,
-      }),
+      serverApi.evaluation.getEvaluationApiV1EvaluationsEvalIdGet(
+        encodeURIComponent(String(evaluationId)),
+      ),
     ]);
     evaluation = evaluationRes.data;
   } catch (err) {

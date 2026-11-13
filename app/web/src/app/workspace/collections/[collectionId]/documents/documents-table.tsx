@@ -27,7 +27,8 @@ import {
 import * as React from 'react';
 import { defaultStyles, FileIcon } from 'react-file-icon';
 
-import { Document, RebuildIndexesRequestIndexTypesEnum } from '@/api';
+import type { Document } from '@/api/generated/models';
+import { RebuildIndexesRequestIndexTypesItem } from '@/api/generated/models';
 
 import { DataGrid, DataGridPagination } from '@/components/data-grid';
 import { FormatDate } from '@/components/format-date';
@@ -105,26 +106,26 @@ export function DocumentsTable({
 
   const columns: ColumnDef<Document>[] = React.useMemo(() => {
     const indexCols: ColumnDef<Document>[] = [];
-    objectKeys(RebuildIndexesRequestIndexTypesEnum).map((key) => {
+    objectKeys(RebuildIndexesRequestIndexTypesItem).map((key) => {
       const accessorKey = key.toLowerCase() + '_index_status';
 
       const config = collection.config;
       let enabled: boolean | undefined;
       switch (key) {
         case 'FULLTEXT':
-          enabled = config?.enable_fulltext;
+          enabled = config?.enable_fulltext ?? undefined;
           break;
         case 'GRAPH':
-          enabled = config?.enable_knowledge_graph;
+          enabled = config?.enable_knowledge_graph ?? undefined;
           break;
         case 'SUMMARY':
-          enabled = config?.enable_summary;
+          enabled = config?.enable_summary ?? undefined;
           break;
         case 'VECTOR':
-          enabled = config?.enable_vector;
+          enabled = config?.enable_vector ?? undefined;
           break;
         case 'VISION':
-          enabled = config?.enable_vision;
+          enabled = config?.enable_vision ?? undefined;
           break;
         default:
           enabled = false;

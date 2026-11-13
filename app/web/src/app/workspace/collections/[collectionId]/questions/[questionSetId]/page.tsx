@@ -24,9 +24,9 @@ export default async function Page({
 
   try {
     const [questionSetRes] = await Promise.all([
-      serverApi.evaluationApi.getQuestionSetApiV1QuestionSetsQsIdGet({
-        qsId: questionSetId,
-      }),
+      serverApi.evaluation.getQuestionSetApiV1QuestionSetsQsIdGet(
+        encodeURIComponent(String(questionSetId)),
+      ),
     ]);
     questionSet = questionSetRes.data;
   } catch (err) {

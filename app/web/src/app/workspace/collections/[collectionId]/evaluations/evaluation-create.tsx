@@ -1,6 +1,6 @@
 'use client';
 
-import { ModelSpec, QuestionSet } from '@/api';
+import type { ModelSpec, QuestionSet } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -56,9 +56,9 @@ const evaluationSchema = z.object({
 });
 
 type ProviderModel = {
-  label?: string;
-  name?: string;
-  models?: ModelSpec[];
+  label?: string | null;
+  name?: string | null;
+  models?: ModelSpec[] | null;
 };
 export const EvaluationCreate = ({
   children,
@@ -135,15 +135,13 @@ export const EvaluationCreate = ({
 
   const loadData = useCallback(async () => {
     const [questionSetRes, agentModelsRes] = await Promise.all([
-      apiClient.evaluationApi.listQuestionSetsApiV1QuestionSetsGet({
-        collectionId: collection.id,
+      apiClient.evaluation.listQuestionSetsApiV1QuestionSetsGet({
+        collection_id: collection.id,
         page: 1,
-        pageSize: 100,
+        page_size: 100,
       }),
-      apiClient.defaultApi.availableModelsPost({
-        tagFilterRequest: {
-          tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
-        },
+      apiClient.llmModels.getAvailableModelsViewApiV1AvailableModelsPost({
+        tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
       }),
     ]);
     setQuestionSets(questionSetRes.data.items || []);
@@ -158,11 +156,9 @@ export const EvaluationCreate = ({
 
   const handleCreate = useCallback(
     async (values: z.infer<typeof evaluationSchema>) => {
-      await apiClient.evaluationApi.createEvaluationApiV1EvaluationsPost({
-        evaluationCreate: {
-          collection_id: collection.id || '',
-          ...values,
-        },
+      await apiClient.evaluation.createEvaluationApiV1EvaluationsPost({
+        collection_id: collection.id || '',
+        ...values,
       });
       setVisible(false);
       setTimeout(router.refresh, 300);

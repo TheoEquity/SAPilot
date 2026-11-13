@@ -1,10 +1,10 @@
 'use client';
-import {
+import type {
   GraphEdge,
   GraphNode,
   KnowledgeGraph,
   MergeSuggestionsResponse,
-} from '@/api';
+} from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { apiClient } from '@/lib/api/client';
@@ -104,21 +104,20 @@ export const CollectionGraph = ({
     let data: KnowledgeGraph;
 
     if (!marketplace) {
-      const res = await apiClient.graphApi.collectionsCollectionIdGraphsGet(
-        {
-          collectionId: params.collectionId,
-        },
-        {
-          timeout: 1000 * 20,
-        },
-      );
+      const res =
+        await apiClient.graph.getKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGet(
+          encodeURIComponent(String(params.collectionId)),
+          undefined,
+          {
+            timeout: 1000 * 20,
+          },
+        );
       data = res.data;
     } else {
       const res =
-        await apiClient.defaultApi.marketplaceCollectionsCollectionIdGraphGet(
-          {
-            collectionId: params.collectionId,
-          },
+        await apiClient.marketplaceCollections.getMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGet(
+          encodeURIComponent(String(params.collectionId)),
+          undefined,
           {
             timeout: 1000 * 20,
           },
@@ -151,13 +150,11 @@ export const CollectionGraph = ({
   const getMergeSuggestions = useCallback(async () => {
     if (typeof params.collectionId !== 'string' || marketplace) return;
     const suggestionRes =
-      await apiClient.graphApi.collectionsCollectionIdGraphsMergeSuggestionsPost(
-        {
-          collectionId: params.collectionId,
-        },
-        {
-          timeout: 1000 * 20,
-        },
+      await apiClient.graph.mergeSuggestionsViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsPost(
+        encodeURIComponent(params.collectionId),
+        undefined,
+        undefined,
+        { timeout: 1000 * 20 },
       );
     setMergeSuggestion(suggestionRes.data);
   }, [marketplace, params.collectionId]);

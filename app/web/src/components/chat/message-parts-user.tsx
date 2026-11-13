@@ -1,9 +1,9 @@
 'use client';
 
-import { ChatMessage } from '@/api';
 import { ImagePreview, Markdown } from '@/components/markdown';
 import { FileImage, UserRound } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import type { ChatMessage } from './chat-message';
 import { MessageTimestamp } from './message-timestamp';
 
 const resolvePreviewUrl = (url?: string) => {
@@ -73,8 +73,11 @@ export const MessagePartsUser = ({ parts }: { parts: ChatMessage[] }) => {
         {files.length > 0 && (
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {files.map((file, index) => {
-              const previewUrl = resolvePreviewUrl(file.previewUrl);
-              const canPreview = previewUrl && isImageAttachment(file.name);
+              const previewUrl = resolvePreviewUrl(
+                file.previewUrl ?? undefined,
+              );
+              const canPreview =
+                previewUrl && isImageAttachment(file.name ?? undefined);
               const className =
                 'bg-muted text-muted-foreground hover:bg-muted/80 flex max-w-48 items-center gap-2 rounded-md border px-2 py-1 text-xs transition-colors';
 
@@ -82,7 +85,7 @@ export const MessagePartsUser = ({ parts }: { parts: ChatMessage[] }) => {
                 return (
                   <ChatAttachmentImage
                     key={`${file.id || file.name || 'file'}-${index}`}
-                    name={file.name}
+                    name={file.name ?? undefined}
                     previewUrl={previewUrl}
                     className={className}
                   />

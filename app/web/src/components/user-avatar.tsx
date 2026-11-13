@@ -1,4 +1,4 @@
-import { User } from '@/api';
+import type { User } from '@/api/generated/models';
 import { cn } from '@/lib/utils';
 // import { Avatar, AvatarFallback, AvatarImage } from '@radix-ui/react-avatar';
 

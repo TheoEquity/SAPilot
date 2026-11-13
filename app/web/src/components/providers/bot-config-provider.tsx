@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { Bot, Collection } from '@/api';
+import type { Bot, CollectionView as Collection } from '@/api/generated/models';
 import { apiClient } from '@/lib/api/client';
 import { createContext, useContext } from 'react';
 
@@ -34,14 +34,13 @@ export const BotConfigProvider = ({
 
   const loadBot = useCallback(async () => {
     if (!bot?.id) return;
-    const res = await apiClient.defaultApi.botsBotIdGet({
-      botId: bot.id,
-    });
+    const res = await apiClient.bots.getBot(encodeURIComponent(String(bot.id)));
     setBot(res.data);
   }, [bot?.id]);
 
   const loadCollections = useCallback(async () => {
-    const res = await apiClient.defaultApi.collectionsGet();
+    const res =
+      await apiClient.collections.listCollectionsViewApiV1CollectionsGet();
     setCollections(res.data.items || []);
   }, []);
 

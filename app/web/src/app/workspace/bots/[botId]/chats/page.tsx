@@ -1,4 +1,4 @@
-import { Chat } from '@/api';
+import type { Chat } from '@/api/generated/models';
 import {
   PageContainer,
   PageContent,
@@ -17,13 +17,11 @@ export default async function Page({
   const apiServer = await getServerApi();
   const page_chat = await getTranslations('page_chat');
   const { botId } = await params;
-  const chatsRes = await apiServer.defaultApi.botsBotIdChatsGet({
-    botId,
-    page: 1,
-    pageSize: 1,
-  });
+  const chatsRes = await apiServer.chats.listChatsViewApiV1BotsBotIdChatsGet(
+    encodeURIComponent(botId),
+    { page: 1, page_size: 1 },
+  );
 
-  //@ts-expect-error api define has a bug
   const chat: Chat | undefined = _.first(chatsRes.data.items || []);
 
   if (chat) {

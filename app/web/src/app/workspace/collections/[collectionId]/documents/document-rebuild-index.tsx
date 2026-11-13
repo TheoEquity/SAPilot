@@ -1,6 +1,7 @@
 'use client';
 
-import { Document, RebuildIndexesRequestIndexTypesEnum } from '@/api';
+import type { Document } from '@/api/generated/models';
+import { RebuildIndexesRequestIndexTypesItem } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -28,7 +29,7 @@ import { z } from 'zod';
 import { DocumentIndexStatus } from './document-index-status';
 
 const documentReBuildSchema = z.object({
-  index_types: z.array(z.enum(objectKeys(RebuildIndexesRequestIndexTypesEnum))),
+  index_types: z.array(z.enum(objectKeys(RebuildIndexesRequestIndexTypesItem))),
 });
 
 type DocumentReBuildSchemaType = z.infer<typeof documentReBuildSchema>;
@@ -49,20 +50,20 @@ export const DocumentReBuildIndex = ({
   const form = useForm<DocumentReBuildSchemaType>({
     resolver: zodResolver(documentReBuildSchema),
     defaultValues: {
-      index_types: objectKeys(RebuildIndexesRequestIndexTypesEnum).filter(
+      index_types: objectKeys(RebuildIndexesRequestIndexTypesItem).filter(
         (key) => {
           const config = collection.config;
           switch (key) {
             case 'FULLTEXT':
-              return config?.enable_fulltext;
+              return config?.enable_fulltext ?? undefined;
             case 'GRAPH':
-              return config?.enable_knowledge_graph;
+              return config?.enable_knowledge_graph ?? undefined;
             case 'SUMMARY':
-              return config?.enable_summary;
+              return config?.enable_summary ?? undefined;
             case 'VECTOR':
-              return config?.enable_vector;
+              return config?.enable_vector ?? undefined;
             case 'VISION':
-              return config?.enable_vision;
+              return config?.enable_vision ?? undefined;
           }
         },
       ),
@@ -78,14 +79,10 @@ export const DocumentReBuildIndex = ({
     }
 
     const res =
-      await apiClient.defaultApi.collectionsCollectionIdDocumentsDocumentIdRebuildIndexesPost(
-        {
-          collectionId: collection.id,
-          documentId: file.id,
-          rebuildIndexesRequest: {
-            index_types: values.index_types,
-          },
-        },
+      await apiClient.documents.rebuildDocumentIndexesViewApiV1CollectionsCollectionIdDocumentsDocumentIdRebuildIndexesPost(
+        encodeURIComponent(collection.id),
+        encodeURIComponent(file.id),
+        { index_types: values.index_types },
       );
 
     if (res.status === 200) {
@@ -122,24 +119,24 @@ export const DocumentReBuildIndex = ({
               <DialogDescription>{file.name}</DialogDescription>
             </DialogHeader>
             <div className="my-6 flex flex-col gap-2">
-              {objectKeys(RebuildIndexesRequestIndexTypesEnum)?.map((key) => {
+              {objectKeys(RebuildIndexesRequestIndexTypesItem)?.map((key) => {
                 const config = collection.config;
                 let enabled: boolean | undefined;
                 switch (key) {
                   case 'FULLTEXT':
-                    enabled = config?.enable_fulltext;
+                    enabled = config?.enable_fulltext ?? undefined;
                     break;
                   case 'GRAPH':
-                    enabled = config?.enable_knowledge_graph;
+                    enabled = config?.enable_knowledge_graph ?? undefined;
                     break;
                   case 'SUMMARY':
-                    enabled = config?.enable_summary;
+                    enabled = config?.enable_summary ?? undefined;
                     break;
                   case 'VECTOR':
-                    enabled = config?.enable_vector;
+                    enabled = config?.enable_vector ?? undefined;
                     break;
                   case 'VISION':
-                    enabled = config?.enable_vision;
+                    enabled = config?.enable_vision ?? undefined;
                     break;
                   default:
                     enabled = false;

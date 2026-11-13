@@ -1,6 +1,6 @@
 'use client';
 
-import { Document } from '@/api';
+import type { Document } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import {
   AlertDialog,
@@ -37,11 +37,9 @@ export const DocumentDelete = ({
   const handleDelete = async () => {
     if (!collection.id || !document.id) return;
     const res =
-      await apiClient.defaultApi.collectionsCollectionIdDocumentsDocumentIdDelete(
-        {
-          collectionId: collection.id,
-          documentId: document.id,
-        },
+      await apiClient.documents.deleteDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDelete(
+        encodeURIComponent(String(collection.id)),
+        encodeURIComponent(String(document.id)),
       );
 
     if (res.status === 200) {

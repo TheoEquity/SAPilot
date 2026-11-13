@@ -33,10 +33,10 @@ export const TextImport = ({ onSuccess }: Props) => {
       // Create a File object from the text — reuses the existing upload endpoint entirely
       const file = new File([content], filename, { type: 'text/plain' });
 
-      await apiClient.defaultApi.collectionsCollectionIdDocumentsUploadPost({
-        collectionId: collection.id,
-        file,
-      });
+      await apiClient.documents.uploadDocumentViewApiV1CollectionsCollectionIdDocumentsUploadPost(
+        encodeURIComponent(String(collection.id)),
+        { file },
+      );
 
       onSuccess();
     } finally {
@@ -49,7 +49,9 @@ export const TextImport = ({ onSuccess }: Props) => {
       <p className="text-muted-foreground text-sm">{t('import_text_desc')}</p>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="text-import-title">{t('import_text_title_label')}</Label>
+        <Label htmlFor="text-import-title">
+          {t('import_text_title_label')}
+        </Label>
         <Input
           id="text-import-title"
           placeholder={t('import_text_title_placeholder')}
@@ -61,7 +63,9 @@ export const TextImport = ({ onSuccess }: Props) => {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="text-import-content">{t('import_text_content_label')}</Label>
+        <Label htmlFor="text-import-content">
+          {t('import_text_content_label')}
+        </Label>
         <Textarea
           id="text-import-content"
           placeholder={t('import_text_content_placeholder')}
@@ -74,7 +78,11 @@ export const TextImport = ({ onSuccess }: Props) => {
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={handleAdd} disabled={!content.trim() || isUploading} className="min-w-24">
+        <Button
+          onClick={handleAdd}
+          disabled={!content.trim() || isUploading}
+          className="min-w-24"
+        >
           {isUploading ? (
             <>
               <LoaderCircle className="animate-spin" />

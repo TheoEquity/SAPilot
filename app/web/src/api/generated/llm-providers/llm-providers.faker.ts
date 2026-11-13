@@ -5,4 +5,25 @@
  * Knowledge management and retrieval system
  * OpenAPI spec version: 1.0.0
  */
+import {
+  faker
+} from '@faker-js/faker';
+
+import type {
+  LlmConfigurationResponse,
+  LlmProvider
+} from '../models';
+
+
+export const getGetLlmConfigurationViewApiV1LlmConfigurationGetResponseMock = (overrideResponse: Partial<Extract<LlmConfigurationResponse, object>> = {}): LlmConfigurationResponse => ({models: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({api: "completion", context_window: 128000, created: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), custom_llm_provider: "openai", max_input_tokens: 120000, max_output_tokens: 8000, model: "gpt-4o-mini", provider_name: "openai", tags: ["free","recommend"], updated: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,])})), providers: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({allow_custom_base_url: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), api_key: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), base_url: "https://api.openai.com/v1", completion_dialect: "openai", created: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), embedding_dialect: "openai", extra: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), label: "OpenAI", name: "openai", rerank_dialect: "jina_ai", updated: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), user_id: "public"})), ...overrideResponse})
+
+export const getCreateLlmProviderViewApiV1LlmProvidersPostResponseMock = (overrideResponse: Partial<Extract<LlmProvider, object>> = {}): LlmProvider => ({allow_custom_base_url: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), api_key: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), base_url: "https://api.openai.com/v1", completion_dialect: "openai", created: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), embedding_dialect: "openai", extra: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), label: "OpenAI", name: "openai", rerank_dialect: "jina_ai", updated: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), user_id: "public", ...overrideResponse})
+
+export const getDeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteResponseMock = (): boolean | null => (faker.helpers.arrayElement([faker.datatype.boolean(),null,]))
+
+export const getGetLlmProviderViewApiV1LlmProvidersProviderNameGetResponseMock = (overrideResponse: Partial<Extract<LlmProvider, object>> = {}): LlmProvider => ({allow_custom_base_url: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), api_key: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), base_url: "https://api.openai.com/v1", completion_dialect: "openai", created: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), embedding_dialect: "openai", extra: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), label: "OpenAI", name: "openai", rerank_dialect: "jina_ai", updated: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), user_id: "public", ...overrideResponse})
+
+export const getUpdateLlmProviderViewApiV1LlmProvidersProviderNamePutResponseMock = (overrideResponse: Partial<Extract<LlmProvider, object>> = {}): LlmProvider => ({allow_custom_base_url: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), api_key: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), base_url: "https://api.openai.com/v1", completion_dialect: "openai", created: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), embedding_dialect: "openai", extra: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), label: "OpenAI", name: "openai", rerank_dialect: "jina_ai", updated: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), user_id: "public", ...overrideResponse})
+
+export const getPublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostResponseMock = (overrideResponse: Partial<Extract<LlmProvider, object>> = {}): LlmProvider => ({allow_custom_base_url: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), api_key: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), base_url: "https://api.openai.com/v1", completion_dialect: "openai", created: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), embedding_dialect: "openai", extra: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), label: "OpenAI", name: "openai", rerank_dialect: "jina_ai", updated: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), user_id: "public", ...overrideResponse})
 

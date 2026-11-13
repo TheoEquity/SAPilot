@@ -19,9 +19,9 @@ export default async function Page({
   const serverApi = await getServerApi();
 
   const [searchRes] = await Promise.all([
-    serverApi.defaultApi.collectionsCollectionIdSearchesGet({
-      collectionId,
-    }),
+    serverApi.search.listSearchesViewApiV1CollectionsCollectionIdSearchesGet(
+      encodeURIComponent(String(collectionId)),
+    ),
   ]);
 
   return (

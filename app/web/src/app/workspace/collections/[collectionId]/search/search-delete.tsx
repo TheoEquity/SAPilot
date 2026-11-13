@@ -1,6 +1,6 @@
 'use client';
 
-import { SearchResult } from '@/api';
+import type { SearchResult } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import {
   AlertDialog,
@@ -37,10 +37,10 @@ export const SearchDelete = ({
   const handleDelete = async () => {
     if (!searchResult.id || !collection.id) return;
     const res =
-      await apiClient.defaultApi.collectionsCollectionIdSearchesSearchIdDelete({
-        collectionId: collection.id,
-        searchId: searchResult.id,
-      });
+      await apiClient.search.deleteSearchApiV1CollectionsCollectionIdSearchesSearchIdDelete(
+        encodeURIComponent(collection.id),
+        encodeURIComponent(searchResult.id),
+      );
 
     if (res.status === 200) {
       toast.success('Deleted successfully!');

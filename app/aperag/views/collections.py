@@ -235,7 +235,7 @@ async def list_documents_view(
     sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
     search: str = Query(None, description="Search documents by name"),
     user: User = Depends(required_user),
-):
+) -> view_models.DocumentList:
     """List documents with pagination, sorting and search capabilities"""
 
     result = await document_service.list_documents(
@@ -325,7 +325,7 @@ async def get_document_preview(
     collection_id: str,
     document_id: str,
     user: User = Depends(required_user),
-):
+) -> view_models.DocumentPreview:
     return await document_service.get_document_preview(str(user.id), collection_id, document_id)
 
 
@@ -366,7 +366,7 @@ async def rebuild_failed_indexes_view(
     request: Request,
     collection_id: str,
     user: User = Depends(required_user),
-):
+) -> view_models.RebuildFailedIndexesResponse:
     """Rebuild all failed indexes for all documents in a collection"""
     return await document_service.rebuild_failed_indexes(str(user.id), collection_id)
 
@@ -434,7 +434,7 @@ async def fetch_url_document_view(
     return await document_service.fetch_url_documents(str(user.id), collection_id, fetch_request.urls)
 
 
-@router.get("/collections/{collection_id}/graphs", tags=["graph"])
+@router.get("/collections/{collection_id}/graphs", tags=["graph"], response_model_exclude_unset=True)
 async def get_knowledge_graph_view(
     request: Request,
     collection_id: str,
@@ -442,7 +442,7 @@ async def get_knowledge_graph_view(
     max_nodes: int = 1000,
     max_depth: int = 3,
     user: User = Depends(required_user),
-):
+) -> view_models.KnowledgeGraph:
     """Get knowledge graph - overview mode or subgraph mode"""
     from aperag.service.graph_service import graph_service
 

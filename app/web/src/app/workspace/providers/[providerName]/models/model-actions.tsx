@@ -1,10 +1,7 @@
 'use client';
 
-import {
-  LlmProvider,
-  LlmProviderModel,
-  LlmProviderModelCreateApiEnum,
-} from '@/api';
+import type { LlmProvider, LlmProviderModel } from '@/api/generated/models';
+import { LlmProviderModelCreateApi } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -46,7 +43,7 @@ import * as z from 'zod';
 
 const defaultValue = {
   model: '',
-  api: LlmProviderModelCreateApiEnum.completion,
+  api: LlmProviderModelCreateApi.completion,
 };
 
 const providers = [
@@ -120,20 +117,22 @@ export const ModelActions = ({
   const form = useForm<z.infer<typeof modelSchema>>({
     resolver: zodResolver(modelSchema),
     defaultValues: {
-      ...defaultValue,
-      ...model,
+      model: model?.model ?? defaultValue.model,
+      api: model?.api ?? defaultValue.api,
+      custom_llm_provider: model?.custom_llm_provider ?? '',
+      context_window: model?.context_window ?? undefined,
+      max_input_tokens: model?.max_input_tokens ?? undefined,
+      max_output_tokens: model?.max_output_tokens ?? undefined,
     },
   });
 
   const handleDelete = useCallback(async () => {
     if (action === 'delete' && model?.model) {
       const res =
-        await apiClient.defaultApi.llmProvidersProviderNameModelsApiModelDelete(
-          {
-            providerName: provider.name,
-            api: model.api,
-            model: model.model,
-          },
+        await apiClient.llmModels.deleteProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelDelete(
+          encodeURIComponent(provider.name),
+          encodeURIComponent(model.api),
+          encodeURIComponent(model.model),
         );
       if (res?.status === 200) {
         setDeleteVisible(false);
@@ -147,31 +146,32 @@ export const ModelActions = ({
       let res;
       if (action === 'edit' && model?.model) {
         res =
-          await apiClient.defaultApi.llmProvidersProviderNameModelsApiModelPut({
-            providerName: provider.name,
-            api: model.api,
-            model: model.model,
-            llmProviderModelUpdate: {
+          await apiClient.llmModels.updateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPut(
+            encodeURIComponent(String(provider.name)),
+            model.api,
+            encodeURIComponent(String(model.model)),
+            {
               custom_llm_provider: values.custom_llm_provider,
               context_window: values.context_window,
               max_input_tokens: values.max_input_tokens,
               max_output_tokens: values.max_output_tokens,
             },
-          });
+          );
       }
       if (action === 'add') {
-        res = await apiClient.defaultApi.llmProvidersProviderNameModelsPost({
-          providerName: provider.name,
-          llmProviderModelCreate: {
-            provider_name: provider.name,
-            api: values.api as LlmProviderModelCreateApiEnum,
-            model: values.model,
-            custom_llm_provider: values.custom_llm_provider,
-            context_window: values.context_window,
-            max_input_tokens: values.max_input_tokens,
-            max_output_tokens: values.max_output_tokens,
-          },
-        });
+        res =
+          await apiClient.llmModels.createProviderModelViewApiV1LlmProvidersProviderNameModelsPost(
+            encodeURIComponent(String(provider.name)),
+            {
+              provider_name: provider.name,
+              api: values.api as LlmProviderModelCreateApi,
+              model: values.model,
+              custom_llm_provider: values.custom_llm_provider,
+              context_window: values.context_window,
+              max_input_tokens: values.max_input_tokens,
+              max_output_tokens: values.max_output_tokens,
+            },
+          );
       }
       if (res?.status === 200) {
         setCreateOrUpdateVisible(false);
@@ -281,7 +281,7 @@ export const ModelActions = ({
                       >
                         <div className="bg-card flex h-9 items-center gap-3 rounded-md border px-3">
                           <RadioGroupItem
-                            value={LlmProviderModelCreateApiEnum.completion}
+                            value={LlmProviderModelCreateApi.completion}
                             id="completion"
                           />
                           <Label
@@ -295,7 +295,7 @@ export const ModelActions = ({
                         </div>
                         <div className="bg-card flex h-9 items-center gap-3 rounded-md border px-3">
                           <RadioGroupItem
-                            value={LlmProviderModelCreateApiEnum.embedding}
+                            value={LlmProviderModelCreateApi.embedding}
                             id="embedding"
                           />
                           <Label
@@ -309,7 +309,7 @@ export const ModelActions = ({
                         </div>
                         <div className="bg-card flex h-9 items-center gap-3 rounded-md border px-3">
                           <RadioGroupItem
-                            value={LlmProviderModelCreateApiEnum.rerank}
+                            value={LlmProviderModelCreateApi.rerank}
                             id="rerank"
                           />
                           <Label
@@ -323,7 +323,7 @@ export const ModelActions = ({
                         </div>
                         <div className="bg-card flex h-9 items-center gap-3 rounded-md border px-3">
                           <RadioGroupItem
-                            value={LlmProviderModelCreateApiEnum.intent}
+                            value={LlmProviderModelCreateApi.intent}
                             id="intent"
                           />
                           <Label

@@ -18,10 +18,10 @@ export default async function Page({
   const page_evaluation = await getTranslations('page_evaluation');
   const page_collections = await getTranslations('page_collections');
   const [resEvaluations] = await Promise.all([
-    serverApi.evaluationApi.listEvaluationsApiV1EvaluationsGet({
-      collectionId,
+    serverApi.evaluation.listEvaluationsApiV1EvaluationsGet({
+      collection_id: collectionId,
       page: 1,
-      pageSize: 100,
+      page_size: 100,
     }),
   ]);
 

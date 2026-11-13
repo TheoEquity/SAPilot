@@ -17,6 +17,7 @@ import type {
 import type {
   ExportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGet200,
   GraphLabelsResponse,
+  KnowledgeGraph,
   MergeSuggestionsRequest,
   MergeSuggestionsResponse,
   NodeMergeRequest,
@@ -28,19 +29,22 @@ import type {
 import {
   getExportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGetResponseMock,
   getGetGraphLabelsViewApiV1CollectionsCollectionIdGraphsLabelsGetResponseMock,
+  getGetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetResponseMock,
   getHandleSuggestionActionViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsSuggestionIdActionPostResponseMock,
   getMergeNodesViewApiV1CollectionsCollectionIdGraphsNodesMergePostResponseMock,
   getMergeSuggestionsViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsPostResponseMock
 } from './graph.faker';
 
-export { getExportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGetResponseMock, getGetGraphLabelsViewApiV1CollectionsCollectionIdGraphsLabelsGetResponseMock, getMergeSuggestionsViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsPostResponseMock, getHandleSuggestionActionViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsSuggestionIdActionPostResponseMock, getMergeNodesViewApiV1CollectionsCollectionIdGraphsNodesMergePostResponseMock } from './graph.faker';
+export { getGetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetResponseMock, getExportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGetResponseMock, getGetGraphLabelsViewApiV1CollectionsCollectionIdGraphsLabelsGetResponseMock, getMergeSuggestionsViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsPostResponseMock, getHandleSuggestionActionViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsSuggestionIdActionPostResponseMock, getMergeNodesViewApiV1CollectionsCollectionIdGraphsNodesMergePostResponseMock } from './graph.faker';
 
 
-export const getGetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getGetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetMockHandler = (overrideResponse?: KnowledgeGraph | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<KnowledgeGraph> | KnowledgeGraph), options?: RequestHandlerOptions) => {
   return http.get<{ collectionId: string }>('*/api/v1/collections/:collectionId/graphs', async (info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetResponseMock(),
       { status: 200
       })
   }, options)

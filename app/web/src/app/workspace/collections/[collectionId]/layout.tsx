@@ -17,12 +17,12 @@ export default async function ChatLayout({
 
   try {
     const [collectionRes, shareRes] = await Promise.all([
-      serverApi.defaultApi.collectionsCollectionIdGet({
-        collectionId,
-      }),
-      serverApi.defaultApi.collectionsCollectionIdSharingGet({
-        collectionId,
-      }),
+      serverApi.collections.getCollectionViewApiV1CollectionsCollectionIdGet(
+        encodeURIComponent(String(collectionId)),
+      ),
+      serverApi.collections.getCollectionSharingStatusApiV1CollectionsCollectionIdSharingGet(
+        encodeURIComponent(String(collectionId)),
+      ),
     ]);
     collection = collectionRes.data;
     share = shareRes.data;

@@ -1,6 +1,6 @@
 'use client';
 
-import { Evaluation } from '@/api';
+import type { Evaluation } from '@/api/generated/models';
 import { FormatDate } from '@/components/format-date';
 import { Button } from '@/components/ui/button';
 import {
@@ -140,7 +140,7 @@ export const EvaluationList = ({
                           )}
                         />
 
-                        {_.upperFirst(_.lowerCase(evaluation.status))}
+                        {_.upperFirst(_.lowerCase(evaluation.status ?? ''))}
                       </div>
                     </CardFooter>
                   </Card>

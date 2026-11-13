@@ -110,7 +110,7 @@ def test_generated_client_preserves_browser_and_server_transport_contracts():
         encoding="utf-8",
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert json.loads(result.stdout) == {"requests": 5, "browserAndServer": True, "preservedPayloadAndErrors": True}
+    assert json.loads(result.stdout) == {"requests": 7, "browserAndServer": True, "preservedPayloadAndErrors": True}
 
 
 def test_cli_exports_from_an_http_schema_endpoint(tmp_path):

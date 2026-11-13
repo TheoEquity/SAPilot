@@ -945,6 +945,12 @@ class RebuildIndexesRequest(BaseModel):
     )
 
 
+class RebuildFailedIndexesResponse(BaseModel):
+    code: str
+    message: str
+    affected_documents: int
+
+
 class VisionChunk(BaseModel):
     id: Optional[str] = None
     asset_id: Optional[str] = None
@@ -1168,6 +1174,16 @@ class Settings(BaseModel):
     dingtalk_robot_code: Optional[str] = Field(None, description='DingTalk robot code for file downloads')
     dingtalk_app_key: Optional[str] = Field(None, description='DingTalk app key')
     dingtalk_app_secret: Optional[str] = Field(None, description='DingTalk app secret')
+
+
+class MineruTokenTestResponse(BaseModel):
+    status_code: int
+    data: Any
+
+
+class MineruTokenMissingResponse(BaseModel):
+    code: int
+    msg: str
 
 
 class PromptDetail(BaseModel):
@@ -2511,6 +2527,12 @@ class QuotaUpdateResponse(BaseModel):
     updated_quotas: list[UpdatedQuota] = Field(
         ..., description='List of updated quotas'
     )
+
+
+class QuotaRecalculateResponse(BaseModel):
+    success: bool
+    message: str
+    updated_usage: dict[str, int]
 
 
 class SystemDefaultQuotas(BaseModel):

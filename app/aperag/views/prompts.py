@@ -20,6 +20,7 @@ from jinja2 import TemplateSyntaxError
 from pydantic import BaseModel, Field
 
 from aperag.db.models import User
+from aperag.schema import view_models
 from aperag.service.prompt_template_service import PromptTemplateService, prompt_template_service
 from aperag.views.auth import required_user
 
@@ -62,7 +63,7 @@ class ValidateRequest(BaseModel):
 async def get_user_prompts(
     request: Request,
     user: User = Depends(required_user),
-) -> Dict[str, Any]:
+) -> view_models.UserPromptsResponse:
     """
     Get user's prompt configuration with priority resolution.
 

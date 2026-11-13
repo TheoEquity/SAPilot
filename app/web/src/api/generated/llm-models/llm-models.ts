@@ -18,6 +18,10 @@ import type {
   GetAvailableModelsViewApiV1AvailableModelsPostParams,
   GetProviderModelsViewApiV1LlmProvidersProviderNameModelsGetParams,
   ListLlmProviderModelsViewApiV1LlmProviderModelsGetParams,
+  LlmProviderModel,
+  LlmProviderModelCreate,
+  LlmProviderModelList,
+  LlmProviderModelUpdate,
   ModelConfigList,
   TagFilterRequest,
   UpdateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPutParams
@@ -60,7 +64,7 @@ const getGetAvailableModelsViewApiV1AvailableModelsPostUrl = (params?: GetAvaila
  */
 const listLlmProviderModelsViewApiV1LlmProviderModelsGet = (
     params?: ListLlmProviderModelsViewApiV1LlmProviderModelsGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<LlmProviderModelList>> => {
     return axiosInstance.get(
       `/llm_provider_models`,{
     ...options,
@@ -86,7 +90,7 @@ const getListLlmProviderModelsViewApiV1LlmProviderModelsGetUrl = (params?: ListL
 const getProviderModelsViewApiV1LlmProvidersProviderNameModelsGet = (
     providerName: string,
     params?: GetProviderModelsViewApiV1LlmProvidersProviderNameModelsGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<LlmProviderModelList>> => {
     return axiosInstance.get(
       `/llm_providers/${providerName}/models`,{
     ...options,
@@ -112,11 +116,12 @@ const getGetProviderModelsViewApiV1LlmProvidersProviderNameModelsGetUrl = (provi
  */
 const createProviderModelViewApiV1LlmProvidersProviderNameModelsPost = (
     providerName: string,
+    llmProviderModelCreate: LlmProviderModelCreate,
     params?: CreateProviderModelViewApiV1LlmProvidersProviderNameModelsPostParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<LlmProviderModel>> => {
     return axiosInstance.post(
       `/llm_providers/${providerName}/models`,
-      undefined,{
+      llmProviderModelCreate,{
     ...options,
         params: {...params, ...options?.params},}
     );
@@ -143,7 +148,7 @@ const deleteProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelDelete =
     api: string,
     model: string,
     params?: DeleteProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelDeleteParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<boolean | null>> => {
     return axiosInstance.delete(
       `/llm_providers/${providerName}/models/${api}/${model}`,{
     ...options,
@@ -173,11 +178,12 @@ const updateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPut = (
     providerName: string,
     api: string,
     model: string,
+    llmProviderModelUpdate: LlmProviderModelUpdate,
     params?: UpdateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPutParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<LlmProviderModel>> => {
     return axiosInstance.put(
       `/llm_providers/${providerName}/models/${api}/${model}`,
-      undefined,{
+      llmProviderModelUpdate,{
     ...options,
         params: {...params, ...options?.params},}
     );
@@ -199,8 +205,8 @@ const getUpdateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPutUr
 }
 return {getAvailableModelsViewApiV1AvailableModelsPost,listLlmProviderModelsViewApiV1LlmProviderModelsGet,getProviderModelsViewApiV1LlmProvidersProviderNameModelsGet,createProviderModelViewApiV1LlmProvidersProviderNameModelsPost,deleteProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelDelete,updateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPut,getGetAvailableModelsViewApiV1AvailableModelsPostUrl,getListLlmProviderModelsViewApiV1LlmProviderModelsGetUrl,getGetProviderModelsViewApiV1LlmProvidersProviderNameModelsGetUrl,getCreateProviderModelViewApiV1LlmProvidersProviderNameModelsPostUrl,getDeleteProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelDeleteUrl,getUpdateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPutUrl}};
 export type GetAvailableModelsViewApiV1AvailableModelsPostResult = AxiosResponse<ModelConfigList>
-export type ListLlmProviderModelsViewApiV1LlmProviderModelsGetResult = AxiosResponse<unknown>
-export type GetProviderModelsViewApiV1LlmProvidersProviderNameModelsGetResult = AxiosResponse<unknown>
-export type CreateProviderModelViewApiV1LlmProvidersProviderNameModelsPostResult = AxiosResponse<unknown>
-export type DeleteProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelDeleteResult = AxiosResponse<unknown>
-export type UpdateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPutResult = AxiosResponse<unknown>
+export type ListLlmProviderModelsViewApiV1LlmProviderModelsGetResult = AxiosResponse<LlmProviderModelList>
+export type GetProviderModelsViewApiV1LlmProvidersProviderNameModelsGetResult = AxiosResponse<LlmProviderModelList>
+export type CreateProviderModelViewApiV1LlmProvidersProviderNameModelsPostResult = AxiosResponse<LlmProviderModel>
+export type DeleteProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelDeleteResult = AxiosResponse<boolean | null>
+export type UpdateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPutResult = AxiosResponse<LlmProviderModel>

@@ -16,15 +16,17 @@ import type {
 } from 'msw';
 
 import type {
+  MineruTokenTestResponse,
   Settings,
   TestMineruTokenApiV1SettingsTestMineruTokenPostBody
 } from '../models';
 
 import {
-  getGetSettingsApiV1SettingsGetResponseMock
+  getGetSettingsApiV1SettingsGetResponseMock,
+  getTestMineruTokenApiV1SettingsTestMineruTokenPostResponseMock
 } from './settings.faker';
 
-export { getGetSettingsApiV1SettingsGetResponseMock } from './settings.faker';
+export { getGetSettingsApiV1SettingsGetResponseMock, getTestMineruTokenApiV1SettingsTestMineruTokenPostResponseMock } from './settings.faker';
 
 
 export const getGetSettingsApiV1SettingsGetMockHandler = (overrideResponse?: Settings | ((info: Parameters<HttpResponseResolver>[0]) => Promise<Settings> | Settings), options?: RequestHandlerOptions) => {
@@ -49,11 +51,13 @@ export const getUpdateSettingsApiV1SettingsPutMockHandler = (overrideResponse?: 
   }, options)
 }
 
-export const getTestMineruTokenApiV1SettingsTestMineruTokenPostMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<PathParams, TestMineruTokenApiV1SettingsTestMineruTokenPostBody>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getTestMineruTokenApiV1SettingsTestMineruTokenPostMockHandler = (overrideResponse?: MineruTokenTestResponse | ((info: Parameters<HttpResponseResolver<PathParams, TestMineruTokenApiV1SettingsTestMineruTokenPostBody>>[0]) => Promise<MineruTokenTestResponse> | MineruTokenTestResponse), options?: RequestHandlerOptions) => {
   return http.post<PathParams, TestMineruTokenApiV1SettingsTestMineruTokenPostBody>('*/api/v1/settings/test_mineru_token', async (info: Parameters<HttpResponseResolver<PathParams, TestMineruTokenApiV1SettingsTestMineruTokenPostBody>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getTestMineruTokenApiV1SettingsTestMineruTokenPostResponseMock(),
       { status: 200
       })
   }, options)

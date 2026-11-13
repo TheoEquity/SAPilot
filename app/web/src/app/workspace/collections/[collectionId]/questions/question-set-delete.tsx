@@ -1,6 +1,6 @@
 'use client';
 
-import { QuestionSet } from '@/api';
+import type { QuestionSet } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import {
   AlertDialog,
@@ -35,10 +35,8 @@ export const QuestionSetDelete = ({
 
   const handleDelete = useCallback(async () => {
     if (questionSet?.id) {
-      await apiClient.evaluationApi.deleteQuestionSetApiV1QuestionSetsQsIdDelete(
-        {
-          qsId: questionSet.id,
-        },
+      await apiClient.evaluation.deleteQuestionSetApiV1QuestionSetsQsIdDelete(
+        encodeURIComponent(String(questionSet.id)),
       );
       setVisible(false);
       router.push(`/workspace/collections/${collection.id}/questions`);

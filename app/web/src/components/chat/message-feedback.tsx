@@ -1,9 +1,5 @@
-import {
-  ChatMessage,
-  Feedback,
-  FeedbackTagEnum,
-  FeedbackTypeEnum,
-} from '@/api';
+import type { Feedback } from '@/api/generated/models';
+import { FeedbackTag, FeedbackType } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -31,9 +27,10 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import type { ChatMessage } from './chat-message';
 
 const feedbackSchema = z.object({
-  tag: z.enum(objectKeys(FeedbackTagEnum), {
+  tag: z.enum(objectKeys(FeedbackTag), {
     error: 'You need to select a feedback type.',
   }),
   message: z.string().optional(),
@@ -56,11 +53,11 @@ export const MessageFeedback = ({
   const part = useMemo(() => parts.findLast((p) => p.references), [parts]);
 
   const handleVote = useCallback(
-    (type: FeedbackTypeEnum) => {
+    (type: FeedbackType) => {
       if (!part) return;
       if (type === part?.feedback?.type) {
         hanldeMessageFeedback(part, {});
-      } else if (type === FeedbackTypeEnum.good) {
+      } else if (type === FeedbackType.good) {
         hanldeMessageFeedback(part, { type });
       } else {
         setVisible(true);
@@ -73,7 +70,7 @@ export const MessageFeedback = ({
     (values: z.infer<typeof feedbackSchema>) => {
       if (!part) return;
       hanldeMessageFeedback(part, {
-        type: FeedbackTypeEnum.bad,
+        type: FeedbackType.bad,
         tag: values.tag,
         message: values.message,
       });
@@ -107,7 +104,7 @@ export const MessageFeedback = ({
                           defaultValue={field.value}
                           className="flex flex-col gap-2"
                         >
-                          {objectKeys(FeedbackTagEnum).map((key) => {
+                          {objectKeys(FeedbackTag).map((key) => {
                             return (
                               <Label key={key} className="block">
                                 <FormItem
@@ -181,11 +178,11 @@ export const MessageFeedback = ({
         disabled={!part}
         className={cn(
           'cursor-pointer',
-          part?.feedback?.type === FeedbackTypeEnum.good
+          part?.feedback?.type === FeedbackType.good
             ? 'text-green-500 hover:text-green-600'
             : 'text-muted-foreground',
         )}
-        onClick={() => handleVote(FeedbackTypeEnum.good)}
+        onClick={() => handleVote(FeedbackType.good)}
       >
         <ThumbsUp />
       </Button>
@@ -195,11 +192,11 @@ export const MessageFeedback = ({
         disabled={!part}
         className={cn(
           'cursor-pointer',
-          part?.feedback?.type === FeedbackTypeEnum.bad
+          part?.feedback?.type === FeedbackType.bad
             ? 'text-rose-500 hover:text-rose-600'
             : 'text-muted-foreground',
         )}
-        onClick={() => handleVote(FeedbackTypeEnum.bad)}
+        onClick={() => handleVote(FeedbackType.bad)}
       >
         <ThumbsDown />
       </Button>

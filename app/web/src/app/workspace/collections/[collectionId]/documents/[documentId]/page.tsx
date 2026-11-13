@@ -18,14 +18,14 @@ export default async function Page({
   const serverApi = await getServerApi();
 
   const [documentRes, documentPreviewRes] = await Promise.all([
-    serverApi.defaultApi.collectionsCollectionIdDocumentsDocumentIdGet({
-      collectionId,
-      documentId,
-    }),
-    serverApi.defaultApi.getDocumentPreview({
-      collectionId,
-      documentId,
-    }),
+    serverApi.documents.getDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdGet(
+      encodeURIComponent(String(collectionId)),
+      encodeURIComponent(String(documentId)),
+    ),
+    serverApi.documents.getDocumentPreview(
+      encodeURIComponent(String(collectionId)),
+      encodeURIComponent(String(documentId)),
+    ),
   ]);
 
   const document = toJson(documentRes.data);

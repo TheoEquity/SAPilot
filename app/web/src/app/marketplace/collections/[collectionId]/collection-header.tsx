@@ -1,6 +1,6 @@
 'use client';
 
-import { SharedCollection } from '@/api';
+import type { SharedCollection } from '@/api/generated/models';
 import { PageContent } from '@/components/page-container';
 import { useAppContext } from '@/components/providers/app-provider';
 import { Badge } from '@/components/ui/badge';
@@ -63,16 +63,12 @@ export const CollectionHeader = ({
     }
 
     if (isSubscriber) {
-      await apiClient.defaultApi.marketplaceCollectionsCollectionIdSubscribeDelete(
-        {
-          collectionId: collection.id,
-        },
+      await apiClient.marketplace.unsubscribeCollectionApiV1MarketplaceCollectionsCollectionIdSubscribeDelete(
+        encodeURIComponent(String(collection.id)),
       );
     } else {
-      await apiClient.defaultApi.marketplaceCollectionsCollectionIdSubscribePost(
-        {
-          collectionId: collection.id,
-        },
+      await apiClient.marketplace.subscribeCollectionApiV1MarketplaceCollectionsCollectionIdSubscribePost(
+        encodeURIComponent(String(collection.id)),
       );
     }
     router.refresh();

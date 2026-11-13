@@ -16,67 +16,91 @@ import type {
 } from 'msw';
 
 import type {
+  LlmConfigurationResponse,
+  LlmProvider,
   LlmProviderCreateWithApiKey,
   LlmProviderUpdateWithApiKey
 } from '../models';
 
+import {
+  getCreateLlmProviderViewApiV1LlmProvidersPostResponseMock,
+  getDeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteResponseMock,
+  getGetLlmConfigurationViewApiV1LlmConfigurationGetResponseMock,
+  getGetLlmProviderViewApiV1LlmProvidersProviderNameGetResponseMock,
+  getPublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostResponseMock,
+  getUpdateLlmProviderViewApiV1LlmProvidersProviderNamePutResponseMock
+} from './llm-providers.faker';
+
+export { getGetLlmConfigurationViewApiV1LlmConfigurationGetResponseMock, getCreateLlmProviderViewApiV1LlmProvidersPostResponseMock, getDeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteResponseMock, getGetLlmProviderViewApiV1LlmProvidersProviderNameGetResponseMock, getUpdateLlmProviderViewApiV1LlmProvidersProviderNamePutResponseMock, getPublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostResponseMock } from './llm-providers.faker';
 
 
-export const getGetLlmConfigurationViewApiV1LlmConfigurationGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getGetLlmConfigurationViewApiV1LlmConfigurationGetMockHandler = (overrideResponse?: LlmConfigurationResponse | ((info: Parameters<HttpResponseResolver>[0]) => Promise<LlmConfigurationResponse> | LlmConfigurationResponse), options?: RequestHandlerOptions) => {
   return http.get('*/api/v1/llm_configuration', async (info: Parameters<HttpResponseResolver>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetLlmConfigurationViewApiV1LlmConfigurationGetResponseMock(),
       { status: 200
       })
   }, options)
 }
 
-export const getCreateLlmProviderViewApiV1LlmProvidersPostMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<PathParams, LlmProviderCreateWithApiKey>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getCreateLlmProviderViewApiV1LlmProvidersPostMockHandler = (overrideResponse?: LlmProvider | ((info: Parameters<HttpResponseResolver<PathParams, LlmProviderCreateWithApiKey>>[0]) => Promise<LlmProvider> | LlmProvider), options?: RequestHandlerOptions) => {
   return http.post<PathParams, LlmProviderCreateWithApiKey>('*/api/v1/llm_providers', async (info: Parameters<HttpResponseResolver<PathParams, LlmProviderCreateWithApiKey>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getCreateLlmProviderViewApiV1LlmProvidersPostResponseMock(),
       { status: 200
       })
   }, options)
 }
 
-export const getDeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ providerName: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getDeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteMockHandler = (overrideResponse?: boolean | null | ((info: Parameters<HttpResponseResolver<{ providerName: string }>>[0]) => Promise<boolean | null> | boolean | null), options?: RequestHandlerOptions) => {
   return http.delete<{ providerName: string }>('*/api/v1/llm_providers/:providerName', async (info: Parameters<HttpResponseResolver<{ providerName: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getDeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteResponseMock(),
       { status: 200
       })
   }, options)
 }
 
-export const getGetLlmProviderViewApiV1LlmProvidersProviderNameGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ providerName: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getGetLlmProviderViewApiV1LlmProvidersProviderNameGetMockHandler = (overrideResponse?: LlmProvider | ((info: Parameters<HttpResponseResolver<{ providerName: string }>>[0]) => Promise<LlmProvider> | LlmProvider), options?: RequestHandlerOptions) => {
   return http.get<{ providerName: string }>('*/api/v1/llm_providers/:providerName', async (info: Parameters<HttpResponseResolver<{ providerName: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetLlmProviderViewApiV1LlmProvidersProviderNameGetResponseMock(),
       { status: 200
       })
   }, options)
 }
 
-export const getUpdateLlmProviderViewApiV1LlmProvidersProviderNamePutMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ providerName: string }, LlmProviderUpdateWithApiKey>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getUpdateLlmProviderViewApiV1LlmProvidersProviderNamePutMockHandler = (overrideResponse?: LlmProvider | ((info: Parameters<HttpResponseResolver<{ providerName: string }, LlmProviderUpdateWithApiKey>>[0]) => Promise<LlmProvider> | LlmProvider), options?: RequestHandlerOptions) => {
   return http.put<{ providerName: string }, LlmProviderUpdateWithApiKey>('*/api/v1/llm_providers/:providerName', async (info: Parameters<HttpResponseResolver<{ providerName: string }, LlmProviderUpdateWithApiKey>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getUpdateLlmProviderViewApiV1LlmProvidersProviderNamePutResponseMock(),
       { status: 200
       })
   }, options)
 }
 
-export const getPublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ providerName: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getPublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostMockHandler = (overrideResponse?: LlmProvider | ((info: Parameters<HttpResponseResolver<{ providerName: string }>>[0]) => Promise<LlmProvider> | LlmProvider), options?: RequestHandlerOptions) => {
   return http.post<{ providerName: string }>('*/api/v1/llm_providers/:providerName/publish', async (info: Parameters<HttpResponseResolver<{ providerName: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getPublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostResponseMock(),
       { status: 200
       })
   }, options)

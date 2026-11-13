@@ -23,13 +23,15 @@ export default async function Layout({
   const apiServer = await getServerApi();
 
   try {
-    const res = await apiServer.defaultApi.userGet();
+    const res = await apiServer.users.getUserViewApiV1UserGet();
     user = res.data;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {}
 
   if (!user) {
-    redirect(`/auth/signin?callbackUrl=${encodeURIComponent('/workspace/bots')}`);
+    redirect(
+      `/auth/signin?callbackUrl=${encodeURIComponent('/workspace/bots')}`,
+    );
   }
 
   return (

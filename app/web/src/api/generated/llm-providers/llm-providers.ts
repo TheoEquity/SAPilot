@@ -17,6 +17,8 @@ import type {
   DeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteParams,
   GetLlmConfigurationViewApiV1LlmConfigurationGetParams,
   GetLlmProviderViewApiV1LlmProvidersProviderNameGetParams,
+  LlmConfigurationResponse,
+  LlmProvider,
   LlmProviderCreateWithApiKey,
   LlmProviderUpdateWithApiKey,
   PublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostParams,
@@ -33,7 +35,7 @@ import type {
  */
 const getLlmConfigurationViewApiV1LlmConfigurationGet = (
     params?: GetLlmConfigurationViewApiV1LlmConfigurationGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<LlmConfigurationResponse>> => {
     return axiosInstance.get(
       `/llm_configuration`,{
     ...options,
@@ -59,7 +61,7 @@ const getGetLlmConfigurationViewApiV1LlmConfigurationGetUrl = (params?: GetLlmCo
 const createLlmProviderViewApiV1LlmProvidersPost = (
     llmProviderCreateWithApiKey: LlmProviderCreateWithApiKey,
     params?: CreateLlmProviderViewApiV1LlmProvidersPostParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<LlmProvider>> => {
     return axiosInstance.post(
       `/llm_providers`,
       llmProviderCreateWithApiKey,{
@@ -86,7 +88,7 @@ const getCreateLlmProviderViewApiV1LlmProvidersPostUrl = (params?: CreateLlmProv
 const deleteLlmProviderViewApiV1LlmProvidersProviderNameDelete = (
     providerName: string,
     params?: DeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<boolean | null>> => {
     return axiosInstance.delete(
       `/llm_providers/${providerName}`,{
     ...options,
@@ -113,7 +115,7 @@ const getDeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteUrl = (provider
 const getLlmProviderViewApiV1LlmProvidersProviderNameGet = (
     providerName: string,
     params?: GetLlmProviderViewApiV1LlmProvidersProviderNameGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<LlmProvider>> => {
     return axiosInstance.get(
       `/llm_providers/${providerName}`,{
     ...options,
@@ -141,7 +143,7 @@ const updateLlmProviderViewApiV1LlmProvidersProviderNamePut = (
     providerName: string,
     llmProviderUpdateWithApiKey: LlmProviderUpdateWithApiKey,
     params?: UpdateLlmProviderViewApiV1LlmProvidersProviderNamePutParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<LlmProvider>> => {
     return axiosInstance.put(
       `/llm_providers/${providerName}`,
       llmProviderUpdateWithApiKey,{
@@ -169,7 +171,7 @@ const getUpdateLlmProviderViewApiV1LlmProvidersProviderNamePutUrl = (providerNam
 const publishLlmProviderViewApiV1LlmProvidersProviderNamePublishPost = (
     providerName: string,
     params?: PublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<LlmProvider>> => {
     return axiosInstance.post(
       `/llm_providers/${providerName}/publish`,
       undefined,{
@@ -191,9 +193,9 @@ const getPublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostUrl = (pr
   });
 }
 return {getLlmConfigurationViewApiV1LlmConfigurationGet,createLlmProviderViewApiV1LlmProvidersPost,deleteLlmProviderViewApiV1LlmProvidersProviderNameDelete,getLlmProviderViewApiV1LlmProvidersProviderNameGet,updateLlmProviderViewApiV1LlmProvidersProviderNamePut,publishLlmProviderViewApiV1LlmProvidersProviderNamePublishPost,getGetLlmConfigurationViewApiV1LlmConfigurationGetUrl,getCreateLlmProviderViewApiV1LlmProvidersPostUrl,getDeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteUrl,getGetLlmProviderViewApiV1LlmProvidersProviderNameGetUrl,getUpdateLlmProviderViewApiV1LlmProvidersProviderNamePutUrl,getPublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostUrl}};
-export type GetLlmConfigurationViewApiV1LlmConfigurationGetResult = AxiosResponse<unknown>
-export type CreateLlmProviderViewApiV1LlmProvidersPostResult = AxiosResponse<unknown>
-export type DeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteResult = AxiosResponse<unknown>
-export type GetLlmProviderViewApiV1LlmProvidersProviderNameGetResult = AxiosResponse<unknown>
-export type UpdateLlmProviderViewApiV1LlmProvidersProviderNamePutResult = AxiosResponse<unknown>
-export type PublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostResult = AxiosResponse<unknown>
+export type GetLlmConfigurationViewApiV1LlmConfigurationGetResult = AxiosResponse<LlmConfigurationResponse>
+export type CreateLlmProviderViewApiV1LlmProvidersPostResult = AxiosResponse<LlmProvider>
+export type DeleteLlmProviderViewApiV1LlmProvidersProviderNameDeleteResult = AxiosResponse<boolean | null>
+export type GetLlmProviderViewApiV1LlmProvidersProviderNameGetResult = AxiosResponse<LlmProvider>
+export type UpdateLlmProviderViewApiV1LlmProvidersProviderNamePutResult = AxiosResponse<LlmProvider>
+export type PublishLlmProviderViewApiV1LlmProvidersProviderNamePublishPostResult = AxiosResponse<LlmProvider>

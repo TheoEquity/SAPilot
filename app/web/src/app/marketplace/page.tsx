@@ -1,4 +1,4 @@
-import { SharedCollection } from '@/api';
+import type { SharedCollection } from '@/api/generated/models';
 import {
   PageContainer,
   PageContent,
@@ -20,10 +20,13 @@ export default async function Page() {
   const sidebar_workspace = await getTranslations('sidebar_workspace');
   let collections: SharedCollection[] = [];
   try {
-    const res = await serverApi.defaultApi.marketplaceCollectionsGet({
-      page: 1,
-      pageSize: 100,
-    });
+    const res =
+      await serverApi.marketplace.listMarketplaceCollectionsApiV1MarketplaceCollectionsGet(
+        {
+          page: 1,
+          page_size: 100,
+        },
+      );
     collections = res.data.items || [];
   } catch (err) {
     console.log(err);

@@ -1,5 +1,5 @@
 'use client';
-import { QuestionSet } from '@/api';
+import type { QuestionSet } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,21 +61,17 @@ export const QuestionSetActions = ({
   const handleCreateOrUpdate = useCallback(
     async (values: z.infer<typeof questionSetSchema>) => {
       if (action === 'add') {
-        await apiClient.evaluationApi.createQuestionSetApiV1QuestionSetsPost({
-          questionSetCreate: {
-            ...values,
-            collection_id: collection.id,
-            questions: [],
-          },
+        await apiClient.evaluation.createQuestionSetApiV1QuestionSetsPost({
+          ...values,
+          collection_id: collection.id,
+          questions: [],
         });
       }
       if (action === 'edit') {
         if (!questionSet?.id) return;
-        await apiClient.evaluationApi.updateQuestionSetApiV1QuestionSetsQsIdPut(
-          {
-            qsId: questionSet.id,
-            questionSetUpdate: values,
-          },
+        await apiClient.evaluation.updateQuestionSetApiV1QuestionSetsQsIdPut(
+          encodeURIComponent(String(questionSet.id)),
+          values,
         );
       }
       router.refresh();

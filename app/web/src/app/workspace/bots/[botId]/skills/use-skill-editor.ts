@@ -1,6 +1,6 @@
 'use client';
 
-import { LlmProviderModel } from '@/api';
+import type { LlmProviderModel } from '@/api/generated/models';
 import { useBotConfigContext } from '@/components/providers/bot-config-provider';
 import { apiClient } from '@/lib/api/client';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -57,8 +57,14 @@ export const useSkillEditor = (skillId?: string) => {
   const [availableTools, setAvailableTools] = useState<MCPToolInfo[]>([]);
 
   const loadCollections = useCallback(async () => {
-    const res = await apiClient.defaultApi.collectionsGet();
-    setCollections(res.data.items || []);
+    const res =
+      await apiClient.collections.listCollectionsViewApiV1CollectionsGet();
+    setCollections(
+      res.data.items?.map(({ id, title }) => ({
+        id: id ?? undefined,
+        title: title ?? undefined,
+      })) || [],
+    );
   }, []);
 
   const loadTools = useCallback(async () => {
@@ -117,11 +123,12 @@ export const useSkillEditor = (skillId?: string) => {
 
   const fetchCompletionModels = useCallback(async () => {
     try {
-      const res = await apiClient.defaultApi.availableModelsPost({
-        tagFilterRequest: {
-          tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
-        },
-      });
+      const res =
+        await apiClient.llmModels.getAvailableModelsViewApiV1AvailableModelsPost(
+          {
+            tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
+          },
+        );
       const items = res.data.items || [];
       const models = items
         .flatMap((item) =>

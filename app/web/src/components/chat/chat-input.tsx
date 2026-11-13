@@ -1,4 +1,7 @@
-import { ChatDetails, Collection } from '@/api';
+import type {
+  ChatDetails,
+  CollectionView as Collection,
+} from '@/api/generated/models';
 import { PageContent } from '@/components/page-container';
 import { useBotContext } from '@/components/providers/bot-provider';
 import { Button } from '@/components/ui/button';

@@ -1,6 +1,10 @@
 'use client';
 
-import { QuotaUpdateRequest, User, UserQuotaInfo } from '@/api';
+import type {
+  QuotaUpdateRequest,
+  User,
+  UserQuotaInfo,
+} from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -65,8 +69,8 @@ export const UserQuotaAction = ({
 
   const getUserQuota = useCallback(async () => {
     if (!user.id) return;
-    const res = await apiClient.quotasApi.quotasGet({
-      userId: user.id,
+    const res = await apiClient.quotas.getQuotasApiV1QuotasGet({
+      user_id: user.id,
     });
     const data = res.data as UserQuotaInfo;
 
@@ -85,10 +89,10 @@ export const UserQuotaAction = ({
       const { data: params, error } = quotaSchema.safeParse(values);
       if (!user.id || error) return;
 
-      const res = await apiClient.quotasApi.quotasUserIdPut({
-        userId: user.id,
-        quotaUpdateRequest: params,
-      });
+      const res = await apiClient.quotas.updateQuotaApiV1QuotasUserIdPut(
+        encodeURIComponent(String(user.id)),
+        params,
+      );
       if (res.data.success) {
         toast.success(res.data.message);
         setVisible(false);
@@ -99,9 +103,10 @@ export const UserQuotaAction = ({
 
   const handleRecalculate = useCallback(async () => {
     if (!user.id) return;
-    const res = await apiClient.quotasApi.quotasUserIdRecalculatePost({
-      userId: user.id,
-    });
+    const res =
+      await apiClient.quotas.recalculateQuotaUsageApiV1QuotasUserIdRecalculatePost(
+        encodeURIComponent(String(user.id)),
+      );
     if (res.data.success) {
       toast.success(res.data.message);
       getUserQuota();
