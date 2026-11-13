@@ -20,12 +20,12 @@ export default async function Page({
   const page_models = await getTranslations('page_models');
 
   const [modelsRes, providerRes] = await Promise.all([
-    serverApi.defaultApi.llmProvidersProviderNameModelsGet({
-      providerName,
-    }),
-    serverApi.defaultApi.llmProvidersProviderNameGet({
-      providerName,
-    }),
+    serverApi.llmModels.getProviderModelsViewApiV1LlmProvidersProviderNameModelsGet(
+      encodeURIComponent(String(providerName)),
+    ),
+    serverApi.llmProviders.getLlmProviderViewApiV1LlmProvidersProviderNameGet(
+      encodeURIComponent(String(providerName)),
+    ),
   ]);
 
   return (

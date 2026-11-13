@@ -21,8 +21,10 @@ import type {
   ConfirmDocumentsResponse,
   Document,
   DocumentList,
+  DocumentPreview,
   FetchUrlRequest,
   FetchUrlResponse,
+  RebuildFailedIndexesResponse,
   RebuildIndexesRequest,
   StagedDocumentsResponse,
   UploadDocumentResponse
@@ -33,12 +35,15 @@ import {
   getCreateDocumentsViewApiV1CollectionsCollectionIdDocumentsPostResponseMock,
   getDeleteDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDeleteResponseMock,
   getFetchUrlDocumentViewApiV1CollectionsCollectionIdDocumentsFetchUrlPostResponseMock,
+  getGetDocumentPreviewResponseMock,
   getGetDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdGetResponseMock,
+  getListDocumentsViewApiV1CollectionsCollectionIdDocumentsGetResponseMock,
   getListStagedDocumentsViewApiV1CollectionsCollectionIdDocumentsStagedGetResponseMock,
+  getRebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPostResponseMock,
   getUploadDocumentViewApiV1CollectionsCollectionIdDocumentsUploadPostResponseMock
 } from './documents.faker';
 
-export { getCreateDocumentsViewApiV1CollectionsCollectionIdDocumentsPostResponseMock, getConfirmDocumentsViewApiV1CollectionsCollectionIdDocumentsConfirmPostResponseMock, getFetchUrlDocumentViewApiV1CollectionsCollectionIdDocumentsFetchUrlPostResponseMock, getListStagedDocumentsViewApiV1CollectionsCollectionIdDocumentsStagedGetResponseMock, getUploadDocumentViewApiV1CollectionsCollectionIdDocumentsUploadPostResponseMock, getDeleteDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDeleteResponseMock, getGetDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdGetResponseMock } from './documents.faker';
+export { getListDocumentsViewApiV1CollectionsCollectionIdDocumentsGetResponseMock, getCreateDocumentsViewApiV1CollectionsCollectionIdDocumentsPostResponseMock, getConfirmDocumentsViewApiV1CollectionsCollectionIdDocumentsConfirmPostResponseMock, getFetchUrlDocumentViewApiV1CollectionsCollectionIdDocumentsFetchUrlPostResponseMock, getListStagedDocumentsViewApiV1CollectionsCollectionIdDocumentsStagedGetResponseMock, getUploadDocumentViewApiV1CollectionsCollectionIdDocumentsUploadPostResponseMock, getDeleteDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdDeleteResponseMock, getGetDocumentViewApiV1CollectionsCollectionIdDocumentsDocumentIdGetResponseMock, getGetDocumentPreviewResponseMock, getRebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPostResponseMock } from './documents.faker';
 
 
 export const getDeleteDocumentsViewApiV1CollectionsCollectionIdDocumentsDeleteMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ collectionId: string }, string[]>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
@@ -51,11 +56,13 @@ export const getDeleteDocumentsViewApiV1CollectionsCollectionIdDocumentsDeleteMo
   }, options)
 }
 
-export const getListDocumentsViewApiV1CollectionsCollectionIdDocumentsGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getListDocumentsViewApiV1CollectionsCollectionIdDocumentsGetMockHandler = (overrideResponse?: DocumentList | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<DocumentList> | DocumentList), options?: RequestHandlerOptions) => {
   return http.get<{ collectionId: string }>('*/api/v1/collections/:collectionId/documents', async (info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getListDocumentsViewApiV1CollectionsCollectionIdDocumentsGetResponseMock(),
       { status: 200
       })
   }, options)
@@ -165,11 +172,13 @@ export const getGetDocumentObjectMockHandler = (overrideResponse?: unknown | ((i
   }, options)
 }
 
-export const getGetDocumentPreviewMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ collectionId: string; documentId: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getGetDocumentPreviewMockHandler = (overrideResponse?: DocumentPreview | ((info: Parameters<HttpResponseResolver<{ collectionId: string; documentId: string }>>[0]) => Promise<DocumentPreview> | DocumentPreview), options?: RequestHandlerOptions) => {
   return http.get<{ collectionId: string; documentId: string }>('*/api/v1/collections/:collectionId/documents/:documentId/preview', async (info: Parameters<HttpResponseResolver<{ collectionId: string; documentId: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetDocumentPreviewResponseMock(),
       { status: 200
       })
   }, options)
@@ -185,11 +194,13 @@ export const getRebuildDocumentIndexesViewApiV1CollectionsCollectionIdDocumentsD
   }, options)
 }
 
-export const getRebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPostMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getRebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPostMockHandler = (overrideResponse?: RebuildFailedIndexesResponse | ((info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => Promise<RebuildFailedIndexesResponse> | RebuildFailedIndexesResponse), options?: RequestHandlerOptions) => {
   return http.post<{ collectionId: string }>('*/api/v1/collections/:collectionId/rebuild_failed_indexes', async (info: Parameters<HttpResponseResolver<{ collectionId: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getRebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPostResponseMock(),
       { status: 200
       })
   }, options)

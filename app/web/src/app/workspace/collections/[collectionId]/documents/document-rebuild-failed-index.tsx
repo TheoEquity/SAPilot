@@ -34,10 +34,8 @@ export const DocumentReBuildFailedIndex = ({
   const handleRebuild = async () => {
     if (!collection.id) return;
     const res =
-      await apiClient.defaultApi.collectionsCollectionIdRebuildFailedIndexesPost(
-        {
-          collectionId: collection.id,
-        },
+      await apiClient.documents.rebuildFailedIndexesViewApiV1CollectionsCollectionIdRebuildFailedIndexesPost(
+        encodeURIComponent(String(collection.id)),
       );
 
     if (res.data.code === '200') {

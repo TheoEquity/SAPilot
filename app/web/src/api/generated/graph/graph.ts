@@ -19,6 +19,7 @@ import type {
   GetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetParams,
   GraphLabelsResponse,
   HandleSuggestionActionViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsSuggestionIdActionPostParams,
+  KnowledgeGraph,
   MergeNodesViewApiV1CollectionsCollectionIdGraphsNodesMergePostParams,
   MergeSuggestionsRequest,
   MergeSuggestionsResponse,
@@ -40,7 +41,7 @@ import type {
 const getKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGet = (
     collectionId: string,
     params?: GetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<KnowledgeGraph>> => {
     return axiosInstance.get(
       `/collections/${collectionId}/graphs`,{
     ...options,
@@ -204,7 +205,7 @@ const getMergeNodesViewApiV1CollectionsCollectionIdGraphsNodesMergePostUrl = (co
   });
 }
 return {getKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGet,exportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGet,getGraphLabelsViewApiV1CollectionsCollectionIdGraphsLabelsGet,mergeSuggestionsViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsPost,handleSuggestionActionViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsSuggestionIdActionPost,mergeNodesViewApiV1CollectionsCollectionIdGraphsNodesMergePost,getGetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetUrl,getExportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGetUrl,getGetGraphLabelsViewApiV1CollectionsCollectionIdGraphsLabelsGetUrl,getMergeSuggestionsViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsPostUrl,getHandleSuggestionActionViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsSuggestionIdActionPostUrl,getMergeNodesViewApiV1CollectionsCollectionIdGraphsNodesMergePostUrl}};
-export type GetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetResult = AxiosResponse<unknown>
+export type GetKnowledgeGraphViewApiV1CollectionsCollectionIdGraphsGetResult = AxiosResponse<KnowledgeGraph>
 export type ExportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGetResult = AxiosResponse<ExportKgEvalViewApiV1CollectionsCollectionIdGraphsExportKgEvalGet200>
 export type GetGraphLabelsViewApiV1CollectionsCollectionIdGraphsLabelsGetResult = AxiosResponse<GraphLabelsResponse>
 export type MergeSuggestionsViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsPostResult = AxiosResponse<MergeSuggestionsResponse>

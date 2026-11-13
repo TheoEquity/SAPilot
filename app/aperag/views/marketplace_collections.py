@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import logging
-from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -59,7 +58,7 @@ async def list_marketplace_collection_documents(
     sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
     search: str = Query(None, description="Search documents by name"),
     user: User = Depends(optional_user),
-):
+) -> view_models.DocumentList:
     """List documents in MarketplaceCollection (read-only) with pagination, sorting and search capabilities"""
     try:
         # Check marketplace access first (all logged-in users can view published collections)
@@ -105,7 +104,7 @@ async def get_marketplace_collection_document_preview(
     collection_id: str,
     document_id: str,
     user: User = Depends(optional_user),
-):
+) -> view_models.DocumentPreview:
     """Preview document in MarketplaceCollection (read-only)"""
     try:
         # Check marketplace access first (all logged-in users can view published collections)
@@ -155,7 +154,7 @@ async def get_marketplace_collection_document_object(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/marketplace/collections/{collection_id}/graph", tags=["graph"])
+@router.get("/marketplace/collections/{collection_id}/graph", tags=["graph"], response_model_exclude_unset=True)
 async def get_marketplace_collection_graph(
     request: Request,
     collection_id: str,
@@ -163,7 +162,7 @@ async def get_marketplace_collection_graph(
     max_nodes: int = Query(1000, ge=1, le=10000),
     max_depth: int = Query(3, ge=1, le=10),
     user: User = Depends(optional_user),
-) -> Dict[str, Any]:
+) -> view_models.KnowledgeGraph:
     """Get knowledge graph for MarketplaceCollection (read-only)"""
     from aperag.service.graph_service import graph_service
 

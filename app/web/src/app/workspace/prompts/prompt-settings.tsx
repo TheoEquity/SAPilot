@@ -1,6 +1,6 @@
 'use client';
 
-import { PromptDetail, UserPromptsResponse } from '@/api';
+import type { PromptDetail, UserPromptsResponse } from '@/api/generated/models';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,7 +45,7 @@ const PROMPT_TYPES: PromptType[] = [
 
 interface PromptCardProps {
   promptType: PromptType;
-  detail: PromptDetail | undefined;
+  detail: PromptDetail | null | undefined;
   onSaved: () => void;
 }
 
@@ -63,10 +63,8 @@ const PromptCard = ({ promptType, detail, onSaved }: PromptCardProps) => {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await apiClient.defaultApi.promptsUserPut({
-        updateUserPromptsRequest: {
-          prompts: { [promptType]: content },
-        },
+      await apiClient.prompts.updateUserPromptsApiV1PromptsUserPut({
+        prompts: { [promptType]: content },
       });
       toast.success(page_prompts('toast.save_success'));
       onSaved();
@@ -76,9 +74,9 @@ const PromptCard = ({ promptType, detail, onSaved }: PromptCardProps) => {
   }, [content, promptType, page_prompts, onSaved]);
 
   const handleReset = useCallback(async () => {
-    await apiClient.defaultApi.promptsUserPromptTypeDelete({
-      promptType: promptType as never,
-    });
+    await apiClient.prompts.deleteUserPromptApiV1PromptsUserPromptTypeDelete(
+      promptType as never,
+    );
     toast.success(page_prompts('toast.reset_success'));
     setResetOpen(false);
     onSaved();
@@ -158,9 +156,7 @@ export const PromptSettings = ({ data }: { data: UserPromptsResponse }) => {
   const handleResetAll = useCallback(async () => {
     setResettingAll(true);
     try {
-      await apiClient.defaultApi.promptsUserResetPost({
-        resetPromptsRequest: {},
-      });
+      await apiClient.prompts.resetUserPromptsApiV1PromptsUserResetPost({});
       toast.success(page_prompts('toast.reset_all_success' as never));
       setResetAllOpen(false);
       handleSaved();

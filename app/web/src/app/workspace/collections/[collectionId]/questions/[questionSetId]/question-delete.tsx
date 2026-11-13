@@ -1,6 +1,6 @@
 'use client';
 
-import { Question, QuestionSet } from '@/api';
+import type { Question, QuestionSet } from '@/api/generated/models';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -34,11 +34,9 @@ export const QuestionDelete = ({
   const common_tips = useTranslations('common.tips');
   const handleDelete = useCallback(async () => {
     if (question?.id && questionSet.id) {
-      await apiClient.evaluationApi.deleteQuestionApiV1QuestionSetsQsIdQuestionsQIdDelete(
-        {
-          qsId: questionSet.id,
-          qId: question.id,
-        },
+      await apiClient.evaluation.deleteQuestionApiV1QuestionSetsQsIdQuestionsQIdDelete(
+        encodeURIComponent(String(questionSet.id)),
+        encodeURIComponent(String(question.id)),
       );
       setVisible(false);
       router.refresh();

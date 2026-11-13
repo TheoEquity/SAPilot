@@ -17,13 +17,13 @@ import type {
 
 import type {
   DeleteUserPromptApiV1PromptsUserPromptTypeDelete200,
-  GetUserPromptsApiV1PromptsUserGet200,
   PreviewPromptApiV1PromptsPreviewPost200,
   PreviewRequest,
   ResetPromptsRequest,
   ResetUserPromptsApiV1PromptsUserResetPost200,
   UpdateUserPromptsApiV1PromptsUserPut200,
   UpdateUserPromptsRequest,
+  UserPromptsResponse,
   ValidatePromptApiV1PromptsValidatePost200,
   ValidateRequest
 } from '../models';
@@ -62,7 +62,7 @@ export const getGetSystemPromptsApiV1PromptsSystemGetMockHandler = (overrideResp
   }, options)
 }
 
-export const getGetUserPromptsApiV1PromptsUserGetMockHandler = (overrideResponse?: GetUserPromptsApiV1PromptsUserGet200 | ((info: Parameters<HttpResponseResolver>[0]) => Promise<GetUserPromptsApiV1PromptsUserGet200> | GetUserPromptsApiV1PromptsUserGet200), options?: RequestHandlerOptions) => {
+export const getGetUserPromptsApiV1PromptsUserGetMockHandler = (overrideResponse?: UserPromptsResponse | ((info: Parameters<HttpResponseResolver>[0]) => Promise<UserPromptsResponse> | UserPromptsResponse), options?: RequestHandlerOptions) => {
   return http.get('*/api/v1/prompts/user', async (info: Parameters<HttpResponseResolver>[0]) => {
 
 

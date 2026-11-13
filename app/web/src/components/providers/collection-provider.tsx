@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { Collection, SharingStatusResponse } from '@/api';
+import type {
+  CollectionOutput as Collection,
+  SharingStatusResponse,
+} from '@/api/generated/models';
 import { apiClient } from '@/lib/api/client';
 import { createContext, useContext } from 'react';
 
@@ -43,9 +46,10 @@ export const CollectionProvider = ({
     if (!collection?.id) {
       return;
     }
-    const res = await apiClient.defaultApi.collectionsCollectionIdSharingGet({
-      collectionId: collection.id,
-    });
+    const res =
+      await apiClient.collections.getCollectionSharingStatusApiV1CollectionsCollectionIdSharingGet(
+        encodeURIComponent(String(collection.id)),
+      );
     setShare(res.data);
   }, [collection?.id]);
 
@@ -53,9 +57,10 @@ export const CollectionProvider = ({
     if (!collection?.id) {
       return;
     }
-    const res = await apiClient.defaultApi.collectionsCollectionIdGet({
-      collectionId: collection.id,
-    });
+    const res =
+      await apiClient.collections.getCollectionViewApiV1CollectionsCollectionIdGet(
+        encodeURIComponent(String(collection.id)),
+      );
     setCollection(res.data);
   }, [collection?.id]);
 

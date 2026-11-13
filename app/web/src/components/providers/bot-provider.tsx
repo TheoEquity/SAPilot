@@ -4,15 +4,21 @@ import { apiClient } from '@/lib/api/client';
 import { logger } from '@/lib/logger';
 import { useCallback, useEffect, useState } from 'react';
 
-import { Bot, Chat, ChatDetails, Collection, ModelSpec } from '@/api';
+import type {
+  Bot,
+  Chat,
+  ChatDetails,
+  CollectionView as Collection,
+  ModelSpec,
+} from '@/api/generated/models';
 import { useLocale } from 'next-intl';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext } from 'react';
 
 export type ProviderModels = {
-  label?: string;
-  name?: string;
-  models?: ModelSpec[];
+  label?: string | null;
+  name?: string | null;
+  models?: ModelSpec[] | null;
 }[];
 
 type BotContextProps = {
@@ -57,19 +63,18 @@ export const BotProvider = ({
   const router = useRouter();
   const locale = useLocale();
   const botId = typeof params.botId === 'string' ? params.botId : undefined;
-  const isInChatInterface = pathname.includes('/bots/') && pathname.includes('/chats');
+  const isInChatInterface =
+    pathname.includes('/bots/') && pathname.includes('/chats');
 
   const [collections, setCollections] = useState<Collection[]>([]);
   const [providerModels, setProviderModels] = useState<ProviderModels>([]);
 
   const loadData = useCallback(async () => {
     const [modelRes, collectionsRes] = await Promise.all([
-      apiClient.defaultApi.availableModelsPost({
-        tagFilterRequest: {
-          tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
-        },
+      apiClient.llmModels.getAvailableModelsViewApiV1AvailableModelsPost({
+        tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
       }),
-      apiClient.defaultApi.collectionsGet(),
+      apiClient.collections.listCollectionsViewApiV1CollectionsGet(),
     ]);
 
     const items = modelRes.data.items?.map((m) => {
@@ -88,10 +93,9 @@ export const BotProvider = ({
       setChats([]);
       return;
     }
-    const chatsRes = await apiClient.defaultApi.botsBotIdChatsGet({
-      botId: bot.id,
-    });
-    //@ts-expect-error api define has a bug
+    const chatsRes = await apiClient.chats.listChatsViewApiV1BotsBotIdChatsGet(
+      encodeURIComponent(String(bot.id)),
+    );
     setChats(chatsRes.data.items || []);
   }, [bot?.id]);
 
@@ -103,26 +107,23 @@ export const BotProvider = ({
     }
 
     const [botRes, chatsRes] = await Promise.all([
-      apiClient.defaultApi.botsBotIdGet({
-        botId,
-      }),
-      apiClient.defaultApi.botsBotIdChatsGet({
-        botId,
-      }),
+      apiClient.bots.getBot(encodeURIComponent(String(botId))),
+      apiClient.chats.listChatsViewApiV1BotsBotIdChatsGet(
+        encodeURIComponent(String(botId)),
+      ),
     ]);
 
     setBot(botRes.data);
-    //@ts-expect-error api define has a bug
     setChats(chatsRes.data.items || []);
   }, [botId, initBot, initChats]);
 
   const chatDelete = useCallback(
     async (chat: Chat) => {
       if (!chat.bot_id || !chat.id) return;
-      await apiClient.defaultApi.botsBotIdChatsChatIdDelete({
-        botId: chat.bot_id,
-        chatId: chat.id,
-      });
+      await apiClient.chats.deleteChatViewApiV1BotsBotIdChatsChatIdDelete(
+        encodeURIComponent(chat.bot_id),
+        encodeURIComponent(chat.id),
+      );
 
       if (params.chatId === chat.id) {
         const item = chats?.find((c) => c.id !== chat.id);
@@ -146,24 +147,23 @@ export const BotProvider = ({
     async (chat: Chat) => {
       if (chat.title !== 'New Chat' || !chat.id || !chat.bot_id) return;
       try {
-        const titleRes = await apiClient.defaultApi.botsBotIdChatsChatIdTitlePost(
-          {
-            chatId: chat.id,
-            botId: chat.bot_id,
-            titleGenerateRequest: {
+        const titleRes =
+          await apiClient.chats.generateChatTitleViewApiV1BotsBotIdChatsChatIdTitlePost(
+            encodeURIComponent(String(chat.bot_id)),
+            encodeURIComponent(String(chat.id)),
+            {
               language: locale,
             },
-          },
-        );
+          );
         const title = titleRes.data.title;
         if (title) {
-          await apiClient.defaultApi.botsBotIdChatsChatIdPut({
-            chatId: chat.id,
-            botId: chat.bot_id,
-            chatUpdate: {
+          await apiClient.chats.updateChatViewApiV1BotsBotIdChatsChatIdPut(
+            encodeURIComponent(String(chat.bot_id)),
+            encodeURIComponent(String(chat.id)),
+            {
               title,
             },
-          });
+          );
           await chatsReload();
         }
       } catch (error) {
@@ -181,12 +181,9 @@ export const BotProvider = ({
 
   const chatCreate = useCallback(async () => {
     if (!bot?.id) return;
-    const res = await apiClient.defaultApi.botsBotIdChatsPost({
-      botId: bot.id,
-      chatCreate: {
-        title: '',
-      },
-    });
+    const res = await apiClient.chats.createChatViewApiV1BotsBotIdChatsPost(
+      encodeURIComponent(bot.id),
+    );
 
     if (res.data.id) {
       let url = `/bots/${bot.id}/chats/${res.data.id}`;

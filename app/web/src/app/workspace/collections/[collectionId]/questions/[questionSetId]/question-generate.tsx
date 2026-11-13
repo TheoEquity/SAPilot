@@ -1,5 +1,5 @@
 'use client';
-import { ModelSpec, QuestionSet } from '@/api';
+import type { ModelSpec, QuestionSet } from '@/api/generated/models';
 import { ProviderModel } from '@/app/workspace/collections/collection-form';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
@@ -150,28 +150,25 @@ export const QuestionGenerate = ({
       setLoading(true);
       try {
         const generateRes =
-          await apiClient.evaluationApi.generateQuestionSetApiV1QuestionSetsGeneratePost(
+          await apiClient.evaluation.generateQuestionSetApiV1QuestionSetsGeneratePost(
             {
-              questionSetGenerate: {
-                ...values,
-                collection_id: collection.id || '',
-              },
+              ...values,
+              collection_id: collection.id || '',
             },
+            undefined,
             {
               timeout: 1000 * 60,
             },
           );
         const questions = generateRes.data.questions || [];
-        await apiClient.evaluationApi.addQuestionsApiV1QuestionSetsQsIdQuestionsPost(
+        await apiClient.evaluation.addQuestionsApiV1QuestionSetsQsIdQuestionsPost(
+          encodeURIComponent(String(questionSet.id)),
           {
-            qsId: questionSet.id,
-            questionsAdd: {
-              questions: questions.map((question) => ({
-                question_text: question.question_text || '',
-                ground_truth: question.ground_truth || '',
-                // question_type: question.question_type as QuestionType,
-              })),
-            },
+            questions: questions.map((question) => ({
+              question_text: question.question_text || '',
+              ground_truth: question.ground_truth || '',
+              // question_type: question.question_type as QuestionType,
+            })),
           },
         );
         setVisible(false);
@@ -188,10 +185,8 @@ export const QuestionGenerate = ({
 
   const loadData = useCallback(async () => {
     const [agentModelsRes] = await Promise.all([
-      apiClient.defaultApi.availableModelsPost({
-        tagFilterRequest: {
-          tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
-        },
+      apiClient.llmModels.getAvailableModelsViewApiV1AvailableModelsPost({
+        tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
       }),
     ]);
     setAgentModels(

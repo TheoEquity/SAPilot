@@ -1,7 +1,7 @@
-import type { IntentRouterLLMConfig } from '../../web/src/api/models/intent-router-llmconfig';
-import type { SkillRuntimeConfig } from '../../web/src/api/models/skill-runtime-config';
-import type { CandidateSkill } from '../../web/src/api/models/candidate-skill';
-import type { BotUpdate } from '../../web/src/api/models/bot-update';
+import type { IntentRouterLLMConfig } from '../../web/src/api/generated/models/intentRouterLLMConfig';
+import type { SkillRuntimeConfig } from '../../web/src/api/generated/models/skillRuntimeConfig';
+import type { CandidateSkill } from '../../web/src/api/generated/models/candidateSkill';
+import type { BotUpdate } from '../../web/src/api/generated/models/botUpdate';
 
 const runtime: SkillRuntimeConfig = {
   temperature: null,

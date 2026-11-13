@@ -1,6 +1,6 @@
 'use client';
 
-import { SystemDefaultQuotas } from '@/api';
+import type { SystemDefaultQuotas } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -35,11 +35,12 @@ export const QuotaSettings = ({
   const common_action = useTranslations('common.action');
   const page_quota = useTranslations('page_quota');
   const handleSave = useCallback(async () => {
-    const res = await apiClient.quotasApi.systemDefaultQuotasPut({
-      systemDefaultQuotasUpdateRequest: {
-        quotas: data,
-      },
-    });
+    const res =
+      await apiClient.quotas.updateSystemDefaultQuotasApiV1SystemDefaultQuotasPut(
+        {
+          quotas: data,
+        },
+      );
     if (res.data.success) {
       toast.success(res.data.message);
     }

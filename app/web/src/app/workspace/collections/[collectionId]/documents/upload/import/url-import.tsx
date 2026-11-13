@@ -1,6 +1,7 @@
 'use client';
 
-import { FetchUrlResultItem, FetchUrlResultItemFetchStatusEnum } from '@/api';
+import type { FetchUrlResultItem } from '@/api/generated/models';
+import { FetchUrlResultItemFetchStatus } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -91,7 +92,9 @@ export const UrlImport = ({ onSuccess }: Props) => {
     text
       .split('\n')
       .map((line) => line.trim())
-      .filter((line) => line.startsWith('http://') || line.startsWith('https://'));
+      .filter(
+        (line) => line.startsWith('http://') || line.startsWith('https://'),
+      );
 
   const handleFetch = useCallback(async () => {
     if (!collection.id) return;
@@ -102,31 +105,33 @@ export const UrlImport = ({ onSuccess }: Props) => {
     setResults(null);
 
     try {
-      const res = await apiClient.defaultApi.collectionsCollectionIdDocumentsFetchUrlPost(
-        {
-          collectionId: collection.id,
-          fetchUrlRequest: { urls },
-        },
-        { timeout: 1000 * 60 },
-      );
+      const res =
+        await apiClient.documents.fetchUrlDocumentViewApiV1CollectionsCollectionIdDocumentsFetchUrlPost(
+          encodeURIComponent(String(collection.id)),
+          { urls },
+          undefined,
+          { timeout: 1000 * 60 },
+        );
 
-      const fetchResults: UrlImportResult[] = (res.data.results as FetchUrlResultItem[]).map(
-        (item) => ({
-          url: item.url,
-          fetch_status:
-            item.fetch_status === FetchUrlResultItemFetchStatusEnum.success
-              ? ('success' as const)
-              : ('error' as const),
-          document_id: item.document_id ?? undefined,
-          filename: item.filename ?? undefined,
-          size: item.size ?? undefined,
-          status: item.status ?? undefined,
-          error: item.error ?? undefined,
-        }),
-      );
+      const fetchResults: UrlImportResult[] = (
+        res.data.results as FetchUrlResultItem[]
+      ).map((item) => ({
+        url: item.url,
+        fetch_status:
+          item.fetch_status === FetchUrlResultItemFetchStatus.success
+            ? ('success' as const)
+            : ('error' as const),
+        document_id: item.document_id ?? undefined,
+        filename: item.filename ?? undefined,
+        size: item.size ?? undefined,
+        status: item.status ?? undefined,
+        error: item.error ?? undefined,
+      }));
       setResults(fetchResults);
 
-      const succeeded = fetchResults.filter((r) => r.fetch_status === 'success');
+      const succeeded = fetchResults.filter(
+        (r) => r.fetch_status === 'success',
+      );
       if (succeeded.length > 0) {
         onSuccess(fetchResults);
       }
@@ -171,12 +176,14 @@ export const UrlImport = ({ onSuccess }: Props) => {
         <li>• {t('import_url_tips_3')}</li>
       </ul>
 
-      {results && (
-        <ResultSummary results={results} />
-      )}
+      {results && <ResultSummary results={results} />}
 
       <div className="flex justify-end">
-        <Button onClick={handleFetch} disabled={!isValid || isFetching} className="min-w-28">
+        <Button
+          onClick={handleFetch}
+          disabled={!isValid || isFetching}
+          className="min-w-28"
+        >
           {isFetching ? (
             <>
               <LoaderCircle className="animate-spin" />

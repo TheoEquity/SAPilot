@@ -81,7 +81,6 @@ make dev
 This command will:
 *   Install `uv` if not already available
 *   Create a Python 3.11 virtual environment (located in `.venv/`)
-*   Install development tools (redocly, openapi-generator-cli, etc.)
 *   Install pre-commit hooks for code quality
 *   Install addlicense tool for license management
 

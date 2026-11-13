@@ -1,6 +1,6 @@
-import { ChatMessage } from '@/api';
 import { cn } from '@/lib/utils';
 import { useFormatter } from 'next-intl';
+import type { ChatMessage } from './chat-message';
 
 export const MessageTimestamp = ({
   parts,

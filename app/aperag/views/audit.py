@@ -44,7 +44,7 @@ async def list_audit_logs(
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
     search: Optional[str] = Query(None, description="Search term"),
     user: User = Depends(required_user),
-):
+) -> view_models.AuditLogList:
     """List audit logs with filtering"""
 
     # Convert string enums to actual enum values
@@ -115,7 +115,7 @@ async def list_audit_logs(
 
 
 @router.get("/audit-logs/{audit_id}", tags=["audit"])
-async def get_audit_log(audit_id: str, user: User = Depends(required_user)):
+async def get_audit_log(audit_id: str, user: User = Depends(required_user)) -> view_models.AuditLog:
     """Get a specific audit log by ID"""
 
     async for session in get_async_session():

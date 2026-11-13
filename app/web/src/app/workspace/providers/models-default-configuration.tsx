@@ -1,8 +1,5 @@
-import {
-  DefaultModelConfig,
-  DefaultModelConfigScenarioEnum,
-  ModelSpec,
-} from '@/api';
+import type { DefaultModelConfig, ModelSpec } from '@/api/generated/models';
+import { DefaultModelConfigScenario } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -42,10 +39,10 @@ export const ModelsDefaultConfiguration = () => {
   const common_tips = useTranslations('common.tips');
   const page_models = useTranslations('page_models');
   const [scenarioModels, setScenarioModels] = useState<{
-    [key in DefaultModelConfigScenarioEnum]: {
-      label?: string;
-      name?: string;
-      models?: ModelSpec[];
+    [key in DefaultModelConfigScenario]: {
+      label?: string | null;
+      name?: string | null;
+      models?: ModelSpec[] | null;
     }[];
   }>();
 
@@ -53,18 +50,12 @@ export const ModelsDefaultConfiguration = () => {
     setLoading(true);
     const [defaultModelsRes, collectionModelsRes, agentModelsRes] =
       await Promise.all([
-        apiClient.defaultApi.defaultModelsGet(),
-        apiClient.defaultApi.availableModelsPost({
-          tagFilterRequest: {
-            tag_filters: [
-              { operation: 'AND', tags: ['enable_for_collection'] },
-            ],
-          },
+        apiClient.defaultModels.getDefaultModelsViewApiV1DefaultModelsGet(),
+        apiClient.llmModels.getAvailableModelsViewApiV1AvailableModelsPost({
+          tag_filters: [{ operation: 'AND', tags: ['enable_for_collection'] }],
         }),
-        apiClient.defaultApi.availableModelsPost({
-          tagFilterRequest: {
-            tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
-          },
+        apiClient.llmModels.getAvailableModelsViewApiV1AvailableModelsPost({
+          tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
         }),
       ]);
     setLoading(false);
@@ -109,7 +100,7 @@ export const ModelsDefaultConfiguration = () => {
   }, []);
 
   const handleScenarioChange = useCallback(
-    (scenario: DefaultModelConfigScenarioEnum, model?: string) => {
+    (scenario: DefaultModelConfigScenario, model?: string) => {
       setDefaultModels((items) => {
         const item = items.find((m) => m.scenario === scenario);
         if (item) {
@@ -125,9 +116,10 @@ export const ModelsDefaultConfiguration = () => {
   );
 
   const handleSave = useCallback(async () => {
-    const res = await apiClient.defaultApi.defaultModelsPut({
-      defaultModelsUpdateRequest: { defaults: defaultModels },
-    });
+    const res =
+      await apiClient.defaultModels.updateDefaultModelsViewApiV1DefaultModelsPut(
+        { defaults: defaultModels },
+      );
     if (res?.status === 200) {
       setVisible(false);
       toast.success(common_tips('update_success'));

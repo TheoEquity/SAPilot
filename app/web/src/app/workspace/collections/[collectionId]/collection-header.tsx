@@ -1,5 +1,5 @@
 'use client';
-import { CollectionViewStatusEnum } from '@/api';
+import { CollectionViewStatus } from '@/api/generated/models';
 import { FormatDate } from '@/components/format-date';
 import { PageContent } from '@/components/page-container';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,11 @@ import {
 import { cn } from '@/lib/utils';
 import _ from 'lodash';
 
+import { CollectionExport } from '@/components/collections/export-dialog';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { apiClient } from '@/lib/api/client';
-import { CollectionExport } from '@/components/collections/export-dialog';
 import {
   Calendar,
   Download,
@@ -46,7 +46,7 @@ import { CollectionDelete } from './collection-delete';
 
 export const CollectionHeader = ({ className }: { className?: string }) => {
   const badgeColor: {
-    [key in CollectionViewStatusEnum]: string;
+    [key in NonNullable<CollectionViewStatus>]: string;
   } = {
     ACTIVE: 'bg-green-700',
     INACTIVE: 'bg-red-500',
@@ -74,14 +74,14 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
         return;
       }
       if (checked) {
-        await apiClient.defaultApi.collectionsCollectionIdSharingPost({
-          collectionId: collection?.id,
-        });
+        await apiClient.collections.publishCollectionToMarketplaceApiV1CollectionsCollectionIdSharingPost(
+          encodeURIComponent(collection.id),
+        );
         toast.success(page_collections('published_success'));
       } else {
-        await apiClient.defaultApi.collectionsCollectionIdSharingDelete({
-          collectionId: collection?.id,
-        });
+        await apiClient.collections.unpublishCollectionFromMarketplaceApiV1CollectionsCollectionIdSharingDelete(
+          encodeURIComponent(collection.id),
+        );
         toast.success(page_collections('unpublished_success'));
       }
       await loadShare();
@@ -113,7 +113,7 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
                 )}
               />
               <div className="text-muted-foreground text-sm">
-                {_.upperFirst(_.lowerCase(collection.status))}
+                {_.upperFirst(_.lowerCase(collection.status ?? ''))}
               </div>
             </div>
           </CardDescription>

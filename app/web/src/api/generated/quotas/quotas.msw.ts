@@ -16,6 +16,7 @@ import type {
 } from 'msw';
 
 import type {
+  QuotaRecalculateResponse,
   QuotaUpdateRequest,
   QuotaUpdateResponse,
   SystemDefaultQuotasResponse,
@@ -28,11 +29,12 @@ import type {
 import {
   getGetQuotasApiV1QuotasGetResponseMock,
   getGetSystemDefaultQuotasApiV1SystemDefaultQuotasGetResponseMock,
+  getRecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostResponseMock,
   getUpdateQuotaApiV1QuotasUserIdPutResponseMock,
   getUpdateSystemDefaultQuotasApiV1SystemDefaultQuotasPutResponseMock
 } from './quotas.faker';
 
-export { getGetQuotasApiV1QuotasGetResponseMock, getUpdateQuotaApiV1QuotasUserIdPutResponseMock, getGetSystemDefaultQuotasApiV1SystemDefaultQuotasGetResponseMock, getUpdateSystemDefaultQuotasApiV1SystemDefaultQuotasPutResponseMock } from './quotas.faker';
+export { getGetQuotasApiV1QuotasGetResponseMock, getUpdateQuotaApiV1QuotasUserIdPutResponseMock, getRecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostResponseMock, getGetSystemDefaultQuotasApiV1SystemDefaultQuotasGetResponseMock, getUpdateSystemDefaultQuotasApiV1SystemDefaultQuotasPutResponseMock } from './quotas.faker';
 
 
 export const getGetQuotasApiV1QuotasGetMockHandler = (overrideResponse?: UserQuotaInfo | UserQuotaList | ((info: Parameters<HttpResponseResolver>[0]) => Promise<UserQuotaInfo | UserQuotaList> | UserQuotaInfo | UserQuotaList), options?: RequestHandlerOptions) => {
@@ -59,11 +61,13 @@ export const getUpdateQuotaApiV1QuotasUserIdPutMockHandler = (overrideResponse?:
   }, options)
 }
 
-export const getRecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getRecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostMockHandler = (overrideResponse?: QuotaRecalculateResponse | ((info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => Promise<QuotaRecalculateResponse> | QuotaRecalculateResponse), options?: RequestHandlerOptions) => {
   return http.post<{ userId: string }>('*/api/v1/quotas/:userId/recalculate', async (info: Parameters<HttpResponseResolver<{ userId: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getRecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostResponseMock(),
       { status: 200
       })
   }, options)

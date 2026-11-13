@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, ModelSpec } from '@/api';
+import type { Bot, ModelSpec } from '@/api/generated/models';
 import { BotConfigProvider } from '@/components/providers/bot-config-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { toBotConfigInput } from '../[botId]/orchestration-types';
 
 import {
   AlertDialog,
@@ -88,9 +89,9 @@ const botCreateSchema = z.object({
 type FormValueType = z.infer<typeof botCreateSchema>;
 
 export type ProviderModel = {
-  label?: string;
-  name?: string;
-  models?: ModelSpec[];
+  label?: string | null;
+  name?: string | null;
+  models?: ModelSpec[] | null;
 };
 
 export const BotCreateForm = ({ sourceBot }: { sourceBot?: Bot | null }) => {
@@ -153,11 +154,10 @@ export const BotCreateForm = ({ sourceBot }: { sourceBot?: Bot | null }) => {
   });
 
   const loadModels = useCallback(async () => {
-    const res = await apiClient.defaultApi.availableModelsPost({
-      tagFilterRequest: {
+    const res =
+      await apiClient.llmModels.getAvailableModelsViewApiV1AvailableModelsPost({
         tag_filters: [{ operation: 'AND', tags: ['enable_for_agent'] }],
-      },
-    });
+      });
     const completion = res.data.items?.map((m) => {
       return {
         label: m.label,
@@ -169,23 +169,19 @@ export const BotCreateForm = ({ sourceBot }: { sourceBot?: Bot | null }) => {
   }, []);
 
   const tempBot = useMemo<Bot>(
-    () =>
-      ({
-        config: {
-          flow: sourceBotConfig.flow,
-          orchestration: sourceBotConfig.orchestration || {},
-        },
-      }) as Bot,
+    () => ({
+      config: {
+        flow: sourceBotConfig.flow,
+        orchestration: sourceBotConfig.orchestration || {},
+      },
+    }),
     [sourceBotConfig.flow, sourceBotConfig.orchestration],
   );
 
   const handleSubmit = useCallback(
     async (values: FormValueType) => {
       if (values.is_default) {
-        const res = await apiClient.defaultApi.botsGet({
-          page: 1,
-          pageSize: 100,
-        });
+        const res = await apiClient.bots.listBots();
         const bots = res.data.items || [];
         const defaultBot = bots.find((b) => b.is_default);
         if (defaultBot) {
@@ -208,7 +204,7 @@ export const BotCreateForm = ({ sourceBot }: { sourceBot?: Bot | null }) => {
         description: values.description,
         is_default: values.is_default,
         type: values.type,
-        config: {
+        config: toBotConfigInput({
           agent: {
             completion: values.config.agent.completion,
             welcome_title: values.config.agent.welcome_title,
@@ -218,29 +214,24 @@ export const BotCreateForm = ({ sourceBot }: { sourceBot?: Bot | null }) => {
           },
           flow: sourceBotConfig.flow,
           orchestration: sourceBotConfig.orchestration,
-        },
+        }),
       };
 
-      const res = await apiClient.defaultApi.botsPost({
-        botCreate,
-      });
+      const res = await apiClient.bots.createBot(botCreate);
 
       if (res.data.id && clearOldDefault) {
-        const botsRes = await apiClient.defaultApi.botsGet({
-          page: 1,
-          pageSize: 100,
-        });
+        const botsRes = await apiClient.bots.listBots();
         const bots = botsRes.data.items || [];
         const defaultBot = bots.find(
           (b) => b.is_default && b.id !== res.data.id,
         );
         if (defaultBot) {
-          await apiClient.defaultApi.botsBotIdPut({
-            botId: defaultBot.id || '',
-            botUpdate: {
+          await apiClient.bots.updateBot(
+            encodeURIComponent(String(defaultBot.id || '')),
+            {
               is_default: false,
             },
-          });
+          );
         }
       }
 

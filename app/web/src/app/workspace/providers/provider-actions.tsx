@@ -1,6 +1,6 @@
 'use client';
 
-import { LlmProvider } from '@/api';
+import type { LlmProvider } from '@/api/generated/models';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,14 +78,23 @@ export const ProviderActions = ({
 
   const form = useForm<z.infer<typeof providerSchema>>({
     resolver: zodResolver(providerSchema),
-    defaultValues: { ...defaultValue, ...provider },
+    defaultValues: {
+      label: provider?.label ?? defaultValue.label,
+      base_url: provider?.base_url ?? defaultValue.base_url,
+      completion_dialect:
+        provider?.completion_dialect ?? defaultValue.completion_dialect,
+      embedding_dialect:
+        provider?.embedding_dialect ?? defaultValue.embedding_dialect,
+      rerank_dialect: provider?.rerank_dialect ?? defaultValue.rerank_dialect,
+    },
   });
 
   const handleDelete = useCallback(async () => {
     if (action === 'delete' && provider?.name) {
-      const res = await apiClient.defaultApi.llmProvidersProviderNameDelete({
-        providerName: provider.name,
-      });
+      const res =
+        await apiClient.llmProviders.deleteLlmProviderViewApiV1LlmProvidersProviderNameDelete(
+          encodeURIComponent(provider.name),
+        );
       if (res?.status === 200) {
         setDeleteVisible(false);
         setTimeout(router.refresh, 300);
@@ -96,9 +105,9 @@ export const ProviderActions = ({
   const handlePublish = useCallback(async () => {
     if (action === 'publish' && provider?.name) {
       const res =
-        await apiClient.defaultApi.llmProvidersProviderNamePublishPost({
-          providerName: provider.name,
-        });
+        await apiClient.llmProviders.publishLlmProviderViewApiV1LlmProvidersProviderNamePublishPost(
+          encodeURIComponent(provider.name),
+        );
       if (res?.status === 200) {
         setPublishVisible(false);
         toast.success(page_models('provider.publish_success'));
@@ -116,15 +125,17 @@ export const ProviderActions = ({
       }
 
       if (action === 'edit' && provider?.name) {
-        res = await apiClient.defaultApi.llmProvidersProviderNamePut({
-          providerName: provider.name,
-          llmProviderUpdateWithApiKey: params,
-        });
+        res =
+          await apiClient.llmProviders.updateLlmProviderViewApiV1LlmProvidersProviderNamePut(
+            encodeURIComponent(provider.name),
+            params,
+          );
       }
       if (action === 'add') {
-        res = await apiClient.defaultApi.llmProvidersPost({
-          llmProviderCreateWithApiKey: params,
-        });
+        res =
+          await apiClient.llmProviders.createLlmProviderViewApiV1LlmProvidersPost(
+            params,
+          );
       }
       if (res?.status === 200) {
         setCreateOrUpdateVisible(false);

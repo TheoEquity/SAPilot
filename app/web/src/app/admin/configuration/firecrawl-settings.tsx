@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings } from '@/api';
+import type { Settings } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -42,7 +42,7 @@ export const FirecrawlSettings = ({ data: initData }: { data: Settings }) => {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await apiClient.defaultApi.settingsPut({ settings: data });
+      await apiClient.settings.updateSettingsApiV1SettingsPut(data);
       toast.success(common_tips('save_success'));
     } finally {
       setSaving(false);

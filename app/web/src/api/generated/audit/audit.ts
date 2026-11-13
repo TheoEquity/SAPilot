@@ -13,6 +13,8 @@ import type {
 } from 'axios';
 
 import type {
+  AuditLog,
+  AuditLogList,
   GetAuditLogApiV1AuditLogsAuditIdGetParams,
   ListAuditLogsApiV1AuditLogsGetParams
 } from '../models';
@@ -27,7 +29,7 @@ import type {
  */
 const listAuditLogsApiV1AuditLogsGet = (
     params?: ListAuditLogsApiV1AuditLogsGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<AuditLogList>> => {
     return axiosInstance.get(
       `/audit-logs`,{
     ...options,
@@ -53,7 +55,7 @@ const getListAuditLogsApiV1AuditLogsGetUrl = (params?: ListAuditLogsApiV1AuditLo
 const getAuditLogApiV1AuditLogsAuditIdGet = (
     auditId: string,
     params?: GetAuditLogApiV1AuditLogsAuditIdGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<AuditLog>> => {
     return axiosInstance.get(
       `/audit-logs/${auditId}`,{
     ...options,
@@ -74,5 +76,5 @@ const getGetAuditLogApiV1AuditLogsAuditIdGetUrl = (auditId: string,
   });
 }
 return {listAuditLogsApiV1AuditLogsGet,getAuditLogApiV1AuditLogsAuditIdGet,getListAuditLogsApiV1AuditLogsGetUrl,getGetAuditLogApiV1AuditLogsAuditIdGetUrl}};
-export type ListAuditLogsApiV1AuditLogsGetResult = AxiosResponse<unknown>
-export type GetAuditLogApiV1AuditLogsAuditIdGetResult = AxiosResponse<unknown>
+export type ListAuditLogsApiV1AuditLogsGetResult = AxiosResponse<AuditLogList>
+export type GetAuditLogApiV1AuditLogsAuditIdGetResult = AxiosResponse<AuditLog>

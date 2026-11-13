@@ -14,23 +14,38 @@ import type {
   RequestHandlerOptions
 } from 'msw';
 
+import type {
+  AuditLog,
+  AuditLogList
+} from '../models';
+
+import {
+  getGetAuditLogApiV1AuditLogsAuditIdGetResponseMock,
+  getListAuditLogsApiV1AuditLogsGetResponseMock
+} from './audit.faker';
+
+export { getListAuditLogsApiV1AuditLogsGetResponseMock, getGetAuditLogApiV1AuditLogsAuditIdGetResponseMock } from './audit.faker';
 
 
-export const getListAuditLogsApiV1AuditLogsGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getListAuditLogsApiV1AuditLogsGetMockHandler = (overrideResponse?: AuditLogList | ((info: Parameters<HttpResponseResolver>[0]) => Promise<AuditLogList> | AuditLogList), options?: RequestHandlerOptions) => {
   return http.get('*/api/v1/audit-logs', async (info: Parameters<HttpResponseResolver>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getListAuditLogsApiV1AuditLogsGetResponseMock(),
       { status: 200
       })
   }, options)
 }
 
-export const getGetAuditLogApiV1AuditLogsAuditIdGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ auditId: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+export const getGetAuditLogApiV1AuditLogsAuditIdGetMockHandler = (overrideResponse?: AuditLog | ((info: Parameters<HttpResponseResolver<{ auditId: string }>>[0]) => Promise<AuditLog> | AuditLog), options?: RequestHandlerOptions) => {
   return http.get<{ auditId: string }>('*/api/v1/audit-logs/:auditId', async (info: Parameters<HttpResponseResolver<{ auditId: string }>>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
 
-    return new HttpResponse(null,
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetAuditLogApiV1AuditLogsAuditIdGetResponseMock(),
       { status: 200
       })
   }, options)

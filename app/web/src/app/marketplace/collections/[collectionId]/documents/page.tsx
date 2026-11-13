@@ -15,20 +15,23 @@ export default async function Page({
   const { collectionId } = await params;
   const { page, pageSize, search } = await searchParams;
   const serverApi = await getServerApi();
+  const pagination = parsePageParams({ page, pageSize });
   const [collectionRes, documentsRes] = await Promise.all([
-    serverApi.defaultApi.marketplaceCollectionsCollectionIdGet({
-      collectionId,
-    }),
-    serverApi.defaultApi.marketplaceCollectionsCollectionIdDocumentsGet({
-      collectionId,
-      ...parsePageParams({ page, pageSize }),
-      sortBy: 'created',
-      sortOrder: 'desc',
-      search,
-    }),
+    serverApi.marketplaceCollections.getMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGet(
+      encodeURIComponent(String(collectionId)),
+    ),
+    serverApi.marketplaceCollections.listMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGet(
+      encodeURIComponent(collectionId),
+      {
+        page: pagination.page,
+        page_size: pagination.pageSize,
+        sort_by: 'created',
+        sort_order: 'desc',
+        search,
+      },
+    ),
   ]);
 
-  //@ts-expect-error api define has a bug
   const documents = toJson(documentsRes.data.items || []);
   const collection = toJson(collectionRes.data);
 
@@ -43,7 +46,7 @@ export default async function Page({
         <DocumentsTable
           collection={collection}
           data={documents}
-          pageCount={documentsRes.data.total_pages}
+          pageCount={documentsRes.data.total_pages ?? undefined}
         />
       </PageContent>
     </PageContainer>

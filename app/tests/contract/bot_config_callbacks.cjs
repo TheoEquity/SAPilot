@@ -167,12 +167,12 @@ function render(file, exportName, overrides = {}, options = {}) {
       typeof type === 'function' ? type(props) : { type, props },
   };
   const apiClient = {
-    defaultApi: {
-      botsBotIdPut: async (req) => {
+    bots: {
+      updateBot: async (botId, botUpdate) => {
         state.events.push('put');
         if (state.fail) throw Error('request failed');
-        state.requests.push(structuredClone(req));
-        return { data: req.botUpdate };
+        state.requests.push(structuredClone({ botId, botUpdate }));
+        return { data: botUpdate };
       },
     },
   };
@@ -269,6 +269,7 @@ function render(file, exportName, overrides = {}, options = {}) {
         [
           'flow-utils',
           'bot-config-updater',
+          'orchestration-types',
           'use-skill-editor',
           'skill-config',
         ].some((moduleName) => name.endsWith(moduleName))

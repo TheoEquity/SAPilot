@@ -16,7 +16,6 @@ import type {
   DeleteUserPromptApiV1PromptsUserPromptTypeDelete200,
   DeleteUserPromptApiV1PromptsUserPromptTypeDeleteParams,
   GetSystemPromptsApiV1PromptsSystemGetParams,
-  GetUserPromptsApiV1PromptsUserGet200,
   GetUserPromptsApiV1PromptsUserGetParams,
   PreviewPromptApiV1PromptsPreviewPost200,
   PreviewPromptApiV1PromptsPreviewPostParams,
@@ -27,6 +26,7 @@ import type {
   UpdateUserPromptsApiV1PromptsUserPut200,
   UpdateUserPromptsApiV1PromptsUserPutParams,
   UpdateUserPromptsRequest,
+  UserPromptsResponse,
   ValidatePromptApiV1PromptsValidatePost200,
   ValidatePromptApiV1PromptsValidatePostParams,
   ValidateRequest
@@ -102,7 +102,7 @@ const getGetSystemPromptsApiV1PromptsSystemGetUrl = (params?: GetSystemPromptsAp
  */
 const getUserPromptsApiV1PromptsUserGet = (
     params?: GetUserPromptsApiV1PromptsUserGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<GetUserPromptsApiV1PromptsUserGet200>> => {
+ ): Promise<AxiosResponse<UserPromptsResponse>> => {
     return axiosInstance.get(
       `/prompts/user`,{
     ...options,
@@ -239,7 +239,7 @@ const getValidatePromptApiV1PromptsValidatePostUrl = (params?: ValidatePromptApi
 return {previewPromptApiV1PromptsPreviewPost,getSystemPromptsApiV1PromptsSystemGet,getUserPromptsApiV1PromptsUserGet,updateUserPromptsApiV1PromptsUserPut,resetUserPromptsApiV1PromptsUserResetPost,deleteUserPromptApiV1PromptsUserPromptTypeDelete,validatePromptApiV1PromptsValidatePost,getPreviewPromptApiV1PromptsPreviewPostUrl,getGetSystemPromptsApiV1PromptsSystemGetUrl,getGetUserPromptsApiV1PromptsUserGetUrl,getUpdateUserPromptsApiV1PromptsUserPutUrl,getResetUserPromptsApiV1PromptsUserResetPostUrl,getDeleteUserPromptApiV1PromptsUserPromptTypeDeleteUrl,getValidatePromptApiV1PromptsValidatePostUrl}};
 export type PreviewPromptApiV1PromptsPreviewPostResult = AxiosResponse<PreviewPromptApiV1PromptsPreviewPost200>
 export type GetSystemPromptsApiV1PromptsSystemGetResult = AxiosResponse<unknown>
-export type GetUserPromptsApiV1PromptsUserGetResult = AxiosResponse<GetUserPromptsApiV1PromptsUserGet200>
+export type GetUserPromptsApiV1PromptsUserGetResult = AxiosResponse<UserPromptsResponse>
 export type UpdateUserPromptsApiV1PromptsUserPutResult = AxiosResponse<UpdateUserPromptsApiV1PromptsUserPut200>
 export type ResetUserPromptsApiV1PromptsUserResetPostResult = AxiosResponse<ResetUserPromptsApiV1PromptsUserResetPost200>
 export type DeleteUserPromptApiV1PromptsUserPromptTypeDeleteResult = AxiosResponse<DeleteUserPromptApiV1PromptsUserPromptTypeDelete200>

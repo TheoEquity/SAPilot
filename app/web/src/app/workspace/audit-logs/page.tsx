@@ -1,4 +1,3 @@
-import { AuditApiListAuditLogsRequest } from '@/api';
 import {
   PageContainer,
   PageContent,
@@ -9,12 +8,12 @@ import {
 import { getServerApi } from '@/lib/api/server';
 import { parsePageParams, toJson } from '@/lib/utils';
 import { getTranslations } from 'next-intl/server';
-import { AuditLogTable } from './audit-log-table';
+import { AuditLogTable, type AuditLogFilters } from './audit-log-table';
 
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<AuditApiListAuditLogsRequest>;
+  searchParams: Promise<AuditLogFilters>;
 }) {
   const serverApi = await getServerApi();
   const page_audit_logs = await getTranslations('page_audit_logs');
@@ -30,19 +29,20 @@ export default async function Page({
 
   let res;
   try {
-    res = await serverApi.auditApi.listAuditLogs({
-      apiName,
-      sortBy,
-      sortOrder,
-      startDate,
-      endDate,
-      ...parsePageParams({ page, pageSize }),
+    const pagination = parsePageParams({ page, pageSize });
+    res = await serverApi.audit.listAuditLogsApiV1AuditLogsGet({
+      api_name: apiName,
+      sort_by: sortBy,
+      sort_order: sortOrder ?? 'desc',
+      start_date: startDate,
+      end_date: endDate,
+      page: pagination.page,
+      page_size: pagination.pageSize,
     });
   } catch (err) {
     console.log(err);
   }
 
-  //@ts-expect-error api define has a bug
   const data = res?.data?.items || [];
 
   return (

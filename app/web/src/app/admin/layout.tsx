@@ -20,7 +20,7 @@ export default async function Layout({
   let user;
   const apiServer = await getServerApi();
   try {
-    const res = await apiServer.defaultApi.userGet();
+    const res = await apiServer.users.getUserViewApiV1UserGet();
     user = res.data;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {}

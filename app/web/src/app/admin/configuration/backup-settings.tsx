@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot } from '@/api';
+import type { Bot } from '@/api/generated/models';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {

@@ -1,5 +1,5 @@
 'use client';
-import { Question, QuestionSet } from '@/api';
+import type { Question, QuestionSet } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -61,30 +61,26 @@ export const QuestionActions = ({
     async (values: z.infer<typeof questionSchema>) => {
       if (!questionSet?.id) return;
       if (action === 'add') {
-        await apiClient.evaluationApi.addQuestionsApiV1QuestionSetsQsIdQuestionsPost(
+        await apiClient.evaluation.addQuestionsApiV1QuestionSetsQsIdQuestionsPost(
+          encodeURIComponent(String(questionSet.id)),
           {
-            qsId: questionSet.id,
-            questionsAdd: {
-              questions: [
-                {
-                  ...values,
-                  // question_type: 'USER_DEFINED',
-                },
-              ],
-            },
+            questions: [
+              {
+                ...values,
+                // question_type: 'USER_DEFINED',
+              },
+            ],
           },
         );
       }
       if (action === 'edit') {
         if (!question?.id || !questionSet?.id) return;
-        await apiClient.evaluationApi.updateQuestionApiV1QuestionSetsQsIdQuestionsQIdPut(
+        await apiClient.evaluation.updateQuestionApiV1QuestionSetsQsIdQuestionsQIdPut(
+          encodeURIComponent(String(questionSet.id)),
+          encodeURIComponent(String(question.id)),
           {
-            qsId: questionSet.id,
-            qId: question.id,
-            questionUpdate: {
-              ...values,
-              // question_type: 'USER_DEFINED',
-            },
+            ...values,
+            // question_type: 'USER_DEFINED',
           },
         );
       }

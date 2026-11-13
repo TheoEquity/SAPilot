@@ -21,6 +21,7 @@ from fastapi.security import HTTPBearer
 from aperag.db.models import Role, User
 from aperag.schema.view_models import (
     QuotaInfo,
+    QuotaRecalculateResponse,
     QuotaUpdateRequest,
     QuotaUpdateResponse,
     SystemDefaultQuotas,
@@ -166,7 +167,7 @@ async def update_quota(user_id: str, request: QuotaUpdateRequest, current_user: 
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/quotas/{user_id}/recalculate")
+@router.post("/quotas/{user_id}/recalculate", response_model=QuotaRecalculateResponse)
 async def recalculate_quota_usage(user_id: str, current_user: User = Depends(required_user)):
     """Recalculate and update current usage for all quota types for a user (admin only)"""
     try:

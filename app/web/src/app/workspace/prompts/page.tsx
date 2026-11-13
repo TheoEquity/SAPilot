@@ -12,7 +12,7 @@ import { PromptSettings } from './prompt-settings';
 
 export default async function Page() {
   const serverApi = await getServerApi();
-  const res = await serverApi.defaultApi.promptsUserGet();
+  const res = await serverApi.prompts.getUserPromptsApiV1PromptsUserGet();
   const data = res.data;
   const page_prompts = await getTranslations('page_prompts');
 
@@ -21,7 +21,9 @@ export default async function Page() {
       <PageHeader breadcrumbs={[{ title: page_prompts('metadata.title') }]} />
       <PageContent>
         <PageTitle>{page_prompts('metadata.title')}</PageTitle>
-        <PageDescription>{page_prompts('metadata.description')}</PageDescription>
+        <PageDescription>
+          {page_prompts('metadata.description')}
+        </PageDescription>
         <PromptSettings data={toJson(data)} />
       </PageContent>
     </PageContainer>

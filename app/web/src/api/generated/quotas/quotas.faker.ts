@@ -10,6 +10,7 @@ import {
 } from '@faker-js/faker';
 
 import type {
+  QuotaRecalculateResponse,
   QuotaUpdateResponse,
   SystemDefaultQuotasResponse,
   SystemDefaultQuotasUpdateResponse,
@@ -21,6 +22,10 @@ import type {
 export const getGetQuotasApiV1QuotasGetResponseMock = (): UserQuotaInfo | UserQuotaList => (faker.helpers.arrayElement([{email: "john@example.com", quotas: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({current_usage: 3, quota_limit: 10, quota_type: "max_collection_count", remaining: 7})), role: "rw", user_id: "user123", username: "john_doe"},{items: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({email: "john@example.com", quotas: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({current_usage: 3, quota_limit: 10, quota_type: "max_collection_count", remaining: 7})), role: "rw", user_id: "user123", username: "john_doe"}))},]))
 
 export const getUpdateQuotaApiV1QuotasUserIdPutResponseMock = (overrideResponse: Partial<Extract<QuotaUpdateResponse, object>> = {}): QuotaUpdateResponse => ({message: "Quotas updated successfully", success: true, updated_quotas: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({new_limit: 20, old_limit: 10, quota_type: "max_collection_count"})), user_id: "user123", ...overrideResponse})
+
+export const getRecalculateQuotaUsageApiV1QuotasUserIdRecalculatePostResponseMock = (overrideResponse: Partial<Extract<QuotaRecalculateResponse, object>> = {}): QuotaRecalculateResponse => ({message: faker.string.alpha({length: {min: 10, max: 20}}), success: faker.datatype.boolean(), updated_usage: {
+        [faker.string.alphanumeric(5)]: faker.number.int()
+      }, ...overrideResponse})
 
 export const getGetSystemDefaultQuotasApiV1SystemDefaultQuotasGetResponseMock = (overrideResponse: Partial<Extract<SystemDefaultQuotasResponse, object>> = {}): SystemDefaultQuotasResponse => ({quotas: {max_bot_count: 5, max_collection_count: 10, max_document_count: 1000, max_document_count_per_collection: 100}, ...overrideResponse})
 

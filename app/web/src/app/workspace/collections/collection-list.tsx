@@ -1,6 +1,6 @@
 'use client';
 
-import { CollectionView } from '@/api';
+import type { CollectionView } from '@/api/generated/models';
 import { FormatDate } from '@/components/format-date';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -119,7 +119,7 @@ export const CollectionList = ({
                           )}
                         />
                         <div className="text-muted-foreground">
-                          {_.upperFirst(_.lowerCase(collection.status))}
+                          {_.upperFirst(_.lowerCase(collection.status ?? ''))}
                         </div>
                       </div>
                     </CardFooter>

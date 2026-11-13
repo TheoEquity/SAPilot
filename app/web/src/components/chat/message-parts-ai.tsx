@@ -1,4 +1,4 @@
-import { ChatMessage, Feedback } from '@/api';
+import type { Feedback } from '@/api/generated/models';
 import { CopyToClipboard } from '@/components/copy-to-clipboard';
 import { useBotContext } from '@/components/providers/bot-provider';
 import { Card } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import _ from 'lodash';
 import { Bot, LoaderCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
+import type { ChatMessage } from './chat-message';
 import { MessageFeedback } from './message-feedback';
 import { MessagePartAi } from './message-part-ai';
 import { MessageReference } from './message-reference';
@@ -29,10 +30,14 @@ export const MessagePartsAi = ({
   const pageChat = useTranslations('page_chat');
   const { bot } = useBotContext();
   const references = useMemo(() => {
-    const rawReferences = parts.findLast((part) => part.references)?.references || [];
+    const rawReferences =
+      parts.findLast((part) => part.references)?.references || [];
     return rawReferences.filter((reference) => {
       const referenceType = reference.metadata?.type;
-      return referenceType !== 'list_collections' && referenceType !== 'search_chat_files';
+      return (
+        referenceType !== 'list_collections' &&
+        referenceType !== 'search_chat_files'
+      );
     });
   }, [parts]);
   const skillId = useMemo(
@@ -42,10 +47,17 @@ export const MessagePartsAi = ({
   const skillLabel = useMemo(() => {
     if (!skillId) return '';
     const skills =
-      ((bot?.config as { orchestration?: { skills?: { id?: string; name?: string; label?: string }[] } })
-        ?.orchestration?.skills || []);
+      (
+        bot?.config as {
+          orchestration?: {
+            skills?: { id?: string; name?: string; label?: string }[];
+          };
+        }
+      )?.orchestration?.skills || [];
     const matchedSkill = skills.find((skill) => skill.id === skillId);
-    return matchedSkill?.name || matchedSkill?.label || matchedSkill?.id || skillId;
+    return (
+      matchedSkill?.name || matchedSkill?.label || matchedSkill?.id || skillId
+    );
   }, [bot?.config, skillId]);
 
   return (
@@ -61,7 +73,7 @@ export const MessagePartsAi = ({
       <div className="flex w-full max-w-sm flex-col gap-1 sm:max-w-lg md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
         {skillLabel ? (
           <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs">
-            <span className="rounded-md border bg-muted px-2 py-0.5 font-mono">
+            <span className="bg-muted rounded-md border px-2 py-0.5 font-mono">
               {pageChat('current_skill_label')}: {skillLabel}
             </span>
           </div>

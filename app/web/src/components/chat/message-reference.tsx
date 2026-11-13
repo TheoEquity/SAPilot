@@ -1,4 +1,4 @@
-import { Reference } from '@/api';
+import type { Reference } from '@/api/generated/models';
 import { CustomImage, Markdown } from '@/components/markdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -63,7 +63,7 @@ const FaqReferenceContent = ({ reference }: { reference: Reference }) => {
           className="grid gap-3 rounded-md border p-3 md:grid-cols-[minmax(0,1.25fr)_minmax(220px,0.75fr)]"
           key={index}
         >
-          <div className="whitespace-pre-wrap break-words text-sm leading-6">
+          <div className="text-sm leading-6 break-words whitespace-pre-wrap">
             {row.text}
           </div>
           <div className="space-y-2">
@@ -102,7 +102,7 @@ export const MessageReference = ({
       : metadata.document_source ||
         metadata.source ||
         metadata.query ||
-        _.truncate(reference.text, { length: 30 });
+        _.truncate(reference.text ?? '', { length: 30 });
     return `${index + 1}. ${title}`;
   };
 
@@ -148,7 +148,11 @@ export const MessageReference = ({
                     <div className="text-muted-foreground ml-auto flex flex-row items-center gap-2 text-xs">
                       <span>
                         {_.startCase(
-                          reference.metadata?.recall_type || reference.metadata?.type,
+                          String(
+                            reference.metadata?.recall_type ||
+                              reference.metadata?.type ||
+                              '',
+                          ),
                         )}
                       </span>
                       <span>{(reference.score || 0).toFixed(2)}</span>
@@ -157,14 +161,14 @@ export const MessageReference = ({
                 }
               >
                 {source && (
-                  <div className="text-muted-foreground mb-3 rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                  <div className="text-muted-foreground bg-muted/30 mb-3 rounded-md border px-3 py-2 text-xs">
                     来源：{source}
                   </div>
                 )}
                 {reference.metadata?.chunk_type === 'faq_entry' ? (
                   <FaqReferenceContent reference={reference} />
                 ) : (
-                  <Markdown>{reference.text}</Markdown>
+                  <Markdown>{reference.text ?? undefined}</Markdown>
                 )}
               </MessageCollapseContent>
             );

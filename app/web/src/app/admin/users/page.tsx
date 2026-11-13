@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Page() {
   const admin_users = await getTranslations('admin_users');
   const apiServer = await getServerApi();
-  const res = await apiServer.defaultApi.usersGet();
+  const res = await apiServer.users.listUsersViewApiV1UsersGet();
 
   const users = res.data.items || [];
 

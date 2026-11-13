@@ -30,7 +30,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-import { LlmProvider, LlmProviderModel, LlmProviderModelApiEnum } from '@/api';
+import type { LlmProvider, LlmProviderModel } from '@/api/generated/models';
+import { LlmProviderModelApi } from '@/api/generated/models';
 import { FormatDate } from '@/components/format-date';
 import {
   ArrowLeft,
@@ -95,7 +96,7 @@ export function ModelTable({
   const currentApiFilter = React.useMemo(
     () =>
       columnFilters.find((item) => item.id === 'api')?.value as
-        | LlmProviderModelApiEnum
+        | LlmProviderModelApi
         | undefined,
     [columnFilters],
   );

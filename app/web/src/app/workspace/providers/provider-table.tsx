@@ -1,6 +1,6 @@
 'use client';
 
-import { LlmProvider, LlmProviderModel } from '@/api';
+import type { LlmProvider, LlmProviderModel } from '@/api/generated/models';
 
 import {
   ColumnDef,

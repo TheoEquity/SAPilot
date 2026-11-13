@@ -15,9 +15,9 @@ export default async function BotSettingsLayout({
   let bot;
 
   try {
-    const botRes = await serverApi.defaultApi.botsBotIdGet({
-      botId,
-    });
+    const botRes = await serverApi.bots.getBot(
+      encodeURIComponent(String(botId)),
+    );
     bot = botRes.data;
   } catch (err) {
     console.log(err);
@@ -27,9 +27,5 @@ export default async function BotSettingsLayout({
     notFound();
   }
 
-  return (
-    <BotConfigProvider bot={bot}>
-      {children}
-    </BotConfigProvider>
-  );
+  return <BotConfigProvider bot={bot}>{children}</BotConfigProvider>;
 }

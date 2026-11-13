@@ -14,6 +14,7 @@ import type {
 
 import type {
   GetSettingsApiV1SettingsGetParams,
+  MineruTokenTestResponse,
   Settings,
   TestMineruTokenApiV1SettingsTestMineruTokenPostBody,
   TestMineruTokenApiV1SettingsTestMineruTokenPostParams,
@@ -80,7 +81,7 @@ const getUpdateSettingsApiV1SettingsPutUrl = (params?: UpdateSettingsApiV1Settin
 const testMineruTokenApiV1SettingsTestMineruTokenPost = (
     testMineruTokenApiV1SettingsTestMineruTokenPostBody?: TestMineruTokenApiV1SettingsTestMineruTokenPostBody,
     params?: TestMineruTokenApiV1SettingsTestMineruTokenPostParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<MineruTokenTestResponse>> => {
     return axiosInstance.post(
       `/settings/test_mineru_token`,
       testMineruTokenApiV1SettingsTestMineruTokenPostBody,{
@@ -103,4 +104,4 @@ const getTestMineruTokenApiV1SettingsTestMineruTokenPostUrl = (params?: TestMine
 return {getSettingsApiV1SettingsGet,updateSettingsApiV1SettingsPut,testMineruTokenApiV1SettingsTestMineruTokenPost,getGetSettingsApiV1SettingsGetUrl,getUpdateSettingsApiV1SettingsPutUrl,getTestMineruTokenApiV1SettingsTestMineruTokenPostUrl}};
 export type GetSettingsApiV1SettingsGetResult = AxiosResponse<Settings>
 export type UpdateSettingsApiV1SettingsPutResult = AxiosResponse<unknown>
-export type TestMineruTokenApiV1SettingsTestMineruTokenPostResult = AxiosResponse<unknown>
+export type TestMineruTokenApiV1SettingsTestMineruTokenPostResult = AxiosResponse<MineruTokenTestResponse>

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChatDetails, ChatMessage, Feedback, Reference } from '@/api';
+import type { ChatDetails, Feedback, Reference } from '@/api/generated/models';
 import { useBotContext } from '@/components/providers/bot-provider';
 import { apiClient } from '@/lib/api/client';
 import { logger } from '@/lib/logger';
@@ -10,6 +10,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { animateScroll as scroll } from 'react-scroll';
 import type { ChatInputSubmitParams } from './chat-input';
+import type { ChatMessage } from './chat-message';
 
 export const useChatMessages = (chat: ChatDetails) => {
   const { chatRename } = useBotContext();
@@ -73,10 +74,10 @@ export const useChatMessages = (chat: ChatDetails) => {
           throw error;
         }
         if (fragment.type === 'start') {
-          activeResponse.current = { id: fragment.id, socket };
+          activeResponse.current = { id: fragment.id ?? undefined, socket };
           logger.info('chat.response.started', {
             chat_id: chatId,
-            message_id: fragment.id,
+            message_id: fragment.id ?? undefined,
             status: 'started',
           });
           setLoading(true);
@@ -85,7 +86,7 @@ export const useChatMessages = (chat: ChatDetails) => {
           activeResponse.current = null;
           logger.info('chat.response.completed', {
             chat_id: chatId,
-            message_id: fragment.id,
+            message_id: fragment.id ?? undefined,
             status: 'success',
           });
           setLoading(false);
@@ -255,12 +256,12 @@ export const useChatMessages = (chat: ChatDetails) => {
     async (part: ChatMessage, feedback: Feedback) => {
       if (!botId || !chatId || !part.id) return;
       const res =
-        await apiClient.defaultApi.botsBotIdChatsChatIdMessagesMessageIdPost({
-          botId,
-          chatId,
-          messageId: part.id,
+        await apiClient.chats.feedbackMessageViewApiV1BotsBotIdChatsChatIdMessagesMessageIdPost(
+          encodeURIComponent(botId),
+          encodeURIComponent(chatId),
+          encodeURIComponent(part.id),
           feedback,
-        });
+        );
       if (res.status === 200) {
         setMessages((msgs) => {
           const parts = msgs.find((items) =>
@@ -297,24 +298,6 @@ export const useChatMessages = (chat: ChatDetails) => {
   useEffect(() => {
     scroll.scrollToBottom({ duration: 0 });
   }, []);
-
-  /**
-   * render in server for the first time
-   * should delete for production
-   */
-  // const loadMessages = useCallback(async () => {
-  //   setMessagesLoading(true);
-  //   const res = await apiClient.defaultApi.botsBotIdChatsChatIdGet({
-  //     botId,
-  //     chatId,
-  //   });
-  //   setMessages(res.data.history || []);
-  //   setMessagesLoading(false);
-  // }, [botId, chatId]);
-
-  // useEffect(() => {
-  //   loadMessages();
-  // }, [loadMessages]);
 
   return {
     messages,

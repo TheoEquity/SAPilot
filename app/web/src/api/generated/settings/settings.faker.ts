@@ -10,9 +10,12 @@ import {
 } from '@faker-js/faker';
 
 import type {
+  MineruTokenTestResponse,
   Settings
 } from '../models';
 
 
 export const getGetSettingsApiV1SettingsGetResponseMock = (overrideResponse: Partial<Extract<Settings, object>> = {}): Settings => ({dingtalk_app_key: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), dingtalk_app_secret: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), dingtalk_bot_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), dingtalk_enabled: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), dingtalk_outgoing_webhook_secret: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), dingtalk_outgoing_webhook_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), dingtalk_response_mode: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), dingtalk_robot_code: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), dingtalk_webhook_secret: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), firecrawl_api_key: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), firecrawl_api_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), mineru_api_token: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), use_doc_ray: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), use_markitdown: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), use_mineru: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), ...overrideResponse})
+
+export const getTestMineruTokenApiV1SettingsTestMineruTokenPostResponseMock = (overrideResponse: Partial<Extract<MineruTokenTestResponse, object>> = {}): MineruTokenTestResponse => ({data: {}, status_code: faker.number.int(), ...overrideResponse})
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChatDetails } from '@/api';
+import type { ChatDetails } from '@/api/generated/models';
 import { ReadyState } from 'ahooks/lib/useWebSocket';
 import { motion } from 'framer-motion';
 import _ from 'lodash';

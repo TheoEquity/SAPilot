@@ -1,6 +1,6 @@
 'use client';
 
-import { QuestionSet } from '@/api';
+import type { QuestionSet } from '@/api/generated/models';
 import { FormatDate } from '@/components/format-date';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';

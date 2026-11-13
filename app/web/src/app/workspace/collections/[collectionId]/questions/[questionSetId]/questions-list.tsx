@@ -1,6 +1,6 @@
 'use client';
 
-import { QuestionSetDetail } from '@/api';
+import type { QuestionSetDetail } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
 import {

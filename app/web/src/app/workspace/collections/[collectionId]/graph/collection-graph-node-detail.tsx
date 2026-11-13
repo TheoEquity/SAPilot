@@ -1,6 +1,6 @@
 'use client';
 
-import { GraphNode } from '@/api';
+import type { GraphNode } from '@/api/generated/models';
 import { Markdown } from '@/components/markdown';
 import {
   Drawer,
@@ -30,7 +30,7 @@ export const CollectionGraphNodeDetail = ({
           <DrawerTitle>{node?.id}</DrawerTitle>
         </DrawerHeader>
         <div className="flex-1 overflow-auto p-4 select-text">
-          <Markdown>{node?.properties.description}</Markdown>
+          <Markdown>{node?.properties.description ?? undefined}</Markdown>
         </div>
       </DrawerContent>
     </Drawer>

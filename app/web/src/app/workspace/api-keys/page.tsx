@@ -13,7 +13,7 @@ import { ApiKeyTable } from './api-key-table';
 
 export default async function Page() {
   const serverApi = await getServerApi();
-  const res = await serverApi.defaultApi.apikeysGet();
+  const res = await serverApi.apiKeys.listApiKeysViewApiV1ApikeysGet();
   const data = res.data.items || [];
   const page_api_keys = await getTranslations('page_api_keys');
 

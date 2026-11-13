@@ -1,6 +1,6 @@
 'use client';
 
-import { LlmProviderModel } from '@/api';
+import type { LlmProviderModel } from '@/api/generated/models';
 import { useBotConfigContext } from '@/components/providers/bot-config-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -203,7 +203,8 @@ export const IntentRouterEditor = () => {
 
   const fetchIntentModels = useCallback(async () => {
     try {
-      const res = await apiClient.defaultApi.llmConfigurationGet();
+      const res =
+        await apiClient.llmProviders.getLlmConfigurationViewApiV1LlmConfigurationGet();
       const models = res.data?.models || [];
       setIntentModels(models.filter((m) => m.api === 'intent'));
     } catch (error) {

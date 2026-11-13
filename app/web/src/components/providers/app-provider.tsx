@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { User } from '@/api';
+import type { User } from '@/api/generated/models';
 import { apiClient } from '@/lib/api/client';
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext } from 'react';
@@ -48,18 +48,14 @@ export const signUpLocalSchema = z.object({
 
 export const useAppContext = () => useContext(AppContext);
 
-export const AppProvider = ({
-  children,
-}: {
-  children?: React.ReactNode;
-}) => {
+export const AppProvider = ({ children }: { children?: React.ReactNode }) => {
   const [_user, setUser] = useState<User | undefined>(undefined);
 
   // Auto-fetch user info on mount to restore session
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await apiClient.defaultApi.userGet();
+        const res = await apiClient.users.getUserViewApiV1UserGet();
         if (res.data) {
           setUser(res.data);
         }
@@ -86,9 +82,7 @@ export const AppProvider = ({
         if (!data) return;
 
         try {
-          const res = await apiClient.defaultApi.loginPost({
-            login: data,
-          });
+          const res = await apiClient.auth.loginViewApiV1LoginPost(data);
 
           if (res.status === 200) {
             setUser(res.data);
@@ -123,9 +117,9 @@ export const AppProvider = ({
   const handleSignUp = useCallback(
     async (params: SignUpOptions) => {
       try {
-        const res = await apiClient.defaultApi.registerPost({
-          register: params.data,
-        });
+        const res = await apiClient.auth.registerViewApiV1RegisterPost(
+          params.data,
+        );
         if (res.status === 200) {
           toast.success('Registration successful');
           router.push(
@@ -141,7 +135,7 @@ export const AppProvider = ({
   );
 
   const handleSignOut = useCallback(async () => {
-    const res = await apiClient.defaultApi.logoutPost();
+    const res = await apiClient.auth.logoutViewApiV1LogoutPost();
     if (res.status === 200) {
       setUser(undefined);
       setTimeout(router.refresh, 300);

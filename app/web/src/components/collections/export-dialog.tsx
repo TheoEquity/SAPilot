@@ -1,6 +1,6 @@
 'use client';
 
-import { ExportTaskResponse } from '@/api';
+import type { ExportTaskResponse } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -22,7 +22,8 @@ type ExportStep = 'confirm' | 'processing' | 'completed' | 'failed';
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
@@ -51,7 +52,9 @@ export const CollectionExport = ({
       stopPolling();
       pollingRef.current = setInterval(async () => {
         try {
-          const res = await apiClient.defaultApi.getExportTask({ taskId });
+          const res = await apiClient.export.getExportTask(
+            encodeURIComponent(String(taskId)),
+          );
           const data = res.data;
           setTaskStatus(data);
 
@@ -88,18 +91,21 @@ export const CollectionExport = ({
 
   const handleStartExport = useCallback(async () => {
     try {
-      const res = await apiClient.defaultApi.createExportTask({ collectionId });
+      const res = await apiClient.export.createExportTask(
+        encodeURIComponent(String(collectionId)),
+      );
       const data = res.data;
       setTaskStatus(data);
       setStep('processing');
       startPolling(data.export_task_id);
     } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
+      const status = (err as { response?: { status?: number } })?.response
+        ?.status;
       if (status === 429) {
         toast.error(t('export_knowledge_base_too_many_tasks'));
       } else {
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail;
+        const detail = (err as { response?: { data?: { detail?: string } } })
+          ?.response?.data?.detail;
         toast.error(detail || t('export_knowledge_base_failed_description'));
       }
       setOpen(false);
@@ -141,7 +147,9 @@ export const CollectionExport = ({
           {step === 'confirm' && (
             <>
               <DialogHeader>
-                <DialogTitle>{t('export_knowledge_base_confirm_title')}</DialogTitle>
+                <DialogTitle>
+                  {t('export_knowledge_base_confirm_title')}
+                </DialogTitle>
                 <DialogDescription>
                   {t('export_knowledge_base_confirm_content')}
                 </DialogDescription>
@@ -160,14 +168,19 @@ export const CollectionExport = ({
           {step === 'processing' && (
             <>
               <DialogHeader>
-                <DialogTitle>{t('export_knowledge_base_processing_title')}</DialogTitle>
+                <DialogTitle>
+                  {t('export_knowledge_base_processing_title')}
+                </DialogTitle>
                 <DialogDescription>
                   {taskStatus?.message ?? '...'}
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">
-                <Progress value={taskStatus?.progress ?? 0} className="w-full" />
-                <p className="text-muted-foreground mt-2 text-sm text-center">
+                <Progress
+                  value={taskStatus?.progress ?? 0}
+                  className="w-full"
+                />
+                <p className="text-muted-foreground mt-2 text-center text-sm">
                   {taskStatus?.progress ?? 0}%
                 </p>
               </div>
@@ -177,7 +190,9 @@ export const CollectionExport = ({
           {step === 'completed' && (
             <>
               <DialogHeader>
-                <DialogTitle>{t('export_knowledge_base_completed_title')}</DialogTitle>
+                <DialogTitle>
+                  {t('export_knowledge_base_completed_title')}
+                </DialogTitle>
                 <DialogDescription>
                   {t('export_knowledge_base_completed_description', {
                     size: taskStatus?.file_size
@@ -200,7 +215,9 @@ export const CollectionExport = ({
           {step === 'failed' && (
             <>
               <DialogHeader>
-                <DialogTitle>{t('export_knowledge_base_failed_title')}</DialogTitle>
+                <DialogTitle>
+                  {t('export_knowledge_base_failed_title')}
+                </DialogTitle>
                 <DialogDescription>
                   {taskStatus?.error_message ||
                     t('export_knowledge_base_failed_description')}

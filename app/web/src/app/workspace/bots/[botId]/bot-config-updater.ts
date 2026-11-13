@@ -1,18 +1,17 @@
+import type { Bot } from '@/api/generated/models';
 import { apiClient } from '@/lib/api/client';
-import type { Bot } from '@/api/models/bot';
 import type {
   BotConfigWithOrchestration,
   OrchestrationConfig,
 } from './orchestration-types';
+import { toBotConfigInput } from './orchestration-types';
 
 const normalizeBotConfig = (bot: Bot): BotConfigWithOrchestration => {
   return {
     ...(bot.config || {}),
     orchestration: {
-      ...(bot.config as BotConfigWithOrchestration | undefined)?.orchestration,
-      skills:
-        (bot.config as BotConfigWithOrchestration | undefined)?.orchestration
-          ?.skills || [],
+      ...bot.config?.orchestration,
+      skills: bot.config?.orchestration?.skills || [],
     },
   };
 };
@@ -35,19 +34,14 @@ export const updateBotOrchestration = async ({
     orchestration,
   };
 
-  await apiClient.defaultApi.botsBotIdPut({
-    botId: bot.id,
-    botUpdate: {
-      title: bot.title,
-      description: bot.description,
-      is_default: bot.is_default,
-      config: nextConfig,
-    },
+  await apiClient.bots.updateBot(encodeURIComponent(String(bot.id)), {
+    title: bot.title,
+    description: bot.description,
+    is_default: bot.is_default,
+    config: toBotConfigInput(nextConfig),
   });
 };
 
-export const normalizeOrchestration = (
-  bot: Bot,
-): OrchestrationConfig => {
+export const normalizeOrchestration = (bot: Bot): OrchestrationConfig => {
   return normalizeBotConfig(bot).orchestration || { skills: [] };
 };

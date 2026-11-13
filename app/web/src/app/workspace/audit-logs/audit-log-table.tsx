@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 
-import { AuditApiListAuditLogsRequest, AuditLog } from '@/api';
+import type { AuditLog } from '@/api/generated/models';
 
 import { DataGrid, DataGridPagination } from '@/components/data-grid';
 import { DateTimePicker24h } from '@/components/date-time-picker-24h';
@@ -36,6 +36,17 @@ import { ChevronDown, Columns3 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AuditLogDetail } from './audit-log-detail';
+
+export type AuditLogFilters = {
+  page?: number | string | null;
+  pageSize?: number | string | null;
+  sortBy?: string | null;
+  sortOrder?: string | null;
+  apiName?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  userId?: string | null;
+};
 
 export function AuditLogTable({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -81,7 +92,7 @@ export function AuditLogTable({
   }, [query]);
 
   const handleSearch = React.useCallback(
-    (params: AuditApiListAuditLogsRequest) => {
+    (params: AuditLogFilters) => {
       const urlSearchParams = new URLSearchParams();
       const data = { ...query, ...params };
       objectKeys(data).forEach((key) => {

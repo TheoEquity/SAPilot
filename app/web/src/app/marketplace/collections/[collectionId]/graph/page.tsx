@@ -11,9 +11,9 @@ export default async function Page({
   const { collectionId } = await params;
   const serverApi = await getServerApi();
   const [collectionRes] = await Promise.all([
-    serverApi.defaultApi.marketplaceCollectionsCollectionIdGet({
-      collectionId,
-    }),
+    serverApi.marketplaceCollections.getMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGet(
+      encodeURIComponent(String(collectionId)),
+    ),
   ]);
 
   return (

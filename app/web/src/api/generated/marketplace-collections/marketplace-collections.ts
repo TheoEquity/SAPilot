@@ -13,11 +13,13 @@ import type {
 } from 'axios';
 
 import type {
+  DocumentList,
+  DocumentPreview,
   GetMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGetParams,
-  GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGet200,
   GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetParams,
   GetMarketplaceDocumentObjectParams,
   GetMarketplaceDocumentPreviewParams,
+  KnowledgeGraph,
   ListMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGetParams,
   SharedCollection
 } from '../models';
@@ -60,7 +62,7 @@ const getGetMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGetUrl =
 const listMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGet = (
     collectionId: string,
     params?: ListMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<DocumentList>> => {
     return axiosInstance.get(
       `/marketplace/collections/${collectionId}/documents`,{
     ...options,
@@ -117,7 +119,7 @@ const getMarketplaceDocumentPreview = (
     collectionId: string,
     documentId: string,
     params?: GetMarketplaceDocumentPreviewParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<DocumentPreview>> => {
     return axiosInstance.get(
       `/marketplace/collections/${collectionId}/documents/${documentId}/preview`,{
     ...options,
@@ -145,7 +147,7 @@ const getGetMarketplaceDocumentPreviewUrl = (collectionId: string,
 const getMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGet = (
     collectionId: string,
     params?: GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGet200>> => {
+ ): Promise<AxiosResponse<KnowledgeGraph>> => {
     return axiosInstance.get(
       `/marketplace/collections/${collectionId}/graph`,{
     ...options,
@@ -167,7 +169,7 @@ const getGetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGra
 }
 return {getMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGet,listMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGet,getMarketplaceDocumentObject,getMarketplaceDocumentPreview,getMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGet,getGetMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGetUrl,getListMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGetUrl,getGetMarketplaceDocumentObjectUrl,getGetMarketplaceDocumentPreviewUrl,getGetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetUrl}};
 export type GetMarketplaceCollectionApiV1MarketplaceCollectionsCollectionIdGetResult = AxiosResponse<SharedCollection>
-export type ListMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGetResult = AxiosResponse<unknown>
+export type ListMarketplaceCollectionDocumentsApiV1MarketplaceCollectionsCollectionIdDocumentsGetResult = AxiosResponse<DocumentList>
 export type GetMarketplaceDocumentObjectResult = AxiosResponse<unknown>
-export type GetMarketplaceDocumentPreviewResult = AxiosResponse<unknown>
-export type GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetResult = AxiosResponse<GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGet200>
+export type GetMarketplaceDocumentPreviewResult = AxiosResponse<DocumentPreview>
+export type GetMarketplaceCollectionGraphApiV1MarketplaceCollectionsCollectionIdGraphGetResult = AxiosResponse<KnowledgeGraph>

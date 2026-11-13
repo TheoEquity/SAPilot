@@ -17,7 +17,7 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, Response
 from fastapi.responses import JSONResponse
 
-from aperag.schema.view_models import Settings
+from aperag.schema.view_models import MineruTokenMissingResponse, MineruTokenTestResponse, Settings
 from aperag.service.setting_service import setting_service
 from aperag.views.auth import get_current_admin, required_user
 
@@ -39,7 +39,12 @@ async def update_settings(
     return Response(status_code=204)
 
 
-@router.post("/settings/test_mineru_token", tags=["Settings"])
+@router.post(
+    "/settings/test_mineru_token",
+    tags=["Settings"],
+    response_model=MineruTokenTestResponse,
+    responses={404: {"model": MineruTokenMissingResponse, "description": "MinerU API token not set"}},
+)
 async def test_mineru_token(
     token_data: Optional[dict] = Body(None),
     user: dict = Depends(required_user),

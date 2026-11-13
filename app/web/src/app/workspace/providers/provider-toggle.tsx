@@ -1,4 +1,4 @@
-import { LlmProvider } from '@/api';
+import type { LlmProvider } from '@/api/generated/models';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -30,14 +30,15 @@ export const ProviderToggle = ({ provider }: { provider: LlmProvider }) => {
       toast.error('Please enter the api key for the model provider.');
       return;
     }
-    const res = await apiClient.defaultApi.llmProvidersProviderNamePut({
-      providerName: provider.name,
-      llmProviderUpdateWithApiKey: {
-        ...provider,
-        api_key: apiKey,
-        status: 'enable',
-      },
-    });
+    const res =
+      await apiClient.llmProviders.updateLlmProviderViewApiV1LlmProvidersProviderNamePut(
+        encodeURIComponent(String(provider.name)),
+        {
+          ...provider,
+          api_key: apiKey,
+          status: 'enable',
+        },
+      );
     if (res.data.name) {
       setEnabledVisible(false);
       setTimeout(router.refresh, 300);
@@ -45,13 +46,14 @@ export const ProviderToggle = ({ provider }: { provider: LlmProvider }) => {
   }, [apiKey, provider, router]);
 
   const handleDisabled = useCallback(async () => {
-    const res = await apiClient.defaultApi.llmProvidersProviderNamePut({
-      providerName: provider.name,
-      llmProviderUpdateWithApiKey: {
-        ...provider,
-        status: 'disable',
-      },
-    });
+    const res =
+      await apiClient.llmProviders.updateLlmProviderViewApiV1LlmProvidersProviderNamePut(
+        encodeURIComponent(String(provider.name)),
+        {
+          ...provider,
+          status: 'disable',
+        },
+      );
     if (res.data.name) {
       setDisabledVisible(false);
       setTimeout(router.refresh, 300);

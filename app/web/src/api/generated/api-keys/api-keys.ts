@@ -13,6 +13,7 @@ import type {
 } from 'axios';
 
 import type {
+  ApiKey,
   ApiKeyCreate,
   ApiKeyList,
   ApiKeyUpdate,
@@ -58,7 +59,7 @@ const getListApiKeysViewApiV1ApikeysGetUrl = (params?: ListApiKeysViewApiV1Apike
 const createApiKeyViewApiV1ApikeysPost = (
     apiKeyCreate: ApiKeyCreate,
     params?: CreateApiKeyViewApiV1ApikeysPostParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<ApiKey>> => {
     return axiosInstance.post(
       `/apikeys`,
       apiKeyCreate,{
@@ -85,7 +86,7 @@ const getCreateApiKeyViewApiV1ApikeysPostUrl = (params?: CreateApiKeyViewApiV1Ap
 const deleteApiKeyViewApiV1ApikeysApikeyIdDelete = (
     apikeyId: string,
     params?: DeleteApiKeyViewApiV1ApikeysApikeyIdDeleteParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<boolean | null>> => {
     return axiosInstance.delete(
       `/apikeys/${apikeyId}`,{
     ...options,
@@ -113,7 +114,7 @@ const updateApiKeyViewApiV1ApikeysApikeyIdPut = (
     apikeyId: string,
     apiKeyUpdate: ApiKeyUpdate,
     params?: UpdateApiKeyViewApiV1ApikeysApikeyIdPutParams, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<ApiKey>> => {
     return axiosInstance.put(
       `/apikeys/${apikeyId}`,
       apiKeyUpdate,{
@@ -136,6 +137,6 @@ const getUpdateApiKeyViewApiV1ApikeysApikeyIdPutUrl = (apikeyId: string,
 }
 return {listApiKeysViewApiV1ApikeysGet,createApiKeyViewApiV1ApikeysPost,deleteApiKeyViewApiV1ApikeysApikeyIdDelete,updateApiKeyViewApiV1ApikeysApikeyIdPut,getListApiKeysViewApiV1ApikeysGetUrl,getCreateApiKeyViewApiV1ApikeysPostUrl,getDeleteApiKeyViewApiV1ApikeysApikeyIdDeleteUrl,getUpdateApiKeyViewApiV1ApikeysApikeyIdPutUrl}};
 export type ListApiKeysViewApiV1ApikeysGetResult = AxiosResponse<ApiKeyList>
-export type CreateApiKeyViewApiV1ApikeysPostResult = AxiosResponse<unknown>
-export type DeleteApiKeyViewApiV1ApikeysApikeyIdDeleteResult = AxiosResponse<unknown>
-export type UpdateApiKeyViewApiV1ApikeysApikeyIdPutResult = AxiosResponse<unknown>
+export type CreateApiKeyViewApiV1ApikeysPostResult = AxiosResponse<ApiKey>
+export type DeleteApiKeyViewApiV1ApikeysApikeyIdDeleteResult = AxiosResponse<boolean | null>
+export type UpdateApiKeyViewApiV1ApikeysApikeyIdPutResult = AxiosResponse<ApiKey>

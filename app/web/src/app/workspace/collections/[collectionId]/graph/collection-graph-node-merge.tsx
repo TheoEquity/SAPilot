@@ -1,11 +1,13 @@
 'use client';
 
-import {
+import type {
   MergeSuggestionItem,
-  MergeSuggestionItemStatusEnum,
   MergeSuggestionsResponse,
-  SuggestionActionRequestActionEnum,
-} from '@/api';
+} from '@/api/generated/models';
+import {
+  MergeSuggestionItemStatus,
+  SuggestionActionRequestAction,
+} from '@/api/generated/models';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -38,23 +40,21 @@ const SuggestionItem = ({
   afterAcceptMergeSuggestion: () => void;
 }) => {
   const [loading, setLoading] =
-    useState<{ [key in SuggestionActionRequestActionEnum]: boolean }>();
+    useState<{ [key in SuggestionActionRequestAction]: boolean }>();
   const page_graph = useTranslations('page_graph');
   const handleSuggestionAction = useCallback(
-    async (action: SuggestionActionRequestActionEnum) => {
+    async (action: SuggestionActionRequestAction) => {
       setLoading({
         accept: action === 'accept',
         reject: action === 'reject',
       });
       const res =
-        await apiClient.graphApi.collectionsCollectionIdGraphsMergeSuggestionsSuggestionIdActionPost(
+        await apiClient.graph.handleSuggestionActionViewApiV1CollectionsCollectionIdGraphsMergeSuggestionsSuggestionIdActionPost(
+          encodeURIComponent(String(item.collection_id)),
+          encodeURIComponent(String(item.id)),
           {
-            suggestionId: item.id,
-            collectionId: item.collection_id,
-            suggestionActionRequest: {
-              action,
-              target_entity_data: item.suggested_target_entity,
-            },
+            action,
+            target_entity_data: item.suggested_target_entity,
           },
         );
       if (res.data.status === 'success' && action === 'reject') {
@@ -162,7 +162,7 @@ export const CollectionGraphNodeMerge = ({
   onRefresh: () => void;
 }) => {
   const [activeStatus, setActiveStatus] =
-    useState<MergeSuggestionItemStatusEnum>('PENDING');
+    useState<MergeSuggestionItemStatus>('PENDING');
   const page_graph = useTranslations('page_graph');
   return (
     <Drawer
@@ -177,17 +177,17 @@ export const CollectionGraphNodeMerge = ({
           <Tabs
             defaultValue={activeStatus}
             onValueChange={(v: string) =>
-              setActiveStatus(v as MergeSuggestionItemStatusEnum)
+              setActiveStatus(v as MergeSuggestionItemStatus)
             }
           >
             <TabsList>
-              <TabsTrigger value={MergeSuggestionItemStatusEnum.PENDING}>
+              <TabsTrigger value={MergeSuggestionItemStatus.PENDING}>
                 {page_graph('merge_pending')}
               </TabsTrigger>
-              <TabsTrigger value={MergeSuggestionItemStatusEnum.ACCEPTED}>
+              <TabsTrigger value={MergeSuggestionItemStatus.ACCEPTED}>
                 {page_graph('merge_accepted')}
               </TabsTrigger>
-              <TabsTrigger value={MergeSuggestionItemStatusEnum.REJECTED}>
+              <TabsTrigger value={MergeSuggestionItemStatus.REJECTED}>
                 {page_graph('merge_rejected')}
               </TabsTrigger>
             </TabsList>

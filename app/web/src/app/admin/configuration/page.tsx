@@ -27,9 +27,9 @@ export default async function Page() {
   const admin_config = await getTranslations('admin_config');
 
   const [resSettings, resSystemDefaultQuotas, resBots] = await Promise.all([
-    serverApi.defaultApi.settingsGet(),
-    serverApi.quotasApi.systemDefaultQuotasGet(),
-    serverApi.defaultApi.botsGet(),
+    serverApi.settings.getSettingsApiV1SettingsGet(),
+    serverApi.quotas.getSystemDefaultQuotasApiV1SystemDefaultQuotasGet(),
+    serverApi.bots.listBots(),
   ]);
 
   const settings = resSettings.data;

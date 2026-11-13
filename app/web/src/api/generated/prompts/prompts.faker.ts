@@ -11,10 +11,10 @@ import {
 
 import type {
   DeleteUserPromptApiV1PromptsUserPromptTypeDelete200,
-  GetUserPromptsApiV1PromptsUserGet200,
   PreviewPromptApiV1PromptsPreviewPost200,
   ResetUserPromptsApiV1PromptsUserResetPost200,
   UpdateUserPromptsApiV1PromptsUserPut200,
+  UserPromptsResponse,
   ValidatePromptApiV1PromptsValidatePost200
 } from '../models';
 
@@ -23,7 +23,7 @@ export const getPreviewPromptApiV1PromptsPreviewPostResponseMock = (): PreviewPr
         [faker.string.alphanumeric(5)]: faker.string.alpha({length: {min: 10, max: 20}})
       })
 
-export const getGetUserPromptsApiV1PromptsUserGetResponseMock = (): GetUserPromptsApiV1PromptsUserGet200 => ({})
+export const getGetUserPromptsApiV1PromptsUserGetResponseMock = (overrideResponse: Partial<Extract<UserPromptsResponse, object>> = {}): UserPromptsResponse => ({agent_query: faker.helpers.arrayElement([{content: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), customized: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), description: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), source: faker.helpers.arrayElement([faker.helpers.arrayElement(['user','system','hardcoded'] as const),null,])},null,]), agent_system: faker.helpers.arrayElement([{content: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), customized: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), description: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), source: faker.helpers.arrayElement([faker.helpers.arrayElement(['user','system','hardcoded'] as const),null,])},null,]), index_graph: faker.helpers.arrayElement([{content: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), customized: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), description: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), source: faker.helpers.arrayElement([faker.helpers.arrayElement(['user','system','hardcoded'] as const),null,])},null,]), index_summary: faker.helpers.arrayElement([{content: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), customized: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), description: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), source: faker.helpers.arrayElement([faker.helpers.arrayElement(['user','system','hardcoded'] as const),null,])},null,]), index_vision: faker.helpers.arrayElement([{content: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), customized: faker.helpers.arrayElement([faker.datatype.boolean(),null,]), description: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), source: faker.helpers.arrayElement([faker.helpers.arrayElement(['user','system','hardcoded'] as const),null,])},null,]), ...overrideResponse})
 
 export const getUpdateUserPromptsApiV1PromptsUserPutResponseMock = (): UpdateUserPromptsApiV1PromptsUserPut200 => ({})
 

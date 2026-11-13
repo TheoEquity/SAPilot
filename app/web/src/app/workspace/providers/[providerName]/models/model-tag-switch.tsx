@@ -1,4 +1,4 @@
-import { LlmProvider, LlmProviderModel } from '@/api';
+import type { LlmProvider, LlmProviderModel } from '@/api/generated/models';
 import { Switch } from '@/components/ui/switch';
 import { apiClient } from '@/lib/api/client';
 import _ from 'lodash';
@@ -25,15 +25,15 @@ export const ModelTagSwitch = ({
         : (model.tags || []).filter((t) => t !== tag);
 
       const res =
-        await apiClient.defaultApi.llmProvidersProviderNameModelsApiModelPut({
-          providerName: provider.name,
-          api: model.api,
-          model: model.model,
-          llmProviderModelUpdate: {
+        await apiClient.llmModels.updateProviderModelViewApiV1LlmProvidersProviderNameModelsApiModelPut(
+          encodeURIComponent(String(provider.name)),
+          model.api,
+          encodeURIComponent(String(model.model)),
+          {
             ...model,
             tags: _.uniq(tags),
           },
-        });
+        );
 
       if (res?.status === 200) {
         setTimeout(router.refresh, 300);

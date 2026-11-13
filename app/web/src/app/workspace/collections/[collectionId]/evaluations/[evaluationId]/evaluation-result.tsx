@@ -1,6 +1,6 @@
 'use client';
 
-import { EvaluationDetail, EvaluationItem } from '@/api';
+import type { EvaluationDetail, EvaluationItem } from '@/api/generated/models';
 import { Markdown } from '@/components/markdown';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
@@ -71,7 +71,7 @@ const EvaluationResultStatus = ({ item }: { item: EvaluationItem }) => {
             'data-[status=RUNNING]:bg-sky-500',
           )}
         />
-        {_.upperFirst(_.lowerCase(item.status))}
+        {_.upperFirst(_.lowerCase(item.status ?? ''))}
       </div>
     );
   }
@@ -88,9 +88,9 @@ export const EvaluationResult = ({
   const loadData = useCallback(async () => {
     if (!evaluation.id) return;
     const res =
-      await apiClient.evaluationApi.getEvaluationApiV1EvaluationsEvalIdGet({
-        evalId: evaluation.id,
-      });
+      await apiClient.evaluation.getEvaluationApiV1EvaluationsEvalIdGet(
+        encodeURIComponent(String(evaluation.id)),
+      );
     if (res.data.id) {
       setEvaluation(res.data);
     }
@@ -130,7 +130,7 @@ export const EvaluationResult = ({
                 'data-[status=RUNNING]:bg-sky-500',
               )}
             />
-            {_.upperFirst(_.lowerCase(evaluation.status))}
+            {_.upperFirst(_.lowerCase(evaluation.status ?? ''))}
           </div>
 
           <div className="flex flex-row gap-1">
@@ -142,7 +142,7 @@ export const EvaluationResult = ({
                 href={`/workspace/collections/${collection.id}/questions/${evaluation.config?.question_set_id}`}
                 className="hover:text-primary underline"
               >
-                {_.truncate(evaluation.question_set_name, { length: 20 })}
+                {_.truncate(evaluation.question_set_name ?? '', { length: 20 })}
               </Link>
             </span>
           </div>
@@ -228,7 +228,7 @@ export const EvaluationResult = ({
                       'data-[score=1]:text-rose-700',
                     )}
                   >
-                    <Markdown>{item.llm_judge_reasoning}</Markdown>
+                    <Markdown>{item.llm_judge_reasoning ?? undefined}</Markdown>
                   </div>
                 </div>
                 <Separator />
@@ -243,7 +243,7 @@ export const EvaluationResult = ({
                   <div className="text-muted-foreground">
                     {page_evaluation('rag_answer')}
                   </div>
-                  <Markdown>{item.rag_answer}</Markdown>
+                  <Markdown>{item.rag_answer ?? undefined}</Markdown>
                 </div>
               </CollapsibleContent>
             </Collapsible>

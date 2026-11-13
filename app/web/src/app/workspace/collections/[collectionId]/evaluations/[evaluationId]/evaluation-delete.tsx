@@ -1,6 +1,6 @@
 'use client';
 
-import { Evaluation } from '@/api';
+import type { Evaluation } from '@/api/generated/models';
 import { useCollectionContext } from '@/components/providers/collection-provider';
 import {
   AlertDialog,
@@ -34,10 +34,8 @@ export const EvaluationDeleteItem = ({
   const common_tips = useTranslations('common.tips');
   const handleDelete = useCallback(async () => {
     if (evaluation?.id) {
-      await apiClient.evaluationApi.deleteEvaluationApiV1EvaluationsEvalIdDelete(
-        {
-          evalId: evaluation.id,
-        },
+      await apiClient.evaluation.deleteEvaluationApiV1EvaluationsEvalIdDelete(
+        encodeURIComponent(String(evaluation.id)),
       );
       setVisible(false);
       router.push(`/workspace/collections/${collection.id}/evaluations`);

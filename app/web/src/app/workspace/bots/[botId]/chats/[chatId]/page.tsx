@@ -24,13 +24,11 @@ export default async function Page({
 
   try {
     const [chatRes, botRes] = await Promise.all([
-      serverApi.defaultApi.botsBotIdChatsChatIdGet({
-        botId,
-        chatId,
-      }),
-      serverApi.defaultApi.botsBotIdGet({
-        botId,
-      }),
+      serverApi.chats.getChatViewApiV1BotsBotIdChatsChatIdGet(
+        encodeURIComponent(String(botId)),
+        encodeURIComponent(String(chatId)),
+      ),
+      serverApi.bots.getBot(encodeURIComponent(String(botId))),
     ]);
     chat = chatRes.data;
     bot = botRes.data;

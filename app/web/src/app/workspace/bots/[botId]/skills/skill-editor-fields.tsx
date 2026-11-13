@@ -1,6 +1,6 @@
 'use client';
 
-import type { LlmProviderModel } from '@/api';
+import type { LlmProviderModel } from '@/api/generated/models';
 import {
   FormControl,
   FormField,

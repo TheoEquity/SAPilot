@@ -1,4 +1,5 @@
-import { ChatDetails, UploadDocumentResponseStatusEnum } from '@/api';
+import type { ChatDetails } from '@/api/generated/models';
+import { UploadDocumentResponseStatus } from '@/api/generated/models';
 import { apiClient } from '@/lib/api/client';
 import _ from 'lodash';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -18,7 +19,7 @@ export type Attachment = {
   document_id?: string;
   filename?: string;
   size?: number;
-  status?: UploadDocumentResponseStatusEnum;
+  status?: UploadDocumentResponseStatus;
   previewUrl?: string;
 };
 
@@ -105,10 +106,10 @@ export const useChatAttachments = (chat: ChatDetails) => {
     await Promise.all(
       toCheck.map(async (attachment) => {
         const res =
-          await apiClient.chatDocumentsApi.chatsChatIdDocumentsDocumentIdGet({
-            chatId,
-            documentId: attachment.document_id || '',
-          });
+          await apiClient.chats.getChatDocumentViewApiV1ChatsChatIdDocumentsDocumentIdGet(
+            encodeURIComponent(String(chatId)),
+            encodeURIComponent(String(attachment.document_id || '')),
+          );
         if (res.data) {
           setAttachments((prev) => {
             const item = prev.find((i) => i.id === attachment.id);
@@ -146,16 +147,17 @@ export const useChatAttachments = (chat: ChatDetails) => {
     await Promise.all(
       newPending.map(async (attachment) => {
         const file = attachment.file;
-        const res = await apiClient.chatDocumentsApi.chatsChatIdDocumentsPost({
-          chatId,
-          file,
-          messageId: '',
-        });
-        if (res.data.id) {
+        const res =
+          await apiClient.chats.uploadChatDocumentViewApiV1ChatsChatIdDocumentsPost(
+            encodeURIComponent(chatId),
+            { file },
+          );
+        const documentId = res.data.id;
+        if (documentId) {
           setAttachments((items) => {
             const item = items.find((item) => item.id === attachment.id);
             if (!item) return items;
-            item.document_id = res.data.id;
+            item.document_id = documentId;
             item.progress_status = isImageFile(item.file)
               ? 'success'
               : 'uploaded';

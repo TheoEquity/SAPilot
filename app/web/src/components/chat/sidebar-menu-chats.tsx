@@ -1,7 +1,7 @@
 'use client';
 
+import type { Chat } from '@/api/generated/models';
 import { useBotContext } from '@/components/providers/bot-provider';
-import { Chat } from '@/api';
 import { Button } from '@/components/ui/button';
 import {
   SidebarGroup,
@@ -30,7 +30,8 @@ export const SideBarMenuChats = () => {
 
   // 检查是否处于聊天界面
   // 匹配路径如 /workspace/bots/xxx/chats/xxx 或 /bots/xxx/chats/xxx
-  const isInChatInterface = pathname.includes('/bots/') && pathname.includes('/chats');
+  const isInChatInterface =
+    pathname.includes('/bots/') && pathname.includes('/chats');
 
   // 如果不在聊天界面，则不显示该组件
   if (!isInChatInterface) {

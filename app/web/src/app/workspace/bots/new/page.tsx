@@ -4,7 +4,7 @@ import {
   PageHeader,
 } from '@/components/page-container';
 
-import { Bot } from '@/api';
+import type { Bot } from '@/api/generated/models';
 import { getServerApi } from '@/lib/api/server';
 import { toJson } from '@/lib/utils';
 import { getTranslations } from 'next-intl/server';
@@ -22,7 +22,9 @@ export default async function Page({
 
   if (copyFrom) {
     try {
-      const res = await serverApi.defaultApi.botsBotIdGet({ botId: copyFrom });
+      const res = await serverApi.bots.getBot(
+        encodeURIComponent(String(copyFrom)),
+      );
       sourceBot = toJson(res.data);
     } catch (err) {
       console.log(err);
