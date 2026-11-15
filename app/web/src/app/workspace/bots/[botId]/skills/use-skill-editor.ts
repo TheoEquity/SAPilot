@@ -87,10 +87,11 @@ export const useSkillEditor = (skillId?: string) => {
       enabled: existingSkill?.enabled ?? true,
       is_fallback: orchestration.intent_router?.fallback_skill_id === skillId,
       type: existingSkill?.type || 'workflow',
+      category: existingSkill?.category || (existingSkill ? '' : 'sap_general'),
       provider: existingSkill?.runtime?.provider || '',
       model: existingSkill?.runtime?.model || '',
-      temperature: existingSkill?.runtime?.temperature ?? 0.7,
-      max_tokens: existingSkill?.runtime?.max_tokens ?? 2048,
+      temperature: existingSkill?.runtime?.temperature ?? '',
+      max_tokens: existingSkill?.runtime?.max_tokens ?? '',
       skill_prompt: existingSkill?.prompts?.skill_prompt || '',
       collections: existingSkill?.collections || [],
       tools: existingSkill?.tools?.filter((t) => t.tool_id) || [],
@@ -178,7 +179,7 @@ export const useSkillEditor = (skillId?: string) => {
 
   const handleSave = form.handleSubmit(async (values) => {
     // Check for unique default skill constraint
-    if (values.is_fallback) {
+    if (values.is_fallback && values.category !== 'sap_faq_expansion') {
       const existingFallback = orchestration.intent_router?.fallback_skill_id;
       if (existingFallback && existingFallback !== skillId) {
         toast.error(page_bot('only_one_fallback_skill_error'));

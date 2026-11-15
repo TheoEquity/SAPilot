@@ -109,6 +109,51 @@ export const SkillBasicFields = ({ form }: { form: SkillEditorForm }) => {
 
         <FormField
           control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{page_bot('skill_category')}</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value || undefined}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={page_bot('skill_category_unclassified')}
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="sap_general">
+                    {page_bot('skill_category_general')}
+                  </SelectItem>
+                  <SelectItem value="sap_faq">
+                    {page_bot('skill_category_faq')}
+                  </SelectItem>
+                  <SelectItem value="sap_faq_expansion">
+                    {page_bot('skill_category_faq_expansion')}
+                  </SelectItem>
+                  <SelectItem value="sap_code">
+                    {page_bot('skill_category_code')}
+                  </SelectItem>
+                  <SelectItem value="sap_policy">
+                    {page_bot('skill_category_policy')}
+                  </SelectItem>
+                  <SelectItem value="sap_technical">
+                    {page_bot('skill_category_technical')}
+                  </SelectItem>
+                  <SelectItem value="sap_tcode">
+                    {page_bot('skill_category_tcode')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="enabled"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -137,6 +182,7 @@ export const SkillBasicFields = ({ form }: { form: SkillEditorForm }) => {
                 <Switch
                   checked={field.value}
                   onCheckedChange={field.onChange}
+                  disabled={form.watch('category') === 'sap_faq_expansion'}
                 />
               </FormControl>
             </FormItem>

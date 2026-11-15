@@ -30,7 +30,7 @@ from aperag.agent import (
 )
 from aperag.agent.agent_event_listener import agent_event_listener
 from aperag.agent.exceptions import AgentConfigurationError, JSONParsingError, handle_agent_error, safe_json_parse
-from aperag.agent.response_types import AgentErrorResponse, AgentToolCallResultResponse
+from aperag.agent.response_types import AgentErrorResponse
 from aperag.schema import view_models
 from aperag.service.prompt_template_service import prompt_template_service
 from aperag.trace import add_trace_attributes, trace_async_function
@@ -306,15 +306,15 @@ class AgentChatWebSocket:
                 return
 
             # Handle history saving at WebSocket layer (better separation of concerns)
-            # process_result now contains {query, content, references} on success
             query = process_result.get("query", "")
             ai_response = process_result.get("content", "")
             references = process_result.get("references", "")
-            tool_use_list = consumer_result
+            tool_use_list, skill_id = consumer_result
             await self.chat_service._save_conversation_history(
                 chat_id, message_id, trace_id, query, ai_response, files, tool_use_list, references,
                 faq_choice=process_result.get("faq_choice"),
                 faq=process_result.get("faq"),
+                skill_id=skill_id,
             )
             logger.info(
                 "chat.message.completed",
@@ -397,16 +397,11 @@ class AgentChatWebSocket:
 
     async def _consume_messages_from_queue(
         self, message_queue: AgentMessageQueue, websocket: WebSocket
-    ) -> List[AgentToolCallResultResponse]:
-        """
-        Consume messages from queue, send to WebSocket, and collect AgentToolCallResultResponse messages.
-
-        This method runs as a separate task to avoid race conditions.
-        Returns a list of all AgentToolCallResultResponse messages.
-        """
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """Forward queued events and collect tool results and the reported skill for history."""
         try:
-            # Properly initialize list to collect AgentToolCallResultResponse messages
-            tool_call_results: List[Dict] = []
+            tool_call_results: list[dict[str, Any]] = []
+            skill_id = None
 
             while True:
                 # Get message from queue (blocks until message is available)
@@ -417,12 +412,14 @@ class AgentChatWebSocket:
                     logger.debug("Received end-of-stream signal from message queue")
                     break
 
-                # Collect AgentToolCallResultResponse messages
-                if isinstance(message, dict) and message.get("type") == "tool_call_result":
+                event_type = message.get("type")
+                if event_type == "tool_call_result":
                     tool_call_results.append(message)
+                elif event_type == "stop":
+                    skill_id = message.get("skill_id")
 
                 # Special handling for type="message" - stream it in chunks
-                if isinstance(message, dict) and message.get("type") == "message":
+                if event_type == "message":
                     await self._stream_message_content(message, websocket)
                     logger.debug(f"Streamed message content: {message.get('type', 'unknown')}")
                 else:
@@ -430,7 +427,7 @@ class AgentChatWebSocket:
                     await websocket.send_text(json.dumps(message))
                     logger.debug(f"Sent message to WebSocket: {message.get('type', 'unknown')}")
 
-            return tool_call_results
+            return tool_call_results, skill_id
 
         except WebSocketDisconnect:
             raise

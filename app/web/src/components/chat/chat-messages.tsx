@@ -4,12 +4,17 @@ import type { ChatDetails } from '@/api/generated/models';
 import { ReadyState } from 'ahooks/lib/useWebSocket';
 import { motion } from 'framer-motion';
 import _ from 'lodash';
+import useLocalStorageState from 'use-local-storage-state';
 import { ChatInput } from './chat-input';
 import { MessagePartsAi } from './message-parts-ai';
 import { MessagePartsUser } from './message-parts-user';
 import { useChatMessages } from './use-chat-messages';
 
 export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
+  const [webSearchEnabled, setWebSearchEnabled] = useLocalStorageState<boolean>(
+    'web-search-enabled',
+    { defaultValue: false },
+  );
   const {
     messages,
     loading,
@@ -51,7 +56,9 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
                 loading={isLoading}
                 parts={safeParts}
                 hanldeMessageFeedback={hanldeMessageFeedback}
-                onFaqChoice={handleFaqChoice}
+                onFaqChoice={(action, label, turnId) =>
+                  handleFaqChoice(action, label, turnId, webSearchEnabled)
+                }
               />
             ) : (
               <MessagePartsUser parts={safeParts} />
@@ -65,6 +72,8 @@ export const ChatMessages = ({ chat }: { chat: ChatDetails }) => {
         onSubmit={handleSendMessage}
         disabled={readyState !== ReadyState.Open}
         loading={loading}
+        webSearchEnabled={webSearchEnabled}
+        onWebSearchChange={setWebSearchEnabled}
         onCancel={handleCancel}
       />
     </div>

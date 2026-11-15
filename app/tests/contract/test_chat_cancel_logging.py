@@ -190,6 +190,7 @@ def test_completed_or_failed_generation_preserves_history_and_error_boundary(bou
                 if failure == "consumer":
                     await asyncio.Event().wait()
                 await queue.put({"type": "message", "data": "ok"})
+                await queue.put({"type": "stop", "data": [], "skill_id": "code_suggestions"})
                 return {"query": "question", "content": "ok", "references": []}
             finally:
                 stopped.set()
@@ -221,8 +222,9 @@ def test_completed_or_failed_generation_preserves_history_and_error_boundary(bou
                 ]
                 service.chat_service._save_conversation_history.assert_not_awaited()
             else:
-                assert [frame["data"] for frame in frames] == ["ok"]
+                assert [frame["data"] for frame in frames] == ["ok", []]
                 service.chat_service._save_conversation_history.assert_awaited_once()
+                assert service.chat_service._save_conversation_history.await_args.kwargs["skill_id"] == frames[1]["skill_id"]
             boundary.listener.unregister_listener.assert_awaited_once_with("existing-trace")
         finally:
             task.cancel()

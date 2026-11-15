@@ -12,10 +12,17 @@ export const skillSchema = z.object({
   enabled: z.boolean(),
   is_fallback: z.boolean(),
   type: z.enum(['llm', 'tool', 'workflow', 'hybrid']),
+  category: z.string().optional(),
   provider: z.string(),
   model: z.string(),
-  temperature: z.coerce.number().min(0).max(2),
-  max_tokens: z.coerce.number().min(1),
+  temperature: z.preprocess(
+    (value) => (value === '' || value === null ? undefined : value),
+    z.coerce.number().min(0).max(2).optional(),
+  ),
+  max_tokens: z.preprocess(
+    (value) => (value === '' || value === null ? undefined : value),
+    z.coerce.number().int().min(1).optional(),
+  ),
   skill_prompt: z.string(),
   collections: z.array(z.object({ id: z.string() })).optional(),
   tools: z
@@ -26,6 +33,9 @@ export const skillSchema = z.object({
 export type SkillEditorFormValues = z.output<typeof skillSchema>;
 
 export type SkillEditorFormInput = z.input<typeof skillSchema>;
+
+export const isRoutableSkill = (skill: OrchestrationSkill) =>
+  Boolean(skill.id && skill.name && skill.category !== 'sap_faq_expansion');
 
 const dedupeSkillsById = <T extends { id?: string }>(skills: T[]) => {
   const skillMap = new Map<string, T>();
@@ -55,6 +65,13 @@ export const buildSkillOrchestration = ({
   deduplicateSkills: boolean;
   updatedAt: string;
 }): OrchestrationConfig => {
+  const runtime = {
+    ...existingSkill?.runtime,
+    provider: values.provider || undefined,
+    model: values.model || undefined,
+    temperature: values.temperature,
+    max_tokens: values.max_tokens,
+  };
   const nextSkill: OrchestrationSkill = {
     ...existingSkill,
     id: values.id,
@@ -62,13 +79,12 @@ export const buildSkillOrchestration = ({
     description: values.description,
     enabled: values.enabled,
     type: values.type,
-    runtime: {
-      ...existingSkill?.runtime,
-      provider: values.provider,
-      model: values.model,
-      temperature: values.temperature,
-      max_tokens: values.max_tokens,
-    },
+    category: values.category || existingSkill?.category || null,
+    runtime: Object.values(runtime).some(
+      (value) => value !== undefined && value !== null && value !== '',
+    )
+      ? runtime
+      : null,
     prompts: {
       ...existingSkill?.prompts,
       skill_prompt: values.skill_prompt,
@@ -102,7 +118,7 @@ export const buildSkillOrchestration = ({
     : updatedSkills;
 
   const nextCandidateSkills = nextSkills
-    .filter((skill) => skill.id && skill.name)
+    .filter(isRoutableSkill)
     .map((skill) => {
       const existingCandidate =
         orchestration.intent_router?.candidate_skills?.find(
@@ -119,11 +135,12 @@ export const buildSkillOrchestration = ({
     });
 
   const currentFallback = orchestration.intent_router?.fallback_skill_id || '';
-  const nextFallbackSkillId = values.is_fallback
-    ? values.id
-    : currentFallback === skillId
-      ? ''
-      : currentFallback;
+  const nextFallbackSkillId =
+    values.is_fallback && values.category !== 'sap_faq_expansion'
+      ? values.id
+      : currentFallback === skillId
+        ? ''
+        : currentFallback;
 
   return {
     ...orchestration,

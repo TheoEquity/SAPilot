@@ -62,6 +62,10 @@ class StoredChatMessage(BaseModel):
         """Convert parts to frontend ChatMessage format"""
         frontend_messages = []
         for part in self.parts:
+            skill_id = None
+            if part.role == "ai" and part.type == "message" and part.metadata:
+                faq = part.metadata.get("faq") or {}
+                skill_id = part.metadata.get("skill_id") or faq.get("skill_id")
             chatMessage = ChatMessage(
                 id=part.message_id,
                 part_id=part.part_id,
@@ -73,6 +77,7 @@ class StoredChatMessage(BaseModel):
                 urls=part.urls if part.urls else None,
                 feedback=part.feedback,
                 files=self.files,
+                skill_id=skill_id,
             )
             frontend_messages.append(chatMessage)
         return frontend_messages

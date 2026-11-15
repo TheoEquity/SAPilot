@@ -16,7 +16,6 @@ class PendingFaqChoice:
     turn_id: str
     query: str
     answer: str
-    web_search_enabled: bool
 
 
 def _key(user: str, chat_id: str) -> str:
@@ -73,4 +72,7 @@ async def consume_faq_choice(user: str, chat_id: str, turn_id: str | None) -> Pe
         key,
         turn_id,
     )
-    return PendingFaqChoice(**json.loads(value)) if value else None
+    if not value:
+        return None
+    saved = json.loads(value)
+    return PendingFaqChoice(turn_id=saved["turn_id"], query=saved["query"], answer=saved["answer"])
