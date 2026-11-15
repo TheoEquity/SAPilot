@@ -36,6 +36,7 @@ from datasets import Dataset
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from ragas import evaluate
 from ragas.metrics import (
+    FactualCorrectness,
     answer_correctness,
     answer_relevancy,
     context_precision,
@@ -415,7 +416,7 @@ class EvaluationRunner:
             # If no contexts extracted from raw_context_data, try the context string
             if not contexts_list:
                 context_str = result.get("context", "")
-                if context_str and context_str.strip():
+                if isinstance(context_str, str) and context_str.strip():
                     try:
                         # Try to parse context string as JSON
                         import json
@@ -451,6 +452,7 @@ class EvaluationRunner:
     def _get_metrics(self, metric_names: List[str]):
         """Get Ragas metric objects from names"""
         metric_map = {
+            "factual_correctness": FactualCorrectness(),
             "faithfulness": faithfulness,
             "answer_relevancy": answer_relevancy,
             "context_precision": context_precision,
@@ -459,7 +461,7 @@ class EvaluationRunner:
         }
 
         # Metrics that require embeddings
-        embedding_required_metrics = {"answer_relevancy", "context_precision", "context_recall"}
+        embedding_required_metrics = {"answer_relevancy", "answer_correctness"}
 
         metrics = []
         for name in metric_names:

@@ -2,6 +2,70 @@
 
 一个基于Ragas的RAG系统评估工具，支持对ApeRAG Bot进行全面的性能评测。
 
+## Langfuse 基线评测
+
+当前 Bot 使用 WebSocket 聊天。下方旧版 `run.py` 直接调用的
+`/v1/chat/completions` 在当前后端尚未实现；真实 Bot 基线使用新入口
+`python -m aperag.evaluation.baseline`，复用原有 Ragas 评分。
+
+从仓库根目录运行（Windows 虚拟环境的 Python 位于 `.venv/Scripts/python`）：
+
+```powershell
+python maintenance/langfuse/setup.py
+docker compose --env-file runtime/private/langfuse.env -f maintenance/langfuse/compose.yaml up -d
+python -m venv .venv
+.venv/Scripts/python -m pip install -r app/aperag/evaluation/requirements.txt
+$env:PYTHONPATH = "app"
+```
+
+Langfuse 地址为 <http://localhost:3300>。初始化账号及随机密码保存在
+`runtime/private/langfuse.env`，脚本重复执行不会覆盖密钥。
+服务使用独立网络和数据卷，不复用 SAPilot 的 PostgreSQL、Redis 或对象存储。
+本配置用于本地评测，没有提供生产高可用或备份方案。
+
+复制 `baseline.example.yaml` 为 `baseline.local.yaml`。在忽略的 `.env.local`
+文件中配置 `SAPILOT_SESSION`（当前登录的 session cookie）、`SAPILOT_BOT_ID`、
+`EVAL_LLM_BASE_URL`、`EVAL_LLM_API_KEY`、`EVAL_LLM_MODEL`、
+`SAPILOT_RUNTIME_REVISION`（实际服务镜像或 commit）和
+`SAPILOT_KNOWLEDGE_VERSION`（本次知识库/索引快照标识）。只使用获批模型服务；
+不配置评委时不会自动选用公共模型。也可以在配置中使用环境变量提供
+`api.username` / `api.password`，由脚本登录获取 cookie。
+
+```powershell
+.venv/Scripts/python -m aperag.evaluation.baseline --config app/aperag/evaluation/baseline.local.yaml --env-file runtime/private/langfuse.env --env-file app/aperag/evaluation/.env.local
+```
+
+测试集为 JSON 数组，每题具有唯一 `id`、`question`、`answer`、`scenario` 和
+`expected_action`（`answer` / `clarify` / `refuse`）。示例见
+`datasets/integration-smoke.json`，仅供接入验证。重复问题可以使用不同 ID。
+正式测试集需根据原文标注并由业务人员复核。业务资料可放入忽略的
+`*.local.json`，无需提交到 Git。
+
+每次运行按文件 SHA-256 建立独立版本的 Langfuse 测试集，记录评分标准版本、
+实际服务版本、Bot 配置摘要、知识版本及评委模型。每题使用新会话，保留失败和超时；
+明细先写本地，再提交 Langfuse。脚本回读全部用例和评分，超时或缺失会失败，
+不会仅凭“上传成功”宣称完成。结果保存在 `app/aperag/evaluation/reports/`。
+若服务端已经收到数据而回读失败，可使用 `--verify-report <baseline.json路径>`
+替代 `--config` 重试校验，沿用相同的 `--env-file` 参数；不会再次调用 Bot 或评委。
+恢复记录保留原评分版本、原失败历史和新校验版本。
+
+评分口径：
+
+- `request_success` 与全量请求失败率独立于回答质量；报错、空回答和超时进入分母。
+- `ragas_factual_correctness` 对照参考答案评估事实；评委仍需人工校准。
+- `ragas_cited_*` 仅以最终引用文本作上下文，不代表完整模型上下文。无证据、NaN 或
+  评委报错显示为不可用并说明原因，不替换为零或跳过整个用例。
+- 澄清/拒答用例保留人工复核状态，不自动按错误回答打分。
+- 可选 `retrieval_probe` 独立调用知识库检索接口。用例需标注
+  `relevant_document_ids`；可逐题指定 `collection_id`。
+  `probe_document_recall_at_1/3/5` 和 `probe_document_mrr_at_5` 按文档去重后计算，
+  **不是 Agent 实际检索成绩**。最终引用经过筛选，不能反推真实排序。
+- 当前不计算总任务通过率或自动设置验收阈值；整体任务通过及严重违规仍需按明确的
+  逐题条件复核。本入口也不替代摄取结构、图文关系、权限隔离和多轮专项测试。
+
+离线部署需预先导入固定版本镜像、Python 包和模型资源。Ragas 遥测在此入口关闭；
+Langfuse 自部署不代表配置的模型也自动变为离线模型。
+
 ## 🚀 快速开始
 
 ### 1. 配置评估环境
