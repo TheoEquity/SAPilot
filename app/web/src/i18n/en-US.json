@@ -441,6 +441,7 @@
     "hello_world": "Hi, I'm SAPilot.",
     "rag_description": "SAPilot is an intelligent assistant for SAP operations, helping consultants diagnose issues, analyze causes, and provide resolution suggestions based on enterprise knowledge and operational experience.",
     "mention_a_collection": "Type @ to mention a collection...",
+    "auto_select_collection": "Ask a question; the relevant knowledge base is selected automatically...",
     "upload_code": "Upload a UTF-8 ABAP or Java source file",
     "invalid_attachment": "Check the file type, size, and encoding.",
     "source_code_size_limit": "ABAP or Java source files must be nonempty and at most 48 KiB.",
