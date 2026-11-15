@@ -7,6 +7,7 @@ this suite does not execute the third-party SDK or make HTTP calls.
 
 import ast
 import asyncio
+import json
 import logging
 import os
 import re
@@ -22,6 +23,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from aperag.exceptions import BusinessException, ErrorCode  # noqa: E402
+from aperag.logging import JsonFormatter  # noqa: E402
 from aperag.schema import skill_flow  # noqa: E402
 from aperag.schema import view_models as models  # noqa: E402
 
@@ -702,7 +704,8 @@ def test_skill_flow_condition_decision(skill_flow_rules, operator, expected, out
 
 
 @pytest.mark.parametrize(("found", "target"), [(True, "hit"), (False, "miss")])
-def test_skill_flow_executes_selected_branch(skill_flow_rules, found, target):
+def test_skill_flow_executes_selected_branch(skill_flow_rules, found, target, caplog):
+    caplog.set_level(logging.INFO)
     action = AsyncMock(side_effect=[
         {"outputs": {"found": found}, "text": "first answer", "references": [{"text": "first source"}]},
         {"text": "branch answer", "references": [{"text": "branch source"}]},
@@ -738,6 +741,13 @@ def test_skill_flow_executes_selected_branch(skill_flow_rules, found, target):
     ))
     assert [call.kwargs["node"].id for call in action.await_args_list] == ["search", target]
     assert result == ("branch answer", [{"text": "branch source"}])
+
+    record = next(record for record in caplog.records if record.msg == "chat.skill.flow.executed")
+    event = json.loads(JsonFormatter().format(record))
+    assert event["chat_id"] == "chat"
+    assert event["skill_id"] == "test"
+    assert event["node_path"] == ["search", "decision", target]
+    assert event["branches"] == [{"node_id": "decision", "decision": "yes" if found else "no"}]
 
 
 @pytest.mark.parametrize("bound_tools", [[], ["search_chat_files"]])

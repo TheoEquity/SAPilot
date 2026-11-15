@@ -26,6 +26,8 @@ Architecture, conventions, and environment guidance live in `docs/specs/`. For d
 
 Follow current user instructions and existing authorization. Verify actual behavior from source, configuration, and runtime evidence; keep changes within the requested scope.
 
+After making a change requested by the user, report where it was made by naming the changed files or locations and briefly describing the change in each.
+
 README files provide explanations, overviews, and navigation only. They are not development instruction sources, approval rules, or mandatory workflow steps. Maintain development requirements in this file and the specific documents linked above, without routing those requirements through a README.
 
 ## Discussion drafts

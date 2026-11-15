@@ -136,6 +136,26 @@ class JsonFormatter(logging.Formatter):
                         result[key] = value
                 elif _identifier.fullmatch(value):
                     result[key] = value
+        if result["event"] == "chat.skill.flow.executed":
+            skill_id = data.get("skill_id")
+            if isinstance(skill_id, str) and _identifier.fullmatch(skill_id):
+                result["skill_id"] = skill_id
+            node_path = data.get("node_path")
+            if isinstance(node_path, list):
+                result["node_path"] = [
+                    node_id if isinstance(node_id, str) and _identifier.fullmatch(node_id) else None
+                    for node_id in node_path[:50]
+                ]
+            branches = data.get("branches")
+            if isinstance(branches, list):
+                result["branches"] = [
+                    {"node_id": branch["node_id"], "decision": branch["decision"]}
+                    for branch in branches[:50]
+                    if isinstance(branch, dict)
+                    and isinstance(branch.get("node_id"), str)
+                    and _identifier.fullmatch(branch["node_id"])
+                    and branch.get("decision") in ("yes", "no")
+                ]
         if record.exc_info and record.exc_info[1] is not None:
             result["error_type"] = type(record.exc_info[1]).__name__
             result["error_chain"] = _error_chain(record.exc_info[1])

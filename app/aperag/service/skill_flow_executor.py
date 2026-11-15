@@ -186,7 +186,8 @@ async def execute_skill_flow(
         current_node_id = skill_config.flow.nodes[0].id
 
     node_results: dict[str, dict[str, Any]] = {}
-    branch_trace: list[str] = []
+    node_path: list[str] = []
+    branch_trace: list[dict[str, str]] = []
     final_text = ""
     final_references: list[dict[str, Any]] = []
     scoped_references: list[dict[str, Any]] = []
@@ -200,6 +201,7 @@ async def execute_skill_flow(
             logger.warning("Detected flow loop at node %s for skill %s", current_node_id, skill_id)
             break
         visited_node_ids.add(current_node_id)
+        node_path.append(current_node_id)
 
         node = nodes_by_id[current_node_id]
         outgoing = outgoing_edges.get(current_node_id, [])
@@ -260,7 +262,7 @@ async def execute_skill_flow(
             next_edge = outgoing[0] if outgoing else None
         elif node.type == "condition":
             decision = evaluate_condition_node(node, node_results)
-            branch_trace.append(f"{node.id}:{decision}")
+            branch_trace.append({"node_id": node.id, "decision": decision})
             next_edge = next((edge for edge in outgoing if (edge.sourceHandle or "") == decision), None)
             if not next_edge:
                 next_edge = outgoing[0] if outgoing else None
@@ -274,9 +276,7 @@ async def execute_skill_flow(
         current_node_id = next_edge.target if next_edge else None
 
     logger.info(
-        "Skill %s flow executed: visited=%s branches=(%s)",
-        skill_id,
-        ", ".join(sorted(visited_node_ids)) if visited_node_ids else "none",
-        ", ".join(branch_trace) if branch_trace else "none",
+        "chat.skill.flow.executed",
+        extra={"chat_id": chat_id, "skill_id": skill_id, "node_path": node_path, "branches": branch_trace},
     )
     return final_text, scoped_references if tool_scope is not None else final_references
