@@ -140,15 +140,6 @@ DEFAULT_AGENT_QUERY_PROMPT = """{% set collection_list = [] %}
 {% set web_instruction = "Use web search strategically for current information, verification, or gap-filling" if web_search_enabled else "Rely entirely on knowledge collections; inform user if web search would be helpful" %}
 {% set chat_context = "Chat ID: " + chat_id if chat_id else "No chat files" %}
 {% set chat_instruction = "ONLY use search_chat_files tool when searching files that user explicitly uploaded in THIS chat. Do NOT use it for general knowledge base queries." if chat_id else "" %}
-{% set has_image_files = false %}
-{% if files %}
-{% for file in files %}
-{% if file.name and (file.name.endswith('.png') or file.name.endswith('.jpg') or file.name.endswith('.jpeg') or file.name.endswith('.webp') or file.name.endswith('.gif')) %}
-{% set has_image_files = true %}
-{% break %}
-{% endif %}
-{% endfor %}
-{% endif %}
 
 **User Query**: {{ query }}
 
@@ -206,6 +197,7 @@ def build_agent_query_prompt(
         - chat_id: Chat ID string (may be None)
         - language: Language code
         - is_search_confirmed: Boolean indicating user confirmed web search
+        - has_image_files: Whether this request includes an image attachment
     """
     # Create Jinja2 template
     jinja_template = Template(template)
@@ -218,6 +210,10 @@ def build_agent_query_prompt(
         "chat_id": chat_id,
         "language": agent_message.language,
         "is_search_confirmed": is_search_confirmed,
+        "has_image_files": any(
+            (file.name or "").lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"))
+            for file in agent_message.files or []
+        ),
     }
 
     # Render template

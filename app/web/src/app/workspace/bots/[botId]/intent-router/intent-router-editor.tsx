@@ -44,6 +44,7 @@ import { FlowCanvasEditor } from '../flow-canvas-editor';
 import { FlowJsonEditor } from '../flow-json-editor';
 import { normalizeFlowSchema } from '../flow-utils';
 import { IntentRouterRule } from '../orchestration-types';
+import { isRoutableSkill } from '../skills/skill-config';
 
 const intentRouterSchema = z.object({
   name: z.string().min(1),
@@ -76,10 +77,7 @@ export const IntentRouterEditor = () => {
     return Array.from(skillMap.values());
   }, [orchestration.skills]);
 
-  const skillOptions = useMemo(
-    () => skills.filter((skill) => skill.id && skill.name),
-    [skills],
-  );
+  const skillOptions = useMemo(() => skills.filter(isRoutableSkill), [skills]);
 
   const getRulePlaceholder = useCallback(
     (ruleType: string): string => {

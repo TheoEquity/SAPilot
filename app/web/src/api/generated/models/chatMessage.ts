@@ -21,6 +21,7 @@ export interface ChatMessage {
   part_id?: string | null;
   references?: Reference[] | null;
   role?: ChatMessageRole;
+  skill_id?: string | null;
   timestamp?: number | null;
   type?: ChatMessageType;
   urls?: string[] | null;

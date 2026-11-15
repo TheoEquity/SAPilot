@@ -31,7 +31,6 @@ import { defaultStyles, FileIcon } from 'react-file-icon';
 import { BiSolidRightArrow } from 'react-icons/bi';
 import { PiStopFill } from 'react-icons/pi';
 import { toast } from 'sonner';
-import useLocalStorageState from 'use-local-storage-state';
 import { useChatAttachments } from './use-chat-attachments';
 
 export type ChatInputSubmitParams = {
@@ -59,6 +58,8 @@ export const ChatInput = ({
   welcome,
   loading,
   disabled,
+  webSearchEnabled,
+  onWebSearchChange,
   onSubmit,
   onCancel,
 }: {
@@ -66,6 +67,8 @@ export const ChatInput = ({
   welcome: boolean;
   loading: boolean;
   disabled: boolean;
+  webSearchEnabled: boolean;
+  onWebSearchChange: (enabled: boolean) => void;
   onSubmit: (params: ChatInputSubmitParams) => void;
   onCancel: () => void;
 }) => {
@@ -77,6 +80,9 @@ export const ChatInput = ({
   const codeAgent =
     activeSkills.length > 0 &&
     activeSkills.every((skill) => skill.category === 'sap_code');
+  const acceptsCode = activeSkills.some(
+    (skill) => skill.category === 'sap_code',
+  );
   const [isComposing, setIsComposing] = useState<boolean>(false);
   const { open, isMobile } = useSidebar();
   const { collections } = useBotContext();
@@ -89,12 +95,6 @@ export const ChatInput = ({
     bot?.config?.agent?.welcome_title || page_chat('hello_world');
   const welcomeSubtitle =
     bot?.config?.agent?.welcome_subtitle || page_chat('rag_description');
-  const [webSearchEnabled, setWebSearchEnabled] = useLocalStorageState<boolean>(
-    'web-search-enabled',
-    {
-      defaultValue: false,
-    },
-  );
   const {
     attachments,
     setAttachments,
@@ -104,6 +104,19 @@ export const ChatInput = ({
     handlePaste,
     handleFilesChange,
   } = useChatAttachments(chat);
+
+  const validateAttachment = useCallback(
+    (file: File) => {
+      if (
+        /\.(abap|java)$/i.test(file.name) &&
+        (file.size === 0 || file.size > 48 * 1024)
+      ) {
+        return page_chat('source_code_size_limit');
+      }
+      return onFileValidate(file);
+    },
+    [onFileValidate, page_chat],
+  );
 
   const handleSendMessage = useCallback(() => {
     const _query = _.trim(query);
@@ -326,11 +339,12 @@ export const ChatInput = ({
                   accept={
                     codeAgent
                       ? '.abap,.java'
-                      : '.pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.webp'
+                      : '.pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.webp' +
+                        (acceptsCode ? ',.abap,.java' : '')
                   }
                   value={attachments.map((f) => f.file)}
                   onFileReject={onFileReject}
-                  onFileValidate={onFileValidate}
+                  onFileValidate={validateAttachment}
                   onValueChange={handleFilesChange}
                 >
                   <Tooltip>
@@ -365,7 +379,7 @@ export const ChatInput = ({
                               ? page_chat('web_search_is_enabled')
                               : page_chat('web_search_is_disabled'),
                           );
-                          setWebSearchEnabled(enabled);
+                          onWebSearchChange(enabled);
                         }}
                         aria-label={page_chat('web_search')}
                         className={cn('relative cursor-pointer')}

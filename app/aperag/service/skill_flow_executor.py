@@ -213,7 +213,14 @@ async def execute_skill_flow(
                 enabled_tools.intersection_update(tool_scope.tools)
                 node_llm = llm.for_tool_scope(SkillToolScope(frozenset(enabled_tools), tool_scope.collections))
             else:
-                node_llm = llm
+                collection_ids = frozenset(
+                    collection.id for collection in (getattr(skill_config, "collections", None) or [])
+                    if getattr(collection, "id", None)
+                )
+                node_llm = (
+                    llm.for_tool_scope(SkillToolScope(frozenset(enabled_tools), collection_ids))
+                    if llm else None
+                )
 
             request_params = RequestParams(
                 systemPrompt=effective_system_prompt,
@@ -224,7 +231,7 @@ async def execute_skill_flow(
                 parallel_tool_calls=True,
                 temperature=temperature,
                 user=user,
-                tool_filter={"aperag": enabled_tools} if enabled_tools or tool_scope is not None else None,
+                tool_filter={"aperag": enabled_tools, "*": set(), "non_namespaced_tools": set()},
             )
 
             node_result = await _execute_action_node(

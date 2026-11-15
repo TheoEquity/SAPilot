@@ -743,6 +743,7 @@ class ChatMessage(BaseModel):
     feedback: Optional[Feedback] = None
     files: Optional[list[File]] = None
     options: Optional[list[dict]] = None
+    skill_id: Optional[str] = None
 
 
 class ChatDetails(BaseModel):

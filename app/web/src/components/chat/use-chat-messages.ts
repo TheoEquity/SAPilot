@@ -215,7 +215,12 @@ export const useChatMessages = (chat: ChatDetails) => {
   );
 
   const handleFaqChoice = useCallback(
-    (action: string, label: string, turnId: string) => {
+    (
+      action: string,
+      label: string,
+      turnId: string,
+      webSearchEnabled: boolean,
+    ) => {
       const timestamp = Math.floor(new Date().getTime() / 1000);
       const part: ChatMessage = {
         type: 'message',
@@ -236,7 +241,7 @@ export const useChatMessages = (chat: ChatDetails) => {
             faq_turn_id: turnId,
             collections: [],
             completion: null,
-            web_search_enabled: false,
+            web_search_enabled: action === 'faq_expand' && webSearchEnabled,
             language: locale,
             files: [],
           }),

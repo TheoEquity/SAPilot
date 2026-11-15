@@ -37,8 +37,8 @@ def _candidate(skill: models.SkillConfig) -> models.CandidateSkill:
     return models.CandidateSkill(skill_id=skill.id, label=skill.name, description=skill.description)
 
 
-def build_code_bot(completion: models.ModelSpec, intent: models.IntentRouterLLMConfig) -> models.BotCreate:
-    skills = [
+def _code_skills() -> list[models.SkillConfig]:
+    return [
         _skill(
             "code_explain", "代码解读", CODE_SCENARIO, "说明代码用途、输入输出和处理过程。按语言解释关键语句和分支。"
         ),
@@ -55,30 +55,6 @@ def build_code_bot(completion: models.ModelSpec, intent: models.IntentRouterLLMC
             "解释问题、建议的改法和影响。按需给出供用户审阅的示例，并标明需要用户验证的假设。",
         ),
     ]
-    return models.BotCreate(
-        title="代码分析 Agent",
-        type="agent",
-        description="分析 ABAP 与 Java 代码",
-        config=models.BotConfig(
-            agent=models.Agent(
-                completion=completion,
-                welcome_title="代码分析 Agent",
-                welcome_subtitle="粘贴或上传 ABAP、Java 代码，选择解读、规范检查或修改建议。",
-                collections=[],
-            ),
-            orchestration=models.OrchestrationConfig(
-                skills=skills,
-                intent_router=models.IntentRouterConfig(
-                    id="code_router",
-                    name="代码任务识别",
-                    llm=intent,
-                    prompt_template="按用户要做的代码任务分类。只有代码或请求解释时选择代码解读。\n{{skills}}\n{{query}}",
-                    fallback_skill_id=skills[0].id,
-                    candidate_skills=[_candidate(skill) for skill in skills],
-                ),
-            ),
-        ),
-    )
 
 
 def configure_knowledge_bot(
@@ -130,10 +106,23 @@ def configure_knowledge_bot(
         "已给出完整事务码时查询其用途，按操作目的询问可用事务码时倒查多个条目。",
         collections=[tcode_collection_id],
     )
-    replaced = {expansion.id, tcode.id, retired_code_skill_id}
-    orchestration.skills = [skill for skill in orchestration.skills if skill.id not in replaced] + [expansion, tcode]
+    code_skills = _code_skills()
+    replaced = {expansion.id, tcode.id, retired_code_skill_id, *(skill.id for skill in code_skills)}
+    orchestration.skills = [skill for skill in orchestration.skills if skill.id not in replaced] + [
+        expansion, tcode, *code_skills,
+    ]
     router.candidate_skills = [candidate for candidate in router.candidate_skills if candidate.skill_id not in replaced]
-    router.candidate_skills.append(_candidate(tcode))
+    router.candidate_skills.extend(_candidate(skill) for skill in [tcode, *code_skills])
+    router.prompt_template = router.prompt_template.replace(retired_code_skill_id, "code_explain")
+    router.prompt_template = router.prompt_template.replace(
+        "检查某段代码是否符合指定规范 -> code_explain", "检查某段代码是否符合指定规范 -> code_standards"
+    )
+    code_routing = (
+        "ABAP 和 Java：解释具体代码或源码文件选 code_explain，检查给出的代码选 code_standards，"
+        "要求给出改法或修改建议选 code_suggestions。查询制度条款仍选运维规章制度检索。"
+    )
+    if code_routing not in router.prompt_template:
+        router.prompt_template += "\n" + code_routing
     if "事务码" not in router.prompt_template:
         router.prompt_template += "\n查询完整事务码用途或按操作目的找事务码时，选择事务码查询。"
     router.rules = [rule for rule in router.rules if rule.target_skill_id not in replaced]
@@ -144,4 +133,11 @@ def configure_knowledge_bot(
         fallback.category = GENERAL_SCENARIO
         fallback.prompts = models.SkillPrompts()
         fallback.flow = _skill(fallback.id, fallback.name, GENERAL_SCENARIO, "").flow
+        greeting = models.IntentRouterRule(
+            rule_type="regex", target_skill_id=fallback.id,
+            value=r"^\s*(?:你好|您好|早上好|下午好|晚上好|你是谁|你能做什么|hello|hi|hey|who are you)[\s！!。？?]*$",
+        )
+        if greeting not in router.rules:
+            router.rules.insert(0, greeting)
+        router.mode = "rules+llm"
     return updated

@@ -329,7 +329,6 @@ class AgentChatService:
                     "query": choice.query,
                     "collections": [],
                     "files": [],
-                    "web_search_enabled": choice.web_search_enabled,
                 })
                 result = await self._execute_skill(
                     expansion_skill.id, message, user, chat_id, message_id, message_queue,
@@ -451,6 +450,17 @@ class AgentChatService:
                     break
 
             routing_message = merged_agent_message
+            if not code_agent and merged_agent_message.files and any(
+                skill.enabled and skill.category == CODE_SCENARIO for skill in orchestration.skills
+            ):
+                code_files = [
+                    file.name for file in merged_agent_message.files
+                    if (file.name or "").lower().endswith((".abap", ".java"))
+                ]
+                if code_files:
+                    routing_message = merged_agent_message.model_copy(update={
+                        "query": f"{merged_agent_message.query}\n本轮附有 ABAP 或 Java 源文件。",
+                    })
             image_observations = ""
             if not code_agent and merged_agent_message.files and self._has_image_files(merged_agent_message.files):
                 from aperag.service.visual_context_service import describe_chat_images
@@ -458,6 +468,7 @@ class AgentChatService:
                 image_observations = await describe_chat_images(
                     user, chat_id, merged_agent_message.files, merged_agent_message.completion,
                     merged_agent_message.query,
+                    **({"allow_chat_vision_fallback": True} if faq_skills else {}),
                 )
                 routing_message = merged_agent_message.model_copy(update={
                     'query': f'{merged_agent_message.query}\n\n{image_observations}',
@@ -1120,7 +1131,7 @@ class AgentChatService:
         await queue.put(format_stream_content(message_id, content))
         faq_choice = None
         if offer_expansion:
-            choice = PendingFaqChoice(message_id, message.query, content, bool(message.web_search_enabled))
+            choice = PendingFaqChoice(message_id, message.query, content)
             if await offer_faq_choice(user, chat_id, choice):
                 faq_choice = FAQ_CHOICE_LABEL
                 await queue.put(AgentFaqChoiceResponse(
@@ -1662,6 +1673,7 @@ class AgentChatService:
         tool_references: List[Dict[str, Any]],
         faq_choice: str | None = None,
         faq: dict[str, Any] | None = None,
+        skill_id: str | None = None,
     ) -> None:
         """
         Save conversation history from successful agent processing.
@@ -1674,6 +1686,12 @@ class AgentChatService:
             # Get history instance through history manager
             history = await self.history_manager.get_chat_history(chat_id)
 
+            metadata = {}
+            if faq:
+                metadata["faq"] = faq
+            if skill_id:
+                metadata["skill_id"] = skill_id
+
             # Save conversation turn with data from successful processing
             history_saved = await self.history_manager.save_conversation_turn(
                 message_id=message_id,
@@ -1685,7 +1703,7 @@ class AgentChatService:
                 tool_use_list=tool_use_list,
                 tool_references=tool_references,
                 faq_choice=faq_choice,
-                metadata={"faq": faq} if faq else None,
+                metadata=metadata or None,
             )
 
             if not history_saved:

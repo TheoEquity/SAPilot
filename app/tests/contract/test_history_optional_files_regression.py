@@ -10,6 +10,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from aperag.chat.history import message_to_storage_dict, storage_dict_to_message  # noqa: E402
+from aperag.chat.history.message import create_assistant_message  # noqa: E402
 from aperag.utils.history import RedisChatMessageHistory  # noqa: E402
 
 
@@ -45,3 +46,18 @@ def test_assistant_history_defaults_still_create_valid_message():
     assert stored.role == "ai" and stored.get_main_content() == "SAP answer"
     assert stored.files == [] and len(stored.parts) == 1
     assert stored.parts[0].references == [] and stored.parts[0].urls == []
+
+
+@pytest.mark.parametrize(
+    ("metadata", "skill_id"),
+    [
+        ({"skill_id": "code_suggestions"}, "code_suggestions"),
+        ({"faq": {"skill_id": "sap_faq"}}, "sap_faq"),
+        (None, None),
+    ],
+)
+def test_assistant_history_exposes_recorded_skill_after_reload(metadata, skill_id):
+    stored = create_assistant_message("Answer", "chat", "message", metadata=metadata)
+    restored = storage_dict_to_message(message_to_storage_dict(stored))
+    [answer] = restored.to_frontend_format()
+    assert answer.model_dump().get("skill_id") == skill_id

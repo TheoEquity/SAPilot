@@ -116,6 +116,7 @@ def harness(monkeypatch):
     manager = SimpleNamespace(get_or_create_session=AsyncMock(side_effect=manager_scope["get_or_create_session"]))
     scope = {
         "FAQ_ACTIONS": {"faq_expand", "faq_end"},
+        "consume_faq_choice": AsyncMock(),
         "FAQ_CORRECTION_ROUTE": "[FAQ_CORRECTION]",
         "FAQ_EXPANSION": "sap_faq_expansion",
         "is_code_orchestration": lambda orchestration: False,
@@ -201,6 +202,7 @@ def harness(monkeypatch):
         execute_skill=execute_skill,
         configuration_error=scope["AgentConfigurationError"],
         route=scope["route_intent"],
+        consume_faq_choice=scope["consume_faq_choice"],
     )
 
 
@@ -605,6 +607,33 @@ def test_faq_end_bypasses_router_configuration(harness):
     h.queue.close.assert_awaited_once()
 
 
+@pytest.mark.parametrize("enabled_at_confirmation", [False, True])
+def test_faq_expansion_uses_web_search_choice_from_confirmation(harness, enabled_at_confirmation):
+    h = harness
+    h.bot.orchestration.skills = [
+        models.SkillConfig(id="faq_followup", name="FAQ expansion", category="sap_faq_expansion"),
+    ]
+    h.message = h.message.model_copy(update={
+        "query": "是，专业扩展",
+        "action": "faq_expand",
+        "faq_turn_id": "original-turn",
+        "web_search_enabled": enabled_at_confirmation,
+    })
+    h.consume_faq_choice.return_value = SimpleNamespace(
+        query="Original SAP question", answer="FAQ answer", web_search_enabled=not enabled_at_confirmation,
+    )
+
+    run(h)
+
+    h.consume_faq_choice.assert_awaited_once_with("user-a", "chat-a", "original-turn")
+    args, kwargs = h.service._execute_skill.await_args
+    assert args[0] == "faq_followup"
+    assert args[1].query == "Original SAP question"
+    assert args[1].web_search_enabled is enabled_at_confirmation
+    assert "FAQ answer" in kwargs["source_context"]
+    h.llm.generate_str.assert_not_awaited()
+
+
 def test_whitespace_prompt_retains_original_default_and_authoritative_suffix(harness):
     h = harness
     h.router.prompt_template = "   "
@@ -709,3 +738,48 @@ def test_skill_flow_executes_selected_branch(skill_flow_rules, found, target):
     ))
     assert [call.kwargs["node"].id for call in action.await_args_list] == ["search", target]
     assert result == ("branch answer", [{"text": "branch source"}])
+
+
+@pytest.mark.parametrize("bound_tools", [[], ["search_chat_files"]])
+def test_unclassified_skill_exposes_only_explicitly_bound_tools(skill_flow_rules, bound_tools):
+    from collections import namedtuple
+
+    scope_type = namedtuple("Scope", "tools collections")
+    scoped_calls = []
+
+    class TestLLM:
+        history = None
+
+        def for_tool_scope(self, scope):
+            scoped_calls.append(scope)
+            return self
+
+    action = AsyncMock(return_value={"text": "answer", "references": []})
+    namespace = {
+        **skill_flow_rules,
+        "RequestParams": SimpleNamespace,
+        "SkillToolScope": scope_type,
+        "_execute_action_node": action,
+    }
+    execute_definitions("aperag/service/skill_flow_executor.py", {"execute_skill_flow"}, namespace)
+    flow = skill_flow.ReactFlowSchema(
+        version="1",
+        nodes=[skill_flow.ReactFlowNode(id="answer", type="action", position={}, data={})],
+    )
+    asyncio.run(namespace["execute_skill_flow"](
+        skill_config=SimpleNamespace(
+            flow=flow,
+            tools=[SimpleNamespace(tool_id=name, enabled=True) for name in bound_tools],
+            category=None,
+            collections=[],
+        ),
+        skill_id="custom", llm=TestLLM(), chat_id="chat",
+        agent_message=SimpleNamespace(files=[]), user="user", query_prompt="query",
+        effective_system_prompt="system", model_name="model", max_tokens=100,
+        temperature=0.1, build_node_output=None,
+    ))
+
+    assert scoped_calls[0].tools == frozenset(bound_tools)
+    assert action.await_args.kwargs["request_params"].tool_filter == {
+        "aperag": set(bound_tools), "*": set(), "non_namespaced_tools": set(),
+    }

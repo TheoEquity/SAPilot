@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException, UploadFile
 
-from aperag.agent.sap_scenarios import is_code_orchestration
+from aperag.agent.sap_scenarios import CODE_SCENARIO, is_code_orchestration
 from aperag.db.models import random_id
 from aperag.db.ops import async_db_ops
 from aperag.objectstore.base import get_async_object_store
@@ -61,14 +61,12 @@ class ChatDocumentService:
         bot = await self.db_ops.query_bot(user_id, chat.bot_id) if chat else None
         if not bot:
             raise HTTPException(status_code=404, detail="Chat not found")
-        code_agent = bool(
-            bot.config and is_code_orchestration(view_models.BotConfig.model_validate_json(bot.config).orchestration)
-        )
-        if code_agent and not source_code:
+        orchestration = view_models.BotConfig.model_validate_json(bot.config).orchestration if bot.config else None
+        if is_code_orchestration(orchestration) and not source_code:
             raise HTTPException(status_code=400, detail="The Code Agent accepts .abap or .java files")
         if source_code:
-            if not code_agent:
-                raise HTTPException(status_code=400, detail="Upload ABAP or Java files in the Code Agent")
+            if not orchestration or not any(s.enabled and s.category == CODE_SCENARIO for s in orchestration.skills):
+                raise HTTPException(status_code=400, detail="This Agent does not accept ABAP or Java files")
             try:
                 decode_source_code(await file.read(MAX_CODE_BYTES + 1))
             except ValueError as exc:
