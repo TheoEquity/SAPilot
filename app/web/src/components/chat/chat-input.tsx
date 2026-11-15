@@ -83,6 +83,10 @@ export const ChatInput = ({
   const acceptsCode = activeSkills.some(
     (skill) => skill.category === 'sap_code',
   );
+  const defaultAgent = bot?.is_default && bot.type === 'agent';
+  const canMentionCollections = Boolean(
+    bot && mention && !codeAgent && !defaultAgent,
+  );
   const [isComposing, setIsComposing] = useState<boolean>(false);
   const { open, isMobile } = useSidebar();
   const { collections } = useBotContext();
@@ -134,9 +138,11 @@ export const ChatInput = ({
 
     const data = {
       query: _query,
-      collections: collections.filter((c) =>
-        selectedCollections.some((id) => c.id === id),
-      ),
+      collections: canMentionCollections
+        ? collections.filter((c) =>
+            selectedCollections.some((id) => c.id === id),
+          )
+        : [],
       completion: null,
       web_search_enabled: webSearchEnabled,
       language: locale,
@@ -155,6 +161,7 @@ export const ChatInput = ({
     onSubmit(data);
   }, [
     attachments,
+    canMentionCollections,
     collections,
     isComposing,
     loading,
@@ -277,7 +284,7 @@ export const ChatInput = ({
 
           <Label>
             <Mention
-              trigger={mention && !codeAgent ? '@' : ''}
+              trigger={canMentionCollections ? '@' : ''}
               className="w-full"
               open={mentionOpen}
               onOpenChange={setMentionOpen}
@@ -299,35 +306,39 @@ export const ChatInput = ({
                   className="resize-none rounded-xl pb-20"
                   value={query}
                   placeholder={
-                    mention && !codeAgent
-                      ? page_chat('mention_a_collection')
-                      : ''
+                    defaultAgent
+                      ? page_chat('auto_select_collection')
+                      : canMentionCollections
+                        ? page_chat('mention_a_collection')
+                        : ''
                   }
                   disabled={disabled}
                   onPaste={codeAgent ? undefined : handlePaste}
                 />
               </MentionInput>
-              <MentionContent className="w-60">
-                {enabledCollections.length ? (
-                  enabledCollections.map((collection) => (
-                    <MentionItem
-                      key={collection.id}
-                      value={collection.id || ''}
-                      className="flex-col items-start gap-0.5"
-                      disabled={collection.status !== 'ACTIVE'}
-                    >
-                      <span className="text-sm">{collection.title}</span>
-                      <span className="text-muted-foreground text-xs">
-                        {collection.id}
-                      </span>
-                    </MentionItem>
-                  ))
-                ) : (
-                  <div className="text-muted-foreground p-4 text-center text-xs">
-                    {page_chat('no_collection_was_found')}
-                  </div>
-                )}
-              </MentionContent>
+              {canMentionCollections && (
+                <MentionContent className="w-60">
+                  {enabledCollections.length ? (
+                    enabledCollections.map((collection) => (
+                      <MentionItem
+                        key={collection.id}
+                        value={collection.id || ''}
+                        className="flex-col items-start gap-0.5"
+                        disabled={collection.status !== 'ACTIVE'}
+                      >
+                        <span className="text-sm">{collection.title}</span>
+                        <span className="text-muted-foreground text-xs">
+                          {collection.id}
+                        </span>
+                      </MentionItem>
+                    ))
+                  ) : (
+                    <div className="text-muted-foreground p-4 text-center text-xs">
+                      {page_chat('no_collection_was_found')}
+                    </div>
+                  )}
+                </MentionContent>
+              )}
             </Mention>
 
             <div className="absolute bottom-0 flex w-full flex-row items-center justify-between p-4">
